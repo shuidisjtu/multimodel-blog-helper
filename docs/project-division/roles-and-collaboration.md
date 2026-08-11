@@ -1,6 +1,6 @@
 # OpenAI 多模态博客助手：项目分工与协作执行文档
 
-> 版本：v1.0 ｜ 适用阶段：第 3、4 章能力已验证后的工程整合、测试与部署阶段 ｜ 更新：2026-08-11
+> 版本：v1.0 ｜ 适用阶段：第 3、4 章能力已验证后的工程整合、测试与交付阶段 ｜ 更新：2026-08-11
 
 ## 1. 目的与使用方式
 
@@ -10,16 +10,16 @@
 
 - 每项工作只有一个 **DRI（直接责任人）**；协作人可参与，但不替代验收责任。
 - 代码所有权按模块划分，跨模块改动须由相关 DRI 共同评审。
-- “完成”必须有可运行的验收证据：测试、接口结果、流水线记录、部署记录或演示截图/视频。
+- “完成”必须有可运行的验收证据：测试、接口结果、流水线记录、运行记录或演示截图/视频。
 - 遇到阻塞先记录风险，再决定升级、拆分或降级；不得以静默跳过门禁的方式“完成”。
 
 ## 2. 角色与责任边界
 
 | 成员 | 角色 | 直接责任（DRI） | 协作范围 | 不承担的最终责任 |
 | --- | --- | --- | --- | --- |
-| Zhang Yichao | 技术负责人 / AI 核心负责人 | 总体方案、架构 ADR、OpenAI SDK 与 Responses API 适配、音频转录、摘要、系统集成、技术文档 | 联调、核心测试、答辩技术材料 | CI/CD 平台和天气适配器的实现细节 |
-| Qiu Wenxi | DevOps 与质量负责人 | GitHub Actions、构建制品、部署预案（CD 部署为后期项，见架构文档 §10.2）、健康监测、运行告警、质量门禁、发布与回滚记录 | 错误处理、E2E、项目总结 | 模型提示词和天气数据语义 |
-| Luan Yumin | 服务端与外部工具负责人 | Express API、上传/文件存储、天气 API 适配、路由、输入校验、统一错误响应、接口测试 | 系统联调、功能测试 | 部署平台配置和 OpenAI 模型选择 |
+| Zhang Yichao | 技术负责人 / AI 核心负责人 | 总体方案、架构 ADR、OpenAI SDK 与 Responses API 适配、音频转录、摘要、系统集成、技术文档 | 联调、核心测试、答辩技术材料 | CI 平台和天气适配器的实现细节 |
+| Qiu Wenxi | DevOps 与质量负责人 | GitHub Actions、构建制品、CI 质量门禁、健康监测、运行告警 | 错误处理、E2E、项目总结 | 模型提示词和天气数据语义 |
+| Luan Yumin | 服务端与外部工具负责人 | Express API、上传/文件存储、天气 API 适配、路由、输入校验、统一错误响应、接口测试 | 系统联调、功能测试 | OpenAI 模型选择 |
 
 ## 3. 代码与文档所有权
 
@@ -30,7 +30,7 @@
 | `src/interfaces/http/`、`src/infrastructure/storage/` | Luan Yumin | Zhang Yichao | 路由、OpenAPI、上传校验、temp 文件仓储 |
 | `src/infrastructure/weather/` | Luan Yumin | Zhang Yichao | wttr.in 适配器、超时与降级 |
 | `src/shared/`（日志、错误、请求 ID） | Luan Yumin | Qiu Wenxi | 错误中间件、日志格式、请求追踪 |
-| `.github/workflows/`、部署配置、监控配置 | Qiu Wenxi | Zhang Yichao | CI、CD、制品、健康检查、回滚 |
+| `.github/workflows/`、监控配置 | Qiu Wenxi | Zhang Yichao | CI、制品、健康检查 |
 | `tests/` | 对应模块 DRI | Qiu Wenxi | 单元、集成、E2E、测试报告 |
 | `docs/adr/`、`docs/runbooks/`、`docs/records/` | Zhang Yichao | 全员 | ADR、运行手册、关键节点记录 |
 | `openapi.yaml` | Luan Yumin | Zhang Yichao | API 契约与接口示例 |
@@ -79,11 +79,11 @@
 | 编号 | 交付物 | 验收标准 |
 | --- | --- | --- |
 | C1 | GitHub Actions CI | 格式化、Lint、类型检查、测试、覆盖率、安全/secret 扫描全部为必过项 |
-| C2 | CI 流水线与部署预案 | 制品带 commit SHA；本地 PM2 演示可跑通（真实 CD 部署为后期项，staging readiness 与 smoke test 在部署目标确定后启用） |
-| C3 | 健康监测与告警 | `/health/live` 和 `/health/ready` 语义不同；健康端点与监测记录可验证（告警渠道配置为后期项） |
+| C2 | CI 流水线与构建制品 | 制品带 commit SHA；CI 全绿且本地可复现 |
+| C3 | 健康监测 | `/health/live` 和 `/health/ready` 语义不同；健康端点与监测记录可验证 |
 | C4 | E2E 与发布检查单 | fixture 音频能完成最短闭环；上线前检查单有执行人和时间 |
-| C5 | 故障运行手册与回滚预案 | 包含失败判定、日志定位、恢复验证；回滚步骤先行预案（真实回滚演练随 CD 启用） |
-| C6 | 项目成果归档 | CI 日志、测试报告、部署记录、演示材料均有链接或文件索引 |
+| C5 | 故障运行手册 | 包含失败判定、日志定位、恢复验证 |
+| C6 | 项目成果归档 | CI 日志、测试报告、演示材料均有链接或文件索引 |
 
 ## 5. RACI 矩阵
 
@@ -99,7 +99,7 @@
 | 统一错误中间件、请求 ID | C | C | A/R |
 | 单元/集成测试 | A/R | C | A/R |
 | CI 质量门禁 | C | A/R | C |
-| 部署、监测、告警、回滚 | I | A/R | C |
+| 监测、告警 | I | A/R | C |
 | E2E、上线验收 | A | R | R |
 | 答辩材料与过程记录 | A/R | R | R |
 
@@ -111,7 +111,7 @@
 | HTTP/OpenAPI 契约 | Luan | Zhang、Qiu | 路由、DTO、状态码、错误码 | 集成测试与 CI 的契约检查通过 |
 | 日志/健康端点 | Luan | Qiu | endpoint、日志字段、错误码说明 | 监控探测可配置，日志可按 requestId 查询 |
 | CI 流水线 | Qiu | 全员 | 失败输出、门禁规则、artifact 路径 | 任一成员能在 PR 中定位失败类别 |
-| 部署预案与 E2E 报告 | Qiu | Zhang | 本地演示环境记录、版本 SHA、测试结果（staging URL 与回滚版本在 CD 启用后补充） | 技术负责人确认演示与预案可复现 |
+| E2E 与测试报告 | Qiu | Zhang | 版本 SHA、测试结果 | 技术负责人确认可复现 |
 
 交接必须以 PR、Issue 或 `docs/records/` 记录为准，禁止只通过口头或即时消息完成。
 
@@ -132,7 +132,7 @@
 
 1. Luan 完成接口契约与集成测试确认。
 2. Zhang 完成模型行为、失败语义与架构决策确认。
-3. Qiu 完成 CI 全绿、staging smoke test、健康监测与回滚演练确认。
+3. Qiu 完成 CI 全绿、健康监测与本地运行确认。
 4. 三人共同签署发布检查单；任一关键项未完成则不发布。
 
 ## 8. 缺陷与变更处理
@@ -158,7 +158,7 @@
 | 架构图、ADR、接口文档 | Zhang / Luan | `docs/architecture/`、`docs/adr/` |
 | API 测试与异常处理截图 | Luan | `docs/evidence/` |
 | CI 成功记录、覆盖率与安全扫描 | Qiu | Actions artifact + `docs/evidence/` |
-| 部署、健康检查、告警与回滚演练记录 | Qiu | `docs/runbooks/`、`docs/evidence/` |
+| 健康检查与告警记录 | Qiu | `docs/runbooks/`、`docs/evidence/` |
 | 功能演示视频/截图与版本号 | 全员 | `docs/evidence/release-<sha>/` |
 
 建议证据文件采用 `YYYY-MM-DD-主题-责任人` 命名，并在每次里程碑后编写一页总结：目标、实际结果、问题、解决方案、证据链接、下一步。
