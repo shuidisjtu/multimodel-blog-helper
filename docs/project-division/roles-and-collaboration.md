@@ -4,8 +4,9 @@
 
 ## 1. 执行原则
 
-- 每项工作只有一个 **DRI（直接责任人）**；协作人可参与，但不替代验收责任。
-- 代码所有权按模块划分，跨模块改动须由相关 DRI 共同评审。
+- 每项工作有明确 **DRI（直接责任人）** 作为最终兜底；协作人可参与，但不替代验收责任。
+- 模块按分工建议划分关注人，**非排他**：任何成员都可修改任何区域，跨模块或较大改动先与相关成员沟通。
+- **童子军原则**：任何成员发现问题都应及时修复或提出，不等待 DRI 到场；离开时让代码比来时更干净。
 - “完成”必须有可运行的验收证据：测试、接口结果、流水线记录、运行记录或演示截图/视频。
 - 遇到阻塞先记录风险，再决定升级、拆分或降级；不得以静默跳过门禁的方式“完成”。
 
@@ -17,21 +18,23 @@
 | Qiu Wenxi | DevOps 与质量负责人 | GitHub Actions、构建制品、CI 质量门禁、健康监测、运行告警 | 错误处理、E2E、项目总结 |
 | Luan Yumin | 服务端与外部工具负责人 | Express API、上传/文件存储、天气 API 适配、路由、输入校验、统一错误响应、接口测试 | 系统联调、功能测试 |
 
-> 以上为**默认分工而非排他边界**：DRI 仅表示该模块的最终责任兜底人，成员之间可交叉协助、互相补位，实际贡献以提交与验收记录为准。按实际执行情况，技术负责人（Zhang）已承担部分队友模块的实现工作，这属于正常补位，不视为越界。
+> 以上为**默认分工而非排他边界**：DRI 仅表示该模块的最终责任兜底人，成员之间可交叉协助、互相补位，实际贡献以提交与验收记录为准。
 
-## 3. 代码与文档所有权
+## 3. 代码与文档分工建议
 
-| 区域 | DRI | 审核人 | 关键产物 |
-| --- | --- | --- | --- |
-| `src/domain/`、`src/application/` | Zhang Yichao | Luan Yumin | Job 状态机、端口、转录/摘要用例 |
-| `src/infrastructure/openai/` | Zhang Yichao | Luan Yumin | Responses API、转录、摘要适配器 |
-| `src/interfaces/http/`、`src/infrastructure/storage/` | Luan Yumin | Zhang Yichao | 路由、OpenAPI、上传校验、temp 文件仓储 |
-| `src/infrastructure/weather/` | Luan Yumin | Zhang Yichao | wttr.in 适配器、超时与降级 |
-| `src/shared/`（日志、错误、请求 ID） | Luan Yumin | Qiu Wenxi | 错误中间件、日志格式、请求追踪 |
-| `.github/workflows/`、监控配置 | Qiu Wenxi | Zhang Yichao | CI、制品、健康检查 |
-| `tests/` | 对应模块 DRI | Qiu Wenxi | 单元、集成、E2E、测试报告 |
-| `docs/adr/`、`docs/runbooks/`、`docs/records/` | Zhang Yichao | 全员 | ADR、运行手册、关键节点记录 |
-| `openapi.yaml` | Luan Yumin | Zhang Yichao | API 契约与接口示例 |
+> 本表用于向成员展示各自重点关注的区域，**不是权限规定**：任何成员都可以修改任何区域；发现问题及时修复（童子军原则），改动较大时先与主要关注人沟通。实际贡献以提交记录为准。
+
+| 区域 | 主要关注人 | 关键产物 |
+| --- | --- | --- |
+| `src/domain/`、`src/application/` | Zhang Yichao | Job 状态机、端口、转录/摘要用例 |
+| `src/infrastructure/openai/` | Zhang Yichao | Responses API、转录、摘要适配器 |
+| `src/interfaces/http/`、`src/infrastructure/storage/` | Luan Yumin | 路由、OpenAPI、上传校验、temp 文件仓储 |
+| `src/infrastructure/weather/` | Luan Yumin | wttr.in 适配器、超时与降级 |
+| `src/shared/`（日志、错误、请求 ID） | Luan Yumin | 错误中间件、日志格式、请求追踪 |
+| `.github/workflows/`、监控配置 | Qiu Wenxi | CI、制品、健康检查 |
+| `tests/` | 按改动区域跟进 | 单元、集成、E2E、测试报告 |
+| `docs/adr/`、`docs/runbooks/`、`docs/records/` | Zhang Yichao | ADR、运行手册、关键节点记录 |
+| `openapi.yaml` | Luan Yumin | API 契约与接口示例 |
 
 ## 4. 工作包与验收
 
@@ -109,7 +112,7 @@
 
 - 各 DRI 更新：昨日完成、今日计划、阻塞项、是否影响依赖；里程碑冲刺期加密为每日。
 - 阻塞超过 1 个工作日即创建 Issue；涉及密钥、费用、外部服务不可用时立即通知全员。
-- 合并前最少由代码所有权表指定的一位审核人完成评审。
+- 合并前至少由一位成员（通常为区域主要关注人）完成评审。
 
 ### 里程碑节奏
 
