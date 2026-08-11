@@ -1,0 +1,19 @@
+# --- 密钥与本地配置 ---
+.env
+.env.*
+!.env.example
+
+# --- 依赖 ---
+node_modules/
+
+# --- 运行时产物 ---
+temp/
+*.log
+
+# --- 本地开发专用(仅本地使用, 不进仓库/不上 GitHub) ---
+CLAUDE.md
+superpowers/
+docs/superpowers/
+
+# --- 教材示例源码(重构后仅保留用到的章节; E 盘 \大创\source_code 有原版备份) ---
+source_code/
