@@ -99,7 +99,6 @@ type BlogJob = {
 - 输入保存在 `temp/uploads/<jobId>/input.<ext>`；转录和摘要保存在 `temp/outputs/<jobId>/`。
 - 启动时扫描遗留进行中任务并标记为 `failed: PROCESS_INTERRUPTED`，避免错误地假装成功。
 - 每小时清理 `expiresAt` 已过的目录与元数据；清理幂等并记录数量。建议开发环境保留 24 小时、演示环境 7 天。
-- 若未来项目定位变化（如转为商业服务）确需并发、多实例或长保留期，仅替换 `JobRepository` 与 `FileStore` 适配器为 PostgreSQL/对象存储，不修改用例层和 HTTP 契约；按当前定位（开源学习研究及非商业应用），这两项预计不会启用。
 
 ## 5. 接口设计
 
@@ -138,8 +137,8 @@ type BlogJob = {
 | `Transcriber` | `transcribe(file): Transcript` | `OpenAITranscriber`（模型经配置注入）；后续 `LocalWhisperTranscriber`；中期评估新增 GLM 等平台实现 |
 | `Summarizer` | `summarize(text): Summary` | `ResponsesSummarizer` |
 | `WeatherProvider` | `current(location): Weather` | `WttrWeatherProvider` |
-| `JobRepository` | `create/get/update/listExpired` | 文件仓储（PostgreSQL 仅作为定位变化时的替换预案，见 §4.2，当前不引入） |
-| `FileStore` | `saveInput/saveOutput/read/deleteExpired` | 临时目录（对象存储同理，当前不引入） |
+| `JobRepository` | `create/get/update/listExpired` | 文件仓储 |
+| `FileStore` | `saveInput/saveOutput/read/deleteExpired` | 临时目录 |
 
 适配器负责将第三方数据转换为内部 DTO；任何 wttr.in 的字段、OpenAI SDK 请求对象、模型名称细节均不得泄漏到领域对象或 HTTP 响应。
 
