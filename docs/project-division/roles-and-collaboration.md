@@ -80,7 +80,7 @@
 | --- | --- | --- |
 | C1 | GitHub Actions CI | 格式化、Lint、类型检查、测试、覆盖率、安全/secret 扫描全部为必过项 |
 | C2 | CI 流水线与构建制品 | 制品带 commit SHA；CI 全绿且本地可复现 |
-| C3 | 健康监测 | `/health/live` 和 `/health/ready` 语义不同；健康端点与监测记录可验证 |
+| C3 | 健康监测与指标可视化 | `/health/live` 和 `/health/ready` 语义不同；`/metrics` 可被 Prometheus 抓取，Grafana 面板展示核心指标（答辩演示） |
 | C4 | E2E 与发布检查单 | fixture 音频能完成最短闭环；上线前检查单有执行人和时间 |
 | C5 | 故障运行手册 | 包含失败判定、日志定位、恢复验证 |
 | C6 | 项目成果归档 | CI 日志、测试报告、演示材料均有链接或文件索引 |
