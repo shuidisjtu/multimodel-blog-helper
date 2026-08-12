@@ -86,5 +86,15 @@ export interface FileStore {
   deleteJobFiles(jobId: string): Promise<number>;
 }
 
+/** 内存任务队列(架构文档 §6.2): 有界; 同步入队使容量检查与入队原子(单线程下无异步插入点)。 */
+export interface JobQueue {
+  /** 同步入队; 队列满(pending+processing >= maxLength)抛 DomainError('QUEUE_FULL', ...)。 */
+  enqueue(jobId: string): void;
+  /** 订阅消费处理器; handler 并发受 workerConcurrency 限制。 */
+  subscribe(handler: (jobId: string) => Promise<void>): void;
+  /** 当前排队中的任务数(不含处理中)。 */
+  size(): number;
+}
+
 /** 用例层的 Job 查询结果聚合(避免领域层依赖 HTTP DTO)。 */
 export type { JobResult };
