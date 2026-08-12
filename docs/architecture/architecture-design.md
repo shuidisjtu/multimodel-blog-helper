@@ -1,6 +1,6 @@
 # OpenAI 多模态博客助手：工程架构设计文档
 
-> 文档版本：v1.0 ｜ 适用阶段：从第 3、4 章示例工程整合为可部署的学习研究型 HTTP 服务 ｜ 最后更新：2026-08-11
+> 文档版本：v1.0 ｜ 适用阶段：从第 3、4 章示例工程整合为可部署的学习研究型 HTTP 服务 ｜ 最后更新：2026-08-12
 
 ## 1. 目标、范围与边界
 
@@ -10,7 +10,7 @@
 
 ### 1.2 本期范围
 
-| 包含（本期） | 暂缓（可能之后做） |
+| 包含（本期） | 暂缓（之后可能做） |
 | --- | --- |
 | 音频文件校验、临时存储、异步处理、转录、摘要、结果查询/下载 | 本地 Whisper 模型（约 2GB，作为独立可选实现；依赖模型下载与资源评估，通过同一转录端口接入） |
 | Responses API 工具调用与 wttr.in 天气适配 | — |
@@ -29,7 +29,7 @@
 - 天气数据来自仅限个人/非商业使用的 wttr.in；超时、限流或不可用时应降级为可解释错误，不伪造结果。
 - 学习研究用途不等于降低工程标准：所有外部边界、失败路径和运行操作均需可追溯。
 
-## 2. 架构原则（不可突破的护栏）
+## 2. 架构原则（不可违反）
 
 1. **依赖向内**：HTTP、OpenAI、文件系统、天气站点属于基础设施；业务用例不得直接依赖 Express SDK 或 `fetch`。
 2. **一个概念一个真相源**：任务状态、文件元数据、错误码、API 契约各自只能有一个定义位置。
@@ -64,20 +64,28 @@ flowchart TD
 | `infrastructure` | OpenAI/wttr.in/文件系统/任务仓储实现 | 定义业务规则或 HTTP 状态码 |
 | `bootstrap` | 环境配置、依赖组装、服务器启停 | 放置业务逻辑 |
 
-### 3.2 建议目录
+### 3.2 目录结构（已定型，标注实现状态）
 
 ```text
 src/
-  bootstrap/        config.ts, server.ts, container.ts
-  domain/           job.ts, errors.ts, ports.ts
-  application/      submit-audio.ts, process-job.ts, query-job.ts, ask-weather.ts
-  infrastructure/   openai/, weather/, storage/, repository/, queue/
+  bootstrap/        config.ts               # 环境配置加载与校验(A2 ✅;server.ts/container.ts 待 B/C 系列)
+  domain/           job.ts, errors.ts, ports.ts   # 状态机/领域错误/端口(A1-A2 ✅)
+  application/      submit-audio.ts, process-job.ts, query-job.ts,
+                    recover-jobs.ts, process-job-worker.ts, cleanup-expired.ts
+                                            # 用例编排(A3 ✅;ask-weather.ts 待 B4)
+  infrastructure/   openai/(transcriber.ts, summarizer.ts),
+                    queue/(memory-job-queue.ts),
+                    repository/(file-job-repository.ts),
+                    storage/(file-store.ts) # 适配器与实现(A2-A3 ✅;weather/ 待 B4)
   interfaces/http/  routes/, middleware/, schemas/, openapi.yaml
-  shared/           logger.ts, ids.ts, clock.ts
-tests/              unit/, integration/, e2e/, fixtures/
-docs/               adr/, runbooks/, records/
-temp/               uploads/, outputs/  # gitignored
-.github/workflows/  ci.yml
+                                            # B 系列待建
+  shared/           logger.ts, ids.ts, clock.ts    # ✅
+tests/              unit/, integration/     # ✅;e2e/ 待 C6
+fixtures/           audio-sample.mp3        # E2E 测试音频 fixture(已入库)
+docs/               adr/, architecture/, project-division/
+                                            # ✅;runbooks/ 待 C7、records/ 待 C8
+temp/               uploads/, outputs/      # gitignored,运行期生成
+.github/workflows/  ci.yml                  # 待 C1
 ```
 
 ## 4. 核心领域模型与状态机
