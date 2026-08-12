@@ -48,13 +48,17 @@
 > 主线代码在 `src/` + `tests/`(TypeScript ESM)。按以下三步复现开发环境,约 2 分钟:
 
 ```bash
-# 1. 安装依赖(要求 Node >= 24;npm ci 按 lock 文件精确安装)
+# 1. 获取代码(新队员:从 GitHub 克隆;已在仓库内可跳过)
+git clone https://github.com/shuidisjtu/multimodel-blog-helper.git
+cd multimodel-blog-helper
+
+# 2. 安装依赖(要求 Node >= 24;npm ci 按 lock 文件精确安装)
 npm ci
 
-# 2. 配置环境变量(模板见 .env.example;OPENAI_API_KEY 为 openai-hk 中转站 key,`hk-` 前缀,向项目成员获取)
+# 3. 配置环境变量(模板见 .env.example;OPENAI_API_KEY 为 openai-hk 中转站 key,`hk-` 前缀,向项目成员获取)
 cp .env.example .env      # Windows: copy .env.example .env
 
-# 3. 验证环境就绪(类型检查 + 全部测试 + 覆盖率,全绿即 OK)
+# 4. 验证环境就绪(类型检查 + 全部测试 + 覆盖率,全绿即 OK)
 npm run verify
 ```
 
@@ -69,6 +73,8 @@ npm run verify
 - 开发服务器:`npm run dev`(当前阶段仅配置校验;HTTP 接口层 B 系列开发中,完成后支持上传/查询)
 
 ## 快速开始(教材示例)
+
+> 前提：已按上方"重构项目快速开始"克隆仓库；示例代码随仓库分发于 `book-examples/`。
 
 ```bash
 # 0. 创建共享 Python 环境(book-examples/chapter-03/.venv,三选一,按你的工具习惯)
