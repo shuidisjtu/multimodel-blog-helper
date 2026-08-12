@@ -33,9 +33,15 @@ export class ProcessJob {
       this.deps.logger.warn({ event: 'job.skipped', jobId, status: job.status, reason: 'terminal' });
       return;
     }
+    const input = job.input;
+    if (input === undefined) {
+      // tombstone 最小化后无 input; 非终态任务在仓储校验下必有 input, 此处仅防御端口违约(§11.2)
+      this.deps.logger.warn({ event: 'job.skipped', jobId, status: job.status, reason: 'missing-input' });
+      return;
+    }
     try {
       await this.transition(jobId, 'queued', 'transcribing');
-      const transcript = await this.transcribe(jobId, job.input.path, job.input.mimeType);
+      const transcript = await this.transcribe(jobId, input.path, input.mimeType);
       await this.transition(jobId, 'transcribing', 'summarizing');
       const summarizeStarted = Date.now();
       const summary = await this.deps.summarizer.summarize(transcript.text);

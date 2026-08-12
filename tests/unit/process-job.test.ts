@@ -273,6 +273,18 @@ describe('ProcessJob(架构文档 §4.1/§6.3-§6.4)', () => {
     expect(job.failure).toBeUndefined();
   });
 
+  it('queued 任务缺少 input(端口违约/异常数据): 防御性跳过, 不处理不抛错', async () => {
+    const { repo, files, transcriber, summarizer, logger, useCase } = setup();
+    repo.jobs.set('job-1', makeJob({ input: undefined }));
+
+    await expect(useCase.run('job-1')).resolves.toBeUndefined();
+
+    expect(transcriber.calls).toBe(0);
+    expect(summarizer.calls).toBe(0);
+    expect(files.savedOutputs).toHaveLength(0);
+    expect(logger.calls.some((c) => c.event === 'job.skipped' && c.reason === 'missing-input')).toBe(true);
+  });
+
   it('处理失败且任务已被外部移除: 方法不抛错, 仅记录 warn', async () => {
     const { repo, logger, useCase } = setup({
       transcriber: {

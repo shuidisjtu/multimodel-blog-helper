@@ -65,6 +65,10 @@ export class FileJobRepository implements JobRepository {
         const placeholder = await this.readPlaceholder(keyPath);
         const job = await this.get(placeholder.jobId);
         if (job !== null) {
+          if (job.input === undefined) {
+            // 占位指向 tombstone(§4.2 最小化后无 input): 无法比对 sha256, 幂等命中直接重放原 Job(查询端返回 410)
+            return { outcome: 'replayed', job };
+          }
           if (job.input.sha256 === params.input.sha256) {
             return { outcome: 'replayed', job };
           }
@@ -130,20 +134,46 @@ export class FileJobRepository implements JobRepository {
   }
 
   async remove(id: string): Promise<void> {
+    // 占位清理: 任务元数据仍带 key 时按 key 删; tombstone 已清空 key, 再按 jobId 扫描兜底(§5: key 随 tombstone 清理)
+    await this.removePlaceholders(id);
+    await rm(this.jobFilePath(id), { force: true });
+    await rm(`${this.jobFilePath(id)}.tmp`, { force: true });
+  }
+
+  /** 删除指向该 job 的幂等占位(快路径按 key; 扫描兜底覆盖已清空 key 的 tombstone)。 */
+  private async removePlaceholders(id: string): Promise<void> {
     let job: BlogJob | null = null;
     try {
       job = await this.get(id);
     } catch (err) {
-      // job 文件损坏也尽力删除, 清理不可因单文件损坏中断(§4.2)
+      // job 文件损坏也继续尽力清理(清理不可因单文件损坏中断, §4.2)
       console.error(`[FileJobRepository] remove: corrupt job file for ${id}`, err);
     }
     if (job !== null && job.idempotencyKey !== undefined) {
-      const placeholderPath = this.placeholderPath(job.idempotencyKey);
-      await rm(placeholderPath, { force: true });
-      await rm(`${placeholderPath}.tmp`, { force: true });
+      const keyPath = this.placeholderPath(job.idempotencyKey);
+      await rm(keyPath, { force: true });
+      await rm(`${keyPath}.tmp`, { force: true });
     }
-    await rm(this.jobFilePath(id), { force: true });
-    await rm(`${this.jobFilePath(id)}.tmp`, { force: true });
+    // 扫描兜底: tombstone 已清空 idempotencyKey, 只能按占位内容匹配 jobId(§5)
+    let entries: Dirent[];
+    try {
+      entries = await readdir(this.keysDir, { withFileTypes: true });
+    } catch (err) {
+      if ((err as NodeJS.ErrnoException)?.code === 'ENOENT') return;
+      throw err;
+    }
+    for (const entry of entries) {
+      if (!entry.isFile() || !entry.name.endsWith('.json')) continue;
+      try {
+        const placeholder = await this.readPlaceholder(join(this.keysDir, entry.name));
+        if (placeholder.jobId !== id) continue;
+        const p = join(this.keysDir, entry.name);
+        await rm(p, { force: true });
+        await rm(`${p}.tmp`, { force: true });
+      } catch {
+        // 空/损坏占位跳过(创建者写入中断窗口), 由 createOrGet 的孤儿自愈路径兜底(§5)
+      }
+    }
   }
 
   /** 新任务一律从 queued 起步(启动恢复按 queued 重入队)。 */
@@ -269,16 +299,22 @@ function isBlogJob(value: unknown): value is BlogJob {
   ) {
     return false;
   }
-  const input = v.input;
-  if (typeof input !== 'object' || input === null) return false;
-  const i = input as Record<string, unknown>;
-  return (
-    typeof i.path === 'string' &&
-    typeof i.originalName === 'string' &&
-    typeof i.mimeType === 'string' &&
-    typeof i.bytes === 'number' &&
-    typeof i.sha256 === 'string'
-  );
+  // tombstone(expired)最小化后无 input(§4.2); 其余状态必须带完整输入, 不返回残缺对象
+  if (v.status !== 'expired') {
+    const input = v.input;
+    if (typeof input !== 'object' || input === null) return false;
+    const i = input as Record<string, unknown>;
+    if (
+      typeof i.path !== 'string' ||
+      typeof i.originalName !== 'string' ||
+      typeof i.mimeType !== 'string' ||
+      typeof i.bytes !== 'number' ||
+      typeof i.sha256 !== 'string'
+    ) {
+      return false;
+    }
+  }
+  return true;
 }
 
 function isPlaceholder(value: unknown): value is { jobId: string; sha256: string } {

@@ -184,11 +184,13 @@ describe('SubmitAudio(架构文档 §5/§6.1-§6.2)', () => {
     expect(outcome.job.status).toBe('queued');
     expect(outcome.job.id).toBe('job-1');
     expect(outcome.job.requestId).toBe('req-1');
-    expect(outcome.job.input.originalName).toBe('demo.mp3');
-    expect(outcome.job.input.mimeType).toBe('audio/mpeg');
-    expect(outcome.job.input.bytes).toBe(Buffer.byteLength('fake audio bytes'));
-    expect(outcome.job.input.sha256).toBe('abc123');
-    expect(outcome.job.input.path).toBe('/tmp/uploads/job-1/input.bin');
+    // BlogJob.input 在 tombstone 最小化后为可选(§4.2), 新建任务必然存在
+    const createdInput = outcome.job.input!;
+    expect(createdInput.originalName).toBe('demo.mp3');
+    expect(createdInput.mimeType).toBe('audio/mpeg');
+    expect(createdInput.bytes).toBe(Buffer.byteLength('fake audio bytes'));
+    expect(createdInput.sha256).toBe('abc123');
+    expect(createdInput.path).toBe('/tmp/uploads/job-1/input.bin');
 
     expect(files.savedInputs).toHaveLength(1);
     const saved = files.savedInputs[0]!;

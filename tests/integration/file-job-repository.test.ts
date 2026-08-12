@@ -171,6 +171,26 @@ describe('FileJobRepository(架构文档 §4.2/§5/§7.1)', () => {
     await expect(readFile(join(tempDir, 'jobs', `${b.job.id}.json`), 'utf8')).resolves.toContain(b.job.id);
   });
 
+  it('createOrGet: 占位指向 tombstone(已清空 input)时 → replayed 返回原 Job, 不比对 sha256', async () => {
+    const repo = makeRepo();
+    const { job } = await repo.createOrGetByIdempotencyKey(
+      makeParams({ idempotencyKey: 'key-tomb', id: 'tomb-1' }),
+    );
+    // 模拟清理: 任务转为最小 tombstone(清空 input/idempotencyKey, §4.2)
+    await repo.update('tomb-1', (j) => ({
+      id: j.id,
+      requestId: j.requestId,
+      status: 'expired',
+      createdAt: j.createdAt,
+      updatedAt: j.updatedAt,
+      expiresAt: j.expiresAt,
+    }));
+    const outcome = await repo.createOrGetByIdempotencyKey(makeParams({ idempotencyKey: 'key-tomb' }));
+    expect(outcome.outcome).toBe('replayed');
+    expect(outcome.job.id).toBe('tomb-1');
+    expect(outcome.job.status).toBe('expired');
+  });
+
   it('createOrGet: idempotencyKey 持久化到 job 元数据(文件落盘可见)', async () => {
     const repo = makeRepo();
     const { job } = await repo.createOrGetByIdempotencyKey(

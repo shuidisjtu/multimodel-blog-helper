@@ -35,7 +35,8 @@ export interface BlogJob {
   id: string;
   requestId: string;
   status: JobStatus;
-  input: JobInput;
+  /** 输入元数据; tombstone(expired)最小化后不再保留(架构文档 §4.2)。 */
+  input?: JobInput;
   result?: JobResult;
   failure?: JobFailure;
   idempotencyKey?: string;
