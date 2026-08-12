@@ -97,6 +97,7 @@ node index.js
 ## 文档
 
 - [`docs/architecture/architecture-design.md`](docs/architecture/architecture-design.md) — 工程架构设计（分层、状态机、接口契约、防护与观测；重构依据）
+- [`docs/project-structure.md`](docs/project-structure.md) — 工程目录结构（代码/测试/文档/运行产物的组织与落地状态）
 - [`docs/project-division/task-list.md`](docs/project-division/task-list.md) — 任务清单（任务、验收标准、依赖链）
 - [`CLAUDE.md`](CLAUDE.md) — 开发协作约定（SDK v2 差异、运行注意事项、中转站限制等），供 Claude Code 读取，该文件未上传到github中
 - 本书配套文档与示例细节见各 chapter 目录

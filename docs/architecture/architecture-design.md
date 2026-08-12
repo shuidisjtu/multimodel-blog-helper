@@ -64,29 +64,7 @@ flowchart TD
 | `infrastructure` | OpenAI/wttr.in/文件系统/任务仓储实现 | 定义业务规则或 HTTP 状态码 |
 | `bootstrap` | 环境配置、依赖组装、服务器启停 | 放置业务逻辑 |
 
-### 3.2 目录结构（已定型，标注实现状态）
-
-```text
-src/
-  bootstrap/        config.ts               # 环境配置加载与校验(A2 ✅;server.ts/container.ts 待 B/C 系列)
-  domain/           job.ts, errors.ts, ports.ts   # 状态机/领域错误/端口(A1-A2 ✅)
-  application/      submit-audio.ts, process-job.ts, query-job.ts,
-                    recover-jobs.ts, process-job-worker.ts, cleanup-expired.ts
-                                            # 用例编排(A3 ✅;ask-weather.ts 待 B4)
-  infrastructure/   openai/(transcriber.ts, summarizer.ts),
-                    queue/(memory-job-queue.ts),
-                    repository/(file-job-repository.ts),
-                    storage/(file-store.ts) # 适配器与实现(A2-A3 ✅;weather/ 待 B4)
-  interfaces/http/  routes/, middleware/, schemas/, openapi.yaml
-                                            # B 系列待建
-  shared/           logger.ts, ids.ts, clock.ts    # ✅
-tests/              unit/, integration/     # ✅;e2e/ 待 C6
-fixtures/           audio-sample.mp3        # E2E 测试音频 fixture(已入库)
-docs/               adr/, architecture/, project-division/
-                                            # ✅;runbooks/ 待 C7、records/ 待 C8
-temp/               uploads/, outputs/      # gitignored,运行期生成
-.github/workflows/  ci.yml                  # 待 C1
-```
+物理目录（文件放在哪）与落地状态见 [`docs/project-structure.md`](../project-structure.md)；本节只定义分层边界，不约束目录。
 
 ## 4. 核心领域模型与状态机
 
