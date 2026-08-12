@@ -16,7 +16,7 @@
 
 ## 进度
 
-### ✅ 已完成
+### 📖 教材学习进度（本书配套示例，与重构主线无关）
 
 | 章节 | 状态 |
 |---|---|
@@ -34,16 +34,11 @@
 - `04-02-word-timestamp`:中转站无 word 级时间戳,降级为 segment 级
 - `01-02-weather-assistant`:天气查询改用 wttr.in(零配置,原书用的 WeatherAPI.com 需注册 key)
 
-### ⏳ 待办
+**遗留**：05-whisper-API 本地 whisper 模型(需下载 ~2GB,可选,非本项目任务)；第 5 章起未开始(05-01 需 `npm install -g pm2`)。
 
-| 事项 | 说明 |
-|---|---|
-| 05-whisper-API(第 3 章遗留) | 本地 whisper 模型,需下载 ~2GB |
-| 第 5 章起 | 未开始;05-01 需 `npm install -g pm2`(部署演示) |
+### 🔧 重构主线进度（本仓库的任务,以 task-list.md 为唯一权威）
 
-### 🔧 重构(进行中)
-
-将第 3、4 章示例整合为可部署的学习研究型 HTTP 服务：上传音频 → 异步转录 + 摘要 → 查询/下载；另含天气工具调用、健康监测与 CI。方案与计划已冻结，按任务清单驱动。当前进度：**A1–A3 已完成**(架构 ADR / OpenAI 适配器 / 任务用例核心,107 测试,覆盖率 94%+)；下一步 A4(重试/超时)与 B 系列(HTTP 接口层)。
+将第 3、4 章示例整合为可部署的学习研究型 HTTP 服务：上传音频 → 异步转录 + 摘要 → 查询/下载；另含天气工具调用、健康监测与 CI。方案与计划已冻结，按任务清单驱动。当前进度：**A1–A3 已完成**(架构 ADR / OpenAI 适配器 / 任务用例核心,109 测试,覆盖率 94%+)；下一步 A4(重试/超时)与 B 系列(HTTP 接口层)。
 
 - **工程架构**：[`docs/architecture/architecture-design.md`](docs/architecture/architecture-design.md)(v1.3)
 - **任务计划**：[`docs/project-division/task-list.md`](docs/project-division/task-list.md)(20 项，含验收标准与依赖)
@@ -101,5 +96,5 @@ node index.js
 
 - [`docs/architecture/architecture-design.md`](docs/architecture/architecture-design.md) — 工程架构设计（分层、状态机、接口契约、防护与观测；重构依据）
 - [`docs/project-division/task-list.md`](docs/project-division/task-list.md) — 任务清单（任务、验收标准、依赖链）
-- [`CLAUDE.md`](CLAUDE.md) — 开发协作约定（SDK v2 差异、运行注意事项、中转站限制等），供 Claude Code 读取
+- [`CLAUDE.md`](CLAUDE.md) — 开发协作约定（SDK v2 差异、运行注意事项、中转站限制等），供 Claude Code 读取，该文件未上传到github中
 - 本书配套文档与示例细节见各 chapter 目录
