@@ -41,6 +41,8 @@ export interface CreateJobParams {
   input: JobInput;
   expiresAt: string;
   idempotencyKey?: string;
+  /** 用例层预生成 jobId(对齐文件目录与任务 id);缺省由实现生成。 */
+  id?: string;
 }
 
 export type CreateOrGetOutcome =
@@ -63,6 +65,10 @@ export interface JobRepository {
   listRecoverable(): Promise<BlogJob[]>;
   /** 清理:返回 expiresAt 已过的任务(输入/输出文件由 FileStore 删除,元数据留 tombstone)。 */
   listExpired(now: string): Promise<BlogJob[]>;
+  /** 启动恢复:返回进行中任务(transcribing/summarizing),用于标记 PROCESS_INTERRUPTED。 */
+  listInProgress(): Promise<BlogJob[]>;
+  /** 删除任务元数据文件(含幂等占位),供 tombstone 二次清理;不存在则静默成功。 */
+  remove(id: string): Promise<void>;
 }
 
 export interface SaveInputParams {
