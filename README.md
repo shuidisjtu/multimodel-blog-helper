@@ -70,7 +70,6 @@ npm run verify
 - `.env` 缺失或 key 未填时,启动会抛 `ConfigError` 并退出,不会带病运行(不会静默缺 key)
 - npm 11 的 allow-scripts 会拦 esbuild postinstall——**不影响 vitest/tsx 运行**,可忽略
 - Windows 终端中文乱码是 GBK 显示问题(数据正确):先执行 `chcp 65001`；Node 程序需 `cd` 进项目目录再运行(dotenv 从 cwd 找 .env)
-- 开发服务器:`npm run dev`(当前阶段仅配置校验;HTTP 接口层 B 系列开发中,完成后支持上传/查询)
 
 ## 快速开始(教材示例)
 
