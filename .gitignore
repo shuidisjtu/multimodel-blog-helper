@@ -22,3 +22,4 @@ docs/superpowers/
 
 # --- 教材示例源码(重构后仅保留用到的章节; E 盘 \大创\source_code 有原版备份) ---
 source_code/
+.superpowers/
