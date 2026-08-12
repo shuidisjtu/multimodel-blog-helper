@@ -103,6 +103,19 @@ describe('FileJobRepository(架构文档 §4.2/§5/§7.1)', () => {
     await expect(repo.get('bad-fields')).rejects.toMatchObject({ code: 'INTERNAL_ERROR' });
   });
 
+  it('get: 损坏文件错误 message 不含内部路径(§8.1), path 仅在 details 中', async () => {
+    const repo = makeRepo();
+    const filePath = join(tempDir, 'jobs', 'bad-syntax.json');
+    await writeFile(filePath, '{ not valid json', 'utf8');
+    const err = (await repo.get('bad-syntax').catch((e: unknown) => e)) as DomainError;
+    expect(err).toBeInstanceOf(DomainError);
+    expect(err.code).toBe('INTERNAL_ERROR');
+    expect(err.message).toBe('Corrupt job file');
+    expect(err.message).not.toContain(tempDir);
+    expect(err.message).not.toContain('/');
+    expect(err.details).toMatchObject({ path: filePath });
+  });
+
   it('update: mutator 修改 status/result 后落盘, updatedAt 强制刷新为最新, 缺失 id 抛 JOB_NOT_FOUND', async () => {
     const clock = new FakeClock();
     const repo = makeRepo(clock);
@@ -235,6 +248,23 @@ describe('FileJobRepository(架构文档 §4.2/§5/§7.1)', () => {
         code: 'INTERNAL_ERROR',
       });
     }
+  });
+
+  it('createOrGet: 占位损坏错误 message 不含路径与 key(§8.1), 细节仅在 details 中', async () => {
+    const repo = makeRepo();
+    const key = 'key-secret-value';
+    const keyPath = join(tempDir, 'jobs', 'by-key', `${sha256Of(key)}.json`);
+    await writeFile(keyPath, '{oops', 'utf8');
+    const err = (await repo
+      .createOrGetByIdempotencyKey(makeParams({ idempotencyKey: key }))
+      .catch((e: unknown) => e)) as DomainError;
+    expect(err).toBeInstanceOf(DomainError);
+    expect(err.code).toBe('INTERNAL_ERROR');
+    expect(err.message).toBe('Idempotency placeholder corrupt');
+    expect(err.message).not.toContain(tempDir);
+    expect(err.message).not.toContain('/');
+    expect(err.message).not.toContain(key);
+    expect(err.details).toMatchObject({ path: keyPath });
   });
 
   it('createOrGet 无 idempotencyKey 时退化为普通 create', async () => {

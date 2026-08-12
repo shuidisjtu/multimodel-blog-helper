@@ -56,14 +56,20 @@ class InMemoryJobRepo implements JobRepository {
   createOrGetResult: CreateOrGetOutcome | 'from-create' = 'from-create';
   /** 编程注入的 get 错误。 */
   getError: unknown;
+  /** 编程注入的 create 错误(模拟仓储持久化失败)。 */
+  createError: unknown;
+  /** 编程注入的 createOrGet 错误(模拟占位损坏等幂等创建失败)。 */
+  createOrGetError: unknown;
 
   async create(params: CreateJobParams): Promise<BlogJob> {
     this.createCalls.push(params);
+    if (this.createError !== undefined) throw this.createError;
     return this.storeNewJob(params);
   }
 
   async createOrGetByIdempotencyKey(params: CreateJobParams): Promise<CreateOrGetOutcome> {
     this.createOrGetCalls.push(params);
+    if (this.createOrGetError !== undefined) throw this.createOrGetError;
     if (this.createOrGetResult !== 'from-create') return this.createOrGetResult;
     return { outcome: 'created', job: await this.storeNewJob(params) };
   }
@@ -112,6 +118,7 @@ class FakeFileStore implements FileStore {
   readonly savedOutputs: SaveOutputParams[] = [];
   readonly deletedJobIds: string[] = [];
   saveInputError: unknown;
+  deleteJobFilesError: unknown;
 
   async saveInput(params: SaveInputParams): Promise<{ path: string; sha256: string }> {
     if (this.saveInputError !== undefined) throw this.saveInputError;
@@ -130,6 +137,7 @@ class FakeFileStore implements FileStore {
 
   async deleteJobFiles(jobId: string): Promise<number> {
     this.deletedJobIds.push(jobId);
+    if (this.deleteJobFilesError !== undefined) throw this.deleteJobFilesError;
     return 1;
   }
 }
@@ -324,6 +332,63 @@ describe('SubmitAudio(架构文档 §5/§6.1-§6.2)', () => {
     expect(repo.createCalls).toHaveLength(1); // 后建任务
     expect(repo.removeCalls).toEqual(['job-1']); // 回滚: 删除 Job 记录
     expect(files.deletedJobIds).toEqual(['job-1']); // 回滚: 删除输入文件
+  });
+
+  it('create 抛错(如占位损坏 INTERNAL_ERROR): 清理已上传文件后原始错误向上传播', async () => {
+    const { repo, files, useCase } = setup();
+    repo.createError = new DomainError('INTERNAL_ERROR', 'Corrupt idempotency placeholder');
+
+    let thrown: unknown;
+    try {
+      await useCase.run(makeParams());
+    } catch (e) {
+      thrown = e;
+    }
+    expect(thrown).toBeInstanceOf(DomainError);
+    expect((thrown as DomainError).code).toBe('INTERNAL_ERROR');
+    expect((thrown as DomainError).message).toBe('Corrupt idempotency placeholder'); // 原始错误不被掩盖
+    expect(files.savedInputs).toHaveLength(1); // 先落盘
+    expect(repo.createCalls).toHaveLength(1);
+    expect(files.deletedJobIds).toEqual(['job-1']); // 回滚: 清理本次上传文件
+    expect(repo.removeCalls).toHaveLength(0); // job 未创建成功, 无需 remove
+  });
+
+  it('createOrGet 抛错: 同样清理已上传文件后原始错误向上传播', async () => {
+    const { repo, files, useCase } = setup();
+    // 占位文件损坏(内容非 JSON)时仓储抛 INTERNAL_ERROR, 见 file-job-repository 测试
+    repo.createOrGetError = new DomainError('INTERNAL_ERROR', 'Idempotency placeholder corrupt');
+
+    let thrown: unknown;
+    try {
+      await useCase.run(makeParams({ idempotencyKey: 'key-1' }));
+    } catch (e) {
+      thrown = e;
+    }
+    expect(thrown).toBeInstanceOf(DomainError);
+    expect((thrown as DomainError).code).toBe('INTERNAL_ERROR');
+    expect(files.savedInputs).toHaveLength(1);
+    expect(repo.createOrGetCalls).toHaveLength(1);
+    expect(files.deletedJobIds).toEqual(['job-1']);
+  });
+
+  it('create 抛错且清理文件也失败: 原始错误仍向上传播, 清理失败仅记录日志', async () => {
+    const { repo, files, logger, useCase } = setup();
+    repo.createError = new DomainError('INTERNAL_ERROR', 'Corrupt idempotency placeholder');
+    files.deleteJobFilesError = new Error('disk on fire');
+
+    let thrown: unknown;
+    try {
+      await useCase.run(makeParams());
+    } catch (e) {
+      thrown = e;
+    }
+    expect(thrown).toBeInstanceOf(DomainError);
+    expect((thrown as DomainError).code).toBe('INTERNAL_ERROR');
+    expect((thrown as DomainError).message).toBe('Corrupt idempotency placeholder'); // 不被清理错误掩盖
+    expect(files.deletedJobIds).toEqual(['job-1']); // 清理仍被调用(只是失败了)
+    expect(
+      logger.calls.some((c) => c.event === 'job.submit.cleanup_failed' && c.jobId === 'job-1'),
+    ).toBe(true);
   });
 
   it('expiresAt = now + jobTtlHours 小时(ISO 8601)', async () => {

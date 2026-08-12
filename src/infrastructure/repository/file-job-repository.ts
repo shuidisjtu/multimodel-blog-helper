@@ -3,6 +3,7 @@
  * - 原子写: 一律先写 <目标>.tmp 再 rename(§4.2)
  * - 幂等占位: jobs/by-key/<sha256(key)>.json, 以 fs.open(path, 'wx') O_EXCL 原子互斥(§5)
  * - 列表扫描容忍单文件损坏(记录后跳过), 保证启动恢复/清理整体可用
+ * - 错误消息中性化: DomainError 的 message 不含路径等内部细节(§8.1), 细节入 details 供排障
  */
 import { createHash } from 'node:crypto';
 import { mkdirSync, type Dirent } from 'node:fs';
@@ -77,10 +78,9 @@ export class FileJobRepository implements JobRepository {
         // 占位孤儿(占位已写但任务已删除): 清除占位后重试一次完整创建(§5)
         await rm(keyPath, { force: true });
         if (attempt >= 2) {
-          throw new DomainError(
-            'INTERNAL_ERROR',
-            `Idempotency placeholder orphan not resolvable: ${params.idempotencyKey}`,
-          );
+          throw new DomainError('INTERNAL_ERROR', 'Idempotency placeholder orphan not resolvable', {
+            idempotencyKey: params.idempotencyKey,
+          });
         }
         continue;
       }
@@ -109,7 +109,7 @@ export class FileJobRepository implements JobRepository {
   async update(id: string, mutator: (job: BlogJob) => BlogJob): Promise<BlogJob> {
     const job = await this.get(id);
     if (job === null) {
-      throw new DomainError('JOB_NOT_FOUND', `Job not found: ${id}`);
+      throw new DomainError('JOB_NOT_FOUND', 'Job not found', { id });
     }
     // 单线程内读-改-写天然原子(§4.2); updatedAt 一律强制刷新, 不信任 mutator
     const updated = { ...mutator(job), updatedAt: this.clock.now() };
@@ -223,7 +223,7 @@ export class FileJobRepository implements JobRepository {
       }
       return parsed;
     } catch (err) {
-      throw new DomainError('INTERNAL_ERROR', `Corrupt job file: ${filePath}`, err);
+      throw new DomainError('INTERNAL_ERROR', 'Corrupt job file', { path: filePath, cause: err });
     }
   }
 
@@ -234,12 +234,12 @@ export class FileJobRepository implements JobRepository {
       content = await readFile(keyPath, 'utf8');
     } catch (err) {
       if ((err as NodeJS.ErrnoException)?.code === 'ENOENT') {
-        throw new DomainError('INTERNAL_ERROR', `Idempotency placeholder disappeared: ${keyPath}`);
+        throw new DomainError('INTERNAL_ERROR', 'Idempotency placeholder disappeared', { path: keyPath });
       }
       throw err;
     }
     if (content.length === 0) {
-      throw new DomainError('INTERNAL_ERROR', `Idempotency placeholder is empty: ${keyPath}`);
+      throw new DomainError('INTERNAL_ERROR', 'Idempotency placeholder is empty', { path: keyPath });
     }
     try {
       const parsed: unknown = JSON.parse(content);
@@ -248,7 +248,7 @@ export class FileJobRepository implements JobRepository {
       }
       return parsed;
     } catch (err) {
-      throw new DomainError('INTERNAL_ERROR', `Idempotency placeholder corrupt: ${keyPath}`, err);
+      throw new DomainError('INTERNAL_ERROR', 'Idempotency placeholder corrupt', { path: keyPath, cause: err });
     }
   }
 

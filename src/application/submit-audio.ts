@@ -2,6 +2,7 @@
  * SubmitAudio 用例(架构文档 §5/§6.1-§6.2):受理上传并创建 queued 任务。
  * - 队列预检: 容量满直接 QUEUE_FULL, 不落盘任何数据(§6.2)
  * - 幂等: createOrGetByIdempotencyKey 三态, replayed/conflict 落败者清理本次上传文件(§5)
+ * - 创建回滚: 输入落盘后 create/createOrGet 异常同样清理输入文件, 不留孤儿目录(§6.2)
  * - 入队回滚: 持久化后入队异常删除 Job 记录与输入文件(§6.2)
  * 纯编排: 文件系统/外部 API 全部经端口注入; 未知错误转换为 INTERNAL_ERROR 传播(§6.4/§8.1)。
  */
@@ -80,19 +81,27 @@ export class SubmitAudio {
     };
     // 5. 创建任务: 有幂等 key 走三态创建, 无 key 走普通创建
     let job: BlogJob;
-    if (params.idempotencyKey !== undefined) {
-      const outcome = await this.deps.jobs.createOrGetByIdempotencyKey({
-        ...createParams,
-        idempotencyKey: params.idempotencyKey,
-      });
-      if (outcome.outcome !== 'created') {
-        // 落败者清理其本次上传的临时文件, 不再入队(§5)
-        await this.deps.files.deleteJobFiles(jobId);
-        return { outcome: outcome.outcome, job: outcome.job };
+    try {
+      if (params.idempotencyKey !== undefined) {
+        const outcome = await this.deps.jobs.createOrGetByIdempotencyKey({
+          ...createParams,
+          idempotencyKey: params.idempotencyKey,
+        });
+        if (outcome.outcome !== 'created') {
+          // 落败者清理其本次上传的临时文件, 不再入队(§5)
+          await this.deps.files.deleteJobFiles(jobId);
+          return { outcome: outcome.outcome, job: outcome.job };
+        }
+        job = outcome.job;
+      } else {
+        job = await this.deps.jobs.create(createParams);
       }
-      job = outcome.job;
-    } else {
-      job = await this.deps.jobs.create(createParams);
+    } catch (err) {
+      // 创建失败: 清理本次已上传文件后重抛原始错误(§6.2); 清理失败不掩盖原始错误, 仅记录
+      await this.deps.files.deleteJobFiles(jobId).catch((cleanupErr) => {
+        this.deps.logger.error({ event: 'job.submit.cleanup_failed', jobId, error: cleanupErr });
+      });
+      throw err;
     }
     // 6. 入队(同步临界区); 异常回滚刚创建的 Job 记录与输入文件(§6.2)
     try {

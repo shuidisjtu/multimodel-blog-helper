@@ -4,6 +4,7 @@
  * - transcribing/summarizing 标记 failed: PROCESS_INTERRUPTED, 不自动重试(避免不确定的重复转录计费);
  *   update mutator 内以仓储最终状态为准, 已被外部迁移的终态任务跳过(竞态护栏, 不覆盖出幽灵任务)
  * - 单任务异常仅记录日志继续; 列表查询失败(仓储不可用)则向外抛错, 让启动失败可感知
+ * - 启动顺序: 本用例必须在 worker 启动前完成(worker 会消费并标记进行中, 恢复第二阶段会将其标记 PROCESS_INTERRUPTED, 造成重复处理)
  * 纯编排: 仓储/队列/时间经端口注入, 不导入任何基础设施。
  */
 import { DomainError } from '../domain/errors.js';

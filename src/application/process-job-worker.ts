@@ -3,6 +3,8 @@
  * - 并发度由队列实例自身控制(workerConcurrency), 本类不做二次限制
  * - ProcessJob.run 契约不向外抛错(Task 3), 但 handler 仍兜底 try/catch, 未知错误仅记录, 不中断队列循环
  * - start 幂等: 重复调用无副作用(队列只允许一次订阅)
+ * - 启动顺序: 必须在 RecoverJobs 完成后启动(恢复会把 queued 任务重新入队; 若 worker 先行消费,
+ *   恢复第二阶段会将其标记 PROCESS_INTERRUPTED, 造成重复处理)
  */
 import type { JobQueue } from '../domain/ports.js';
 import type { ProcessJob } from './process-job.js';
