@@ -19,6 +19,8 @@
 
 > **范围外（永久非目标）**：账户、付费、多租户、长期对象存储、数据库集群——本项目定位为开源的学习研究及非商业应用，不计划引入。
 
+> **部署边界（本期）**：仅本地/演示部署（单机），提供 CI 与健康监测；不承诺持续部署（CD）与 staging 环境。若部署形态变化（如申请公网主机），再评估 CI 扩展。
+
 ### 1.3 关键约束
 
 - OpenAI 访问通过兼容 Responses API 的客户端封装，`OPENAI_BASE_URL` 和 `OPENAI_API_KEY` 只从环境变量读取；严禁进入仓库、日志或 API 响应。
@@ -75,7 +77,7 @@ src/
 tests/              unit/, integration/, e2e/, fixtures/
 docs/               adr/, runbooks/, records/
 temp/               uploads/, outputs/  # gitignored
-.github/workflows/  ci.yml, deploy.yml
+.github/workflows/  ci.yml
 ```
 
 ## 4. 核心领域模型与状态机
@@ -99,8 +101,8 @@ type BlogJob = {
 
 - `JobRepository` 首先实现为 `temp/jobs/<jobId>.json` 的原子写入（先写临时文件，再 rename）；禁止把任务状态只放在进程内存。
 - 输入保存在 `temp/uploads/<jobId>/input.<ext>`；转录和摘要保存在 `temp/outputs/<jobId>/`。
-- 启动时扫描遗留进行中任务并标记为 `failed: PROCESS_INTERRUPTED`，避免错误地假装成功。
-- 每小时清理 `expiresAt` 已过的目录与元数据；清理幂等并记录数量。建议开发环境保留 24 小时、演示环境 7 天。
+- 启动时执行任务恢复：`queued` 任务重新入队；`transcribing/summarizing` 任务标记为 `failed: PROCESS_INTERRUPTED`（不自动重试，避免不确定的重复转录计费），避免错误地假装成功。
+- 每小时清理 `expiresAt` 已过的输入/输出文件，但保留最小 tombstone（`id`、`status: expired`、`expiresAt`），供查询返回 `410 JOB_EXPIRED`；tombstone 在二次清理期限（建议 30 天）后移除。清理幂等并记录数量。建议文件保留 24 小时（开发）/ 7 天（演示）。
 
 ## 5. 接口设计
 
@@ -108,7 +110,7 @@ type BlogJob = {
 
 | 接口 | 用途 | 成功 | 关键失败 |
 | --- | --- | --- | --- |
-| `POST /api/v1/audio-jobs` | multipart 上传并创建任务 | `202`，返回 job id/status/query URL | `400 INVALID_FILE`、`413 FILE_TOO_LARGE`、`415 UNSUPPORTED_MEDIA_TYPE` |
+| `POST /api/v1/audio-jobs` | multipart 上传并创建任务 | `202`，返回 job id/status/query URL | `400 INVALID_FILE`、`409 IDEMPOTENCY_CONFLICT`、`413 FILE_TOO_LARGE`、`415 UNSUPPORTED_MEDIA_TYPE`、`429 RATE_LIMITED`、`503 QUEUE_FULL` |
 | `GET /api/v1/audio-jobs/{id}` | 查询任务与摘要 | `200` | `404 JOB_NOT_FOUND`、`410 JOB_EXPIRED` |
 | `GET /api/v1/audio-jobs/{id}/transcript` | 下载纯文本转录 | `200 text/plain` | `409 JOB_NOT_READY` |
 | `POST /api/v1/assistant/weather` | 触发天气工具调用 | `200` | `422 INVALID_LOCATION`、`503 WEATHER_UNAVAILABLE` |
@@ -116,19 +118,25 @@ type BlogJob = {
 | `GET /health/ready` | 服务就绪 | `200/503` | 检查配置、temp 可写、任务仓储可读写 |
 | `GET /metrics` | Prometheus 风格指标（内网），供 Prometheus/Grafana 可视化（答辩演示） | `200` | 生产环境需访问控制 |
 
-上传默认限制：仅 `audio/mpeg`、`audio/wav`、`audio/mp4`、`audio/x-m4a`（相比教材示例 03-02 的 `audio/*` 前缀匹配，此处为有意收紧，防止伪造 MIME）；最大 25 MB（可配置，但不得超过转录提供方限制）；文件名仅作展示，存储名由服务生成；拒绝路径分隔符和 MIME/魔数不一致的文件；并建议约束等效音频时长（官方 whisper-1 上限约 25 MB/1 小时），超长音频在受理阶段明确报错，避免转录阶段才失败。通过 `Idempotency-Key` 支持 24 小时内重复提交返回同一 Job。
+上传默认限制：仅 `audio/mpeg`、`audio/wav`、`audio/mp4`、`audio/x-m4a`（相比教材示例 03-02 的 `audio/*` 前缀匹配，此处为有意收紧，防止伪造 MIME）；最大 25 MB（可配置，但不得超过转录提供方限制；上游官方明确限制为文件大小 25 MB，未规定时长）；文件名仅作展示，存储名由服务生成；拒绝路径分隔符和 MIME/魔数不一致的文件。
+
+时长约束：超长音频在受理阶段明确报错（`400 AUDIO_TOO_LONG`），避免转录阶段才失败。时长上限为本项目自定义配置 `MAX_AUDIO_DURATION_SECONDS`（默认 3600，兼容多平台），检测手段：签名校验通过后用 `ffprobe` 读取时长；环境无 ffprobe 时降级为仅大小校验并在日志记录降级原因，不得误杀合法音频。
+
+幂等：通过 `Idempotency-Key` 支持 24 小时内重复提交——同一 key 且文件 `sha256` 一致时返回原 Job（`200`，非 `202`）；同一 key 但文件内容不同返回 `409 IDEMPOTENCY_CONFLICT`；key 随任务元数据持久化，随任务过期/tombstone 清理。
 
 > **魔数校验实现注意**：mp3 无固定文件头，通用检测库（如 file-type）对 mp3 存在误判短板；实现时以 ID3 帧头探测或 MAGIKA 等策略兜底，不得因检测失败误杀合法 mp3。
 
 ## 6. 关键处理流程
 
-1. HTTP 层生成/接收 `requestId`，校验 multipart 字段、大小、MIME 和文件签名；上传经 multer `memoryStorage` 暂存内存（路由层不落盘，与 §3.1“禁止直接读写磁盘”一致），由 `SubmitAudio` 用例调用 `FileStore` 将输入以随机 `jobId` 写入临时区。
-2. `SubmitAudio` 创建 `queued` Job 并原子持久化，向内存队列投递 jobId，立即返回 `202`。
-3. Worker 取出 job，依次迁移为 `transcribing`、`summarizing`；每一步通过端口调用适配器并保存中间产物。
+1. HTTP 层生成/接收 `requestId`，校验 multipart 字段、大小、MIME 和文件签名；上传经 multer `memoryStorage` 暂存内存，并显式设置 `limits.fileSize`（默认 `MAX_UPLOAD_BYTES`）与并发上传数上限（默认 10），防止并发上传挤占进程内存（路由层不落盘，与 §3.1“禁止直接读写磁盘”一致）；由 `SubmitAudio` 用例调用 `FileStore` 将输入以随机 `jobId` 写入临时区。
+2. `SubmitAudio` 创建 `queued` Job 并原子持久化，向内存队列投递 jobId（队列已满时返回 `503 QUEUE_FULL`），立即返回 `202`。
+3. Worker（固定并发度 `WORKER_CONCURRENCY`，默认 1）取出 job，依次迁移为 `transcribing`、`summarizing`；每一步通过端口调用适配器并保存中间产物。
 4. 成功时原子写入结果后转为 `succeeded`；可预期错误转 `failed` 并保留安全错误码；未知错误由顶层错误边界记录。
 5. 客户端轮询查询接口或（后续）订阅 webhook。任务的最终真相始终是仓储记录，不是日志或文件是否存在。
 
 重试规则：仅对网络超时、429、5xx 等可恢复上游错误重试，指数退避最多 3 次；4xx 参数/内容错误不重试。转录与摘要请求均携带 jobId 并记录模型、耗时与重试次数；以状态迁移和结果文件存在性保障幂等。
+
+优雅关闭：进程收到 SIGTERM/SIGINT 时停止接收新上传与新任务入队，等待在途任务完成或超时（建议 60 秒）后退出；未完成的任务由下次启动的恢复逻辑处理（§4.2）。
 
 ## 7. 外部集成与配置
 
@@ -156,6 +164,10 @@ type BlogJob = {
 | `TEMP_DIR`、`MAX_UPLOAD_BYTES`、`JOB_TTL_HOURS` | 是 | 本地存储策略 |
 | `WEATHER_BASE_URL`、`WEATHER_TIMEOUT_MS` | 是 | wttr.in 适配器配置 |
 | `OPENAI_TRANSCRIBE_TIMEOUT_MS` | 否 | 转录上游超时，默认 600000（大文件转录耗时长，勿与普通请求超时共用） |
+| `MAX_QUEUE_LENGTH` | 否 | 内存队列上限，满则 `503 QUEUE_FULL`，默认 100 |
+| `WORKER_CONCURRENCY` | 否 | 任务处理并发度，默认 1 |
+| `MAX_AUDIO_DURATION_SECONDS` | 否 | 受理时最大音频时长（ffprobe 检测，见 §5），默认 3600 |
+| `RATE_LIMIT_PER_MINUTE` | 否 | 上传/天气接口每 IP 每分钟请求上限，默认 30 |
 | `LOG_LEVEL` | 否 | 默认 `info` |
 
 使用 `.env.example` 提供变量名和非敏感默认值；启动配置校验失败即退出。CI 仅注入测试替身所需值；生产密钥使用 GitHub Environments 的 secrets。
@@ -167,6 +179,7 @@ type BlogJob = {
 - 路由末尾配置唯一的 Express 错误中间件，所有 async handler 通过统一包装器交给它。
 - 领域错误映射为 4xx；外部依赖超时/不可用映射为 502/503；未分类异常映射为 `500 INTERNAL_ERROR`。
 - 设置请求体、上传、上游 HTTP 的独立超时；其中转录上游超时独立配置且默认值足够大（不小于 10 分钟，大文件转录耗时长），不得与普通请求超时共用；请求中断时停止后续队列投递并清理未关联文件。
+- 公网暴露边界（上传、天气）按 IP 限流（默认每 IP 每分钟 30 次，超出返回 `429 RATE_LIMITED`）；`/metrics` 默认仅绑定 `127.0.0.1` 或由反向代理限制访问，不对外暴露；CORS 策略明确为同源（不使用 `Access-Control-Allow-Origin: *`），确有跨域需求时按域名白名单配置。
 
 ### 8.2 日志、指标与告警
 
