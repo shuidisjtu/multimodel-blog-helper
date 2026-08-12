@@ -122,13 +122,13 @@ type BlogJob = {
 
 时长约束：超长音频在受理阶段明确报错（`400 AUDIO_TOO_LONG`），避免转录阶段才失败。时长上限为本项目自定义配置 `MAX_AUDIO_DURATION_SECONDS`（默认 3600，兼容多平台），检测手段：签名校验通过后用 `ffprobe` 读取时长；环境无 ffprobe 时降级为仅大小校验并在日志记录降级原因，不得误杀合法音频。
 
-幂等：通过 `Idempotency-Key` 支持 24 小时内重复提交——同一 key 且文件 `sha256` 一致时返回原 Job（`200`，非 `202`）；同一 key 但文件内容不同返回 `409 IDEMPOTENCY_CONFLICT`；key 随任务元数据持久化，随任务过期/tombstone 清理。
+幂等：通过 `Idempotency-Key` 支持 24 小时内重复提交——同一 key 且文件 `sha256` 一致时返回原 Job（`200`，非 `202`）；同一 key 但文件内容不同返回 `409 IDEMPOTENCY_CONFLICT`；key 随任务元数据持久化，随任务过期/tombstone 清理。幂等在仓储层原子保证：`JobRepository.createOrGetByIdempotencyKey` 以“先原子创建、冲突则回读”的方式互斥（文件实现：幂等 key 名文件先写后 rename，rename 失败者回读既有记录），返回 `created | replayed | conflict` 三态；`idempotencyKey` 与 `sha256` 持久化为任务元数据。无幂等 key 的请求走普通 `create`。
 
 > **魔数校验实现注意**：mp3 无固定文件头，通用检测库（如 file-type）对 mp3 存在误判短板；实现时以 ID3 帧头探测或 MAGIKA 等策略兜底，不得因检测失败误杀合法 mp3。
 
 ## 6. 关键处理流程
 
-1. HTTP 层生成/接收 `requestId`，校验 multipart 字段、大小、MIME 和文件签名；上传经 multer `memoryStorage` 暂存内存，并显式设置 `limits.fileSize`（默认 `MAX_UPLOAD_BYTES`）与并发上传数上限（默认 10），防止并发上传挤占进程内存（路由层不落盘，与 §3.1“禁止直接读写磁盘”一致）；由 `SubmitAudio` 用例调用 `FileStore` 将输入以随机 `jobId` 写入临时区。
+1. HTTP 层生成/接收 `requestId`，校验 multipart 字段、大小、MIME 和文件签名；上传经 multer `memoryStorage` 暂存内存，并显式设置 `limits.fileSize`（默认 `MAX_UPLOAD_BYTES`）；并发上传数在进入 multer 前以 semaphore 限制（默认 10），避免请求体已开始占用内存后才被拒（路由层不落盘，与 §3.1“禁止直接读写磁盘”一致）；由 `SubmitAudio` 用例调用 `FileStore` 将输入以随机 `jobId` 写入临时区。
 2. `SubmitAudio` 创建 `queued` Job 并原子持久化，向内存队列投递 jobId（队列已满时返回 `503 QUEUE_FULL`），立即返回 `202`。
 3. Worker（固定并发度 `WORKER_CONCURRENCY`，默认 1）取出 job，依次迁移为 `transcribing`、`summarizing`；每一步通过端口调用适配器并保存中间产物。
 4. 成功时原子写入结果后转为 `succeeded`；可预期错误转 `failed` 并保留安全错误码；未知错误由顶层错误边界记录。
@@ -147,7 +147,7 @@ type BlogJob = {
 | `Transcriber` | `transcribe(file): Transcript` | `OpenAITranscriber`（模型经配置注入）；后续 `LocalWhisperTranscriber`；中期评估新增 GLM 等平台实现 |
 | `Summarizer` | `summarize(text): Summary` | `ResponsesSummarizer` |
 | `WeatherProvider` | `current(location): Weather` | `WttrWeatherProvider` |
-| `JobRepository` | `create/get/update/listExpired` | 文件仓储 |
+| `JobRepository` | `create`、`createOrGetByIdempotencyKey`（原子幂等，返回 `created|replayed|conflict`）、`get`、`update`、`listRecoverable`（启动恢复用）、`listExpired` | 文件仓储 |
 | `FileStore` | `saveInput/saveOutput/read/deleteExpired` | 临时目录 |
 
 适配器负责将第三方数据转换为内部 DTO；任何 wttr.in 的字段、OpenAI SDK 请求对象、模型名称细节均不得泄漏到领域对象或 HTTP 响应。
@@ -167,10 +167,12 @@ type BlogJob = {
 | `MAX_QUEUE_LENGTH` | 否 | 内存队列上限，满则 `503 QUEUE_FULL`，默认 100 |
 | `WORKER_CONCURRENCY` | 否 | 任务处理并发度，默认 1 |
 | `MAX_AUDIO_DURATION_SECONDS` | 否 | 受理时最大音频时长（ffprobe 检测，见 §5），默认 3600 |
-| `RATE_LIMIT_PER_MINUTE` | 否 | 上传/天气接口每 IP 每分钟请求上限，默认 30 |
+| `RATE_LIMIT_UPLOAD_PER_MINUTE` | 否 | 上传接口每 IP 每分钟请求上限，默认 10（防积分滥用，比天气严格） |
+| `RATE_LIMIT_WEATHER_PER_MINUTE` | 否 | 天气接口每 IP 每分钟请求上限，默认 30 |
+| `METRICS_PORT` | 否 | 独立 metrics 服务端口（仅绑 127.0.0.1，见 §8.1），默认 9100 |
 | `LOG_LEVEL` | 否 | 默认 `info` |
 
-使用 `.env.example` 提供变量名和非敏感默认值；启动配置校验失败即退出。CI 仅注入测试替身所需值；生产密钥使用 GitHub Environments 的 secrets。
+使用 `.env.example` 提供变量名和非敏感默认值；启动配置校验失败即退出。CI 仅注入测试替身所需值；密钥使用 GitHub Actions secrets（本期仅本地/演示部署）；若未来启用 CD，再迁移至受保护 Environment。
 
 ## 8. 可靠性、安全与可观测性
 
@@ -179,7 +181,7 @@ type BlogJob = {
 - 路由末尾配置唯一的 Express 错误中间件，所有 async handler 通过统一包装器交给它。
 - 领域错误映射为 4xx；外部依赖超时/不可用映射为 502/503；未分类异常映射为 `500 INTERNAL_ERROR`。
 - 设置请求体、上传、上游 HTTP 的独立超时；其中转录上游超时独立配置且默认值足够大（不小于 10 分钟，大文件转录耗时长），不得与普通请求超时共用；请求中断时停止后续队列投递并清理未关联文件。
-- 公网暴露边界（上传、天气）按 IP 限流（默认每 IP 每分钟 30 次，超出返回 `429 RATE_LIMITED`）；`/metrics` 默认仅绑定 `127.0.0.1` 或由反向代理限制访问，不对外暴露；CORS 策略明确为同源（不使用 `Access-Control-Allow-Origin: *`），确有跨域需求时按域名白名单配置。
+- 公网暴露边界（上传、天气）按 IP 限流（上传默认每 IP 每分钟 10 次、天气 30 次，超出返回 `429 RATE_LIMITED`）；`/metrics` 由独立 metrics 服务提供、仅监听 `127.0.0.1:<METRICS_PORT>`（Express 单实例不能按路由绑定不同地址，故不与主服务共用端口）；若置于反向代理之后，由反代/网络策略限制访问。CORS 策略明确为同源（不使用 `Access-Control-Allow-Origin: *`），确有跨域需求时按域名白名单配置。
 
 ### 8.2 日志、指标与告警
 
