@@ -2,6 +2,8 @@
 
 > 跟随《零基础自学AI应用开发》(李光毅)学习 AI 应用开发的实践项目。
 > 书籍配套源码位于 [`source_code/`](source_code/)(chapter-01 ~ chapter-10)。
+>
+> 当前阶段：第 3、4 章示例已全部跑通，正整合为可部署的学习研究型 HTTP 服务（见「重构」）。
 
 ## 环境
 
@@ -39,6 +41,13 @@
 | 05-whisper-API(第 3 章遗留) | 本地 whisper 模型,需下载 ~2GB |
 | 第 5 章起 | 未开始;05-01 需 `npm install -g pm2`(部署演示) |
 
+### 🔧 重构(规划中)
+
+将第 3、4 章示例整合为可部署的学习研究型 HTTP 服务：上传音频 → 异步转录 + 摘要 → 查询/下载；另含天气工具调用、健康监测与 CI。方案与计划已冻结，按任务清单驱动：
+
+- **工程架构**：[`docs/architecture/architecture-design.md`](docs/architecture/architecture-design.md)(v1.3)
+- **任务计划**：[`docs/project-division/task-list.md`](docs/project-division/task-list.md)(21 项，含验收标准与依赖)
+
 ## 快速开始
 
 ```bash
@@ -55,5 +64,7 @@ node index.js
 
 ## 文档
 
-- [`CLAUDE.md`](CLAUDE.md) — 开发协作约定(SDK v2 差异、运行注意事项、中转站限制等),供 Claude Code 读取
+- [`docs/architecture/architecture-design.md`](docs/architecture/architecture-design.md) — 工程架构设计（分层、状态机、接口契约、防护与观测；重构依据）
+- [`docs/project-division/task-list.md`](docs/project-division/task-list.md) — 任务清单（任务、验收标准、依赖链）
+- [`CLAUDE.md`](CLAUDE.md) — 开发协作约定（SDK v2 差异、运行注意事项、中转站限制等），供 Claude Code 读取
 - 本书配套文档与示例细节见各 chapter 目录
