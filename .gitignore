@@ -20,6 +20,7 @@ CLAUDE.md
 superpowers/
 docs/superpowers/
 
-# --- 教材示例源码(重构后仅保留用到的章节; E 盘 \大创\source_code 有原版备份) ---
-source_code/
+# --- 教材示例源码(已入库随仓库分发; E 盘 \大创\source_code 保留原版备份) ---
+# 示例项目的 Python 虚拟环境不随仓库分发(队友按 README 自行创建)
+source_code/**/.venv/
 .superpowers/
