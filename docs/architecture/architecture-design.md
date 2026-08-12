@@ -106,30 +106,30 @@ type BlogJob = {
 
 ## 5. 接口设计
 
-统一响应头：`X-Request-Id`。成功体：`{ "data": ..., "requestId": "..." }`；失败体：`{ "error": { "code", "message", "details?" }, "requestId" }`。不向客户端返回堆栈、上游原始报错或密钥。
+统一响应头：`X-Request-Id`。成功体：`{ "data": ..., "requestId": "..." }`；失败体：`{ "error": { "code", "message", "details?" }, "requestId" }`。不向客户端返回堆栈、上游原始报错或密钥。`429 RATE_LIMITED` 与 `503 QUEUE_FULL` 响应携带 `Retry-After` 头（秒）。
 
 | 接口 | 用途 | 成功 | 关键失败 |
 | --- | --- | --- | --- |
-| `POST /api/v1/audio-jobs` | multipart 上传并创建任务 | `202`，返回 job id/status/query URL | `400 INVALID_FILE`、`409 IDEMPOTENCY_CONFLICT`、`413 FILE_TOO_LARGE`、`415 UNSUPPORTED_MEDIA_TYPE`、`429 RATE_LIMITED`、`503 QUEUE_FULL` |
+| `POST /api/v1/audio-jobs` | multipart 上传并创建任务 | `202`（新建）或 `200`（幂等重放），返回 job id/status/query URL | `400 INVALID_FILE`、`400 AUDIO_TOO_LONG`、`409 IDEMPOTENCY_CONFLICT`、`413 FILE_TOO_LARGE`、`415 UNSUPPORTED_MEDIA_TYPE`、`429 RATE_LIMITED`、`503 QUEUE_FULL` |
 | `GET /api/v1/audio-jobs/{id}` | 查询任务与摘要 | `200` | `404 JOB_NOT_FOUND`、`410 JOB_EXPIRED` |
 | `GET /api/v1/audio-jobs/{id}/transcript` | 下载纯文本转录 | `200 text/plain` | `409 JOB_NOT_READY` |
-| `POST /api/v1/assistant/weather` | 触发天气工具调用 | `200` | `422 INVALID_LOCATION`、`503 WEATHER_UNAVAILABLE` |
+| `POST /api/v1/assistant/weather` | 触发天气工具调用 | `200` | `422 INVALID_LOCATION`、`429 RATE_LIMITED`、`503 WEATHER_UNAVAILABLE` |
 | `GET /health/live` | 进程存活 | `200` | 不探测外部依赖 |
-| `GET /health/ready` | 服务就绪 | `200/503` | 检查配置、temp 可写、任务仓储可读写 |
+| `GET /health/ready` | 服务就绪 | `200/503` | 检查配置、temp 可写、任务仓储可读写、worker 已启动且队列可接收任务 |
 | `GET /metrics` | Prometheus 风格指标（内网），供 Prometheus/Grafana 可视化（答辩演示） | `200` | 生产环境需访问控制 |
 
 上传默认限制：仅 `audio/mpeg`、`audio/wav`、`audio/mp4`、`audio/x-m4a`（相比教材示例 03-02 的 `audio/*` 前缀匹配，此处为有意收紧，防止伪造 MIME）；最大 25 MB（可配置，但不得超过转录提供方限制；上游官方明确限制为文件大小 25 MB，未规定时长）；文件名仅作展示，存储名由服务生成；拒绝路径分隔符和 MIME/魔数不一致的文件。
 
 时长约束：超长音频在受理阶段明确报错（`400 AUDIO_TOO_LONG`），避免转录阶段才失败。时长上限为本项目自定义配置 `MAX_AUDIO_DURATION_SECONDS`（默认 3600，兼容多平台），检测手段：签名校验通过后用 `ffprobe` 读取时长；环境无 ffprobe 时降级为仅大小校验并在日志记录降级原因，不得误杀合法音频。
 
-幂等：通过 `Idempotency-Key` 支持 24 小时内重复提交——同一 key 且文件 `sha256` 一致时返回原 Job（`200`，非 `202`）；同一 key 但文件内容不同返回 `409 IDEMPOTENCY_CONFLICT`；key 随任务元数据持久化，随任务过期/tombstone 清理。幂等在仓储层原子保证：`JobRepository.createOrGetByIdempotencyKey` 以“先原子创建、冲突则回读”的方式互斥（文件实现：幂等 key 名文件先写后 rename，rename 失败者回读既有记录），返回 `created | replayed | conflict` 三态；`idempotencyKey` 与 `sha256` 持久化为任务元数据。无幂等 key 的请求走普通 `create`。
+幂等：通过 `Idempotency-Key` 支持 24 小时内重复提交——同一 key 且文件 `sha256` 一致时返回原 Job（`200`，非 `202`）；同一 key 但文件内容不同返回 `409 IDEMPOTENCY_CONFLICT`；key 随任务元数据持久化，随任务过期/tombstone 清理。幂等在仓储层原子保证：`JobRepository.createOrGetByIdempotencyKey` 以 `fs.open(path, 'wx')`（O_EXCL）原子创建幂等占位文件实现互斥——创建成功者拥有该 key；收到 `EEXIST` 的请求回读既有记录，比较 `sha256` 后返回 `replayed` 或 `conflict`（注意：不能依赖 `rename` 失败判定冲突，POSIX/Node 的 rename 到已有目标会覆盖而非失败）。占位记录创建成功但后续步骤失败时须清除或标记，防止幂等键永久卡死；并发幂等请求的落败者（`replayed`/`conflict`）清理其已上传的临时文件。`idempotencyKey` 与 `sha256` 持久化为任务元数据。无幂等 key 的请求走普通 `create`。
 
 > **魔数校验实现注意**：mp3 无固定文件头，通用检测库（如 file-type）对 mp3 存在误判短板；实现时以 ID3 帧头探测或 MAGIKA 等策略兜底，不得因检测失败误杀合法 mp3。
 
 ## 6. 关键处理流程
 
 1. HTTP 层生成/接收 `requestId`，校验 multipart 字段、大小、MIME 和文件签名；上传经 multer `memoryStorage` 暂存内存，并显式设置 `limits.fileSize`（默认 `MAX_UPLOAD_BYTES`）；并发上传数在进入 multer 前以 semaphore 限制（默认 10），避免请求体已开始占用内存后才被拒（路由层不落盘，与 §3.1“禁止直接读写磁盘”一致）；由 `SubmitAudio` 用例调用 `FileStore` 将输入以随机 `jobId` 写入临时区。
-2. `SubmitAudio` 创建 `queued` Job 并原子持久化，向内存队列投递 jobId（队列已满时返回 `503 QUEUE_FULL`），立即返回 `202`。
+2. `SubmitAudio` 创建 `queued` Job 并原子持久化，向内存队列投递 jobId，立即返回 `202`。队列容量检查、Job 持久化与入队投递须在同一个同步临界区内完成：容量已满时根本不写 Job（直接 `503 QUEUE_FULL`，磁盘不残留可恢复任务）；若持久化后入队异常，回滚删除刚创建的 Job 记录与输入文件。重放请求（`replayed`）不再次入队，直接返回既有 Job。
 3. Worker（固定并发度 `WORKER_CONCURRENCY`，默认 1）取出 job，依次迁移为 `transcribing`、`summarizing`；每一步通过端口调用适配器并保存中间产物。
 4. 成功时原子写入结果后转为 `succeeded`；可预期错误转 `failed` 并保留安全错误码；未知错误由顶层错误边界记录。
 5. 客户端轮询查询接口或（后续）订阅 webhook。任务的最终真相始终是仓储记录，不是日志或文件是否存在。
