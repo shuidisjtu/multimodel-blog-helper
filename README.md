@@ -1,7 +1,7 @@
 # Multimodel Blog Helper
 
 > 跟随《零基础自学AI应用开发》(李光毅)学习 AI 应用开发的实践项目。
-> 书籍配套源码位于 [`source_code/`](source_code/)(chapter-01 ~ chapter-10)。
+> 已跑通的教材示例保留在 [`source_code/`](source_code/)(chapter-03/04;其余章节已清理,E 盘有原版备份)。
 >
 > 当前阶段：第 3、4 章示例已全部跑通，正整合为可部署的学习研究型 HTTP 服务（见「重构」）。
 
