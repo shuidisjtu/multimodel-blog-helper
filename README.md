@@ -34,7 +34,7 @@
 - `04-02-word-timestamp`:中转站无 word 级时间戳,降级为 segment 级
 - `01-02-weather-assistant`:天气查询改用 wttr.in(零配置,原书用的 WeatherAPI.com 需注册 key)
 
-**遗留**：05-whisper-API 本地 whisper 模型(需下载 ~2GB,可选,非本项目任务)；第 5 章起未开始(05-01 需 `npm install -g pm2`)。
+**遗留**：05-whisper-API 本地 whisper 模型(需下载 ~2GB,可选,非本项目任务)；第 4 章 04-05 小结的 pm2 示例(05-01-pm2-try)演示需全局安装 pm2(未装,未跑)；第 5 章起未开始。
 
 ###  重构主线进度（本仓库的任务,以 task-list.md 为唯一权威参考）
 
