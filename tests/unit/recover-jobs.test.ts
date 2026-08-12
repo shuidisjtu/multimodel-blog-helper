@@ -35,6 +35,8 @@ class InMemoryJobRepo implements JobRepository {
   readonly jobs = new Map<string, BlogJob>();
   updateErrorFor = new Set<string>();
   listRecoverableError: unknown = null;
+  /** 可编程的 listInProgress 快照(模拟列表与写入之间的竞态);null 时按仓储当前状态推导。 */
+  inProgressList: BlogJob[] | null = null;
 
   async create(): Promise<BlogJob> {
     throw new Error('not used in RecoverJobs tests');
@@ -63,6 +65,7 @@ class InMemoryJobRepo implements JobRepository {
   }
 
   async listInProgress(): Promise<BlogJob[]> {
+    if (this.inProgressList !== null) return this.inProgressList;
     return [...this.jobs.values()].filter((j) => j.status === 'transcribing' || j.status === 'summarizing');
   }
 
@@ -195,6 +198,20 @@ describe('RecoverJobs(架构文档 §4.2 启动恢复)', () => {
     expect(repo.jobs.get('t-1')!.status).toBe('transcribing'); // 失败任务保持原状态
     expect(repo.jobs.get('s-1')!.status).toBe('failed'); // 其余任务继续
     expect(logger.calls.some((c) => c.event === 'recovery.interrupt_failed' && c.jobId === 't-1' && c.level === 'error')).toBe(true);
+  });
+
+  it('update 竞态: 列表时 transcribing、更新时已被外部迁移 expired → 跳过, 以仓储最终状态为准, 不产生幽灵任务', async () => {
+    const { repo, logger, useCase } = setup();
+    // listInProgress 返回的仍是 transcribing 快照, 但仓储当前已是 expired tombstone(worker 失败后清理置入)
+    repo.inProgressList = [makeJob({ id: 'x', status: 'transcribing' })];
+    repo.jobs.set('x', makeJob({ id: 'x', status: 'expired', input: undefined }));
+
+    const result = await useCase.run();
+
+    expect(result).toEqual({ requeued: 0, interrupted: 0 }); // 未实际标记中断不计数
+    expect(repo.jobs.get('x')!.status).toBe('expired'); // 不被覆盖为 failed, 不会写出无 input 的幽灵任务
+    expect(repo.jobs.get('x')!.failure).toBeUndefined();
+    expect(logger.calls.some((c) => c.event === 'job.interrupted')).toBe(false);
   });
 
   it('入队非 QUEUE_FULL 异常: 记录日志继续, 不中断整体恢复', async () => {
