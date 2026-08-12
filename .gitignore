@@ -22,5 +22,5 @@ docs/superpowers/
 
 # --- 教材示例源码(已入库随仓库分发; E 盘 \大创\source_code 保留原版备份) ---
 # 示例项目的 Python 虚拟环境不随仓库分发(队友按 README 自行创建)
-source_code/**/.venv/
+book-examples/**/.venv/
 .superpowers/

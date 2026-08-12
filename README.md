@@ -1,7 +1,7 @@
 # Multimodel Blog Helper
 
 > 跟随《零基础自学AI应用开发》(李光毅)学习 AI 应用开发的实践项目。
-> 已跑通的教材示例**已随仓库分发**（[`source_code/`](source_code/)，chapter-03/04；其余章节已清理，`E:\大创\source_code` 保留原版备份）。示例项目的 `.env` 含个人 key **不入库**——首次运行前复制各项目 `.env.example` 为 `.env` 并填写（见"快速开始(教材示例)"）。
+> 已跑通的教材示例**已随仓库分发**（[`book-examples/`](book-examples/)，chapter-03/04；其余章节已清理，`E:\大创\source_code` 保留原版备份）。示例项目的 `.env` 含个人 key **不入库**——首次运行前复制各项目 `.env.example` 为 `.env` 并填写（见"快速开始(教材示例)"）。
 >
 > 当前阶段：第 3、4 章示例已全部跑通，正整合为可部署的学习研究型 HTTP 服务（见「重构」）。
 
@@ -9,7 +9,7 @@
 
 | 组件 | 配置 |
 |---|---|
-| Python | `source_code/chapter-03/.venv` 共享环境(openai 2.53.0 + python-dotenv + requests),由 uv 管理;`.venv` 不入库,克隆后需自行创建(`uv venv` 后 `uv pip install openai python-dotenv requests`) |
+| Python | `book-examples/chapter-03/.venv` 共享环境(openai 2.53.0 + python-dotenv + requests),由 uv 管理;`.venv` 不入库,克隆后需自行创建(`uv venv` 后 `uv pip install openai python-dotenv requests`) |
 | Node.js | v24,各章节项目自带 `node_modules` |
 | LLM API | 第三方中转站 **openai-hk**(`OPENAI_BASE_URL=https://api.openai-hk.com/v1`),key 为 `hk-` 前缀,存于各项目 `.env`(用户自填) |
 | 天气 API | 免费无 key 的 **wttr.in**(仅个人/非商业用途) |
@@ -75,11 +75,11 @@ npm run verify
 
 ```bash
 # Python 示例(以 01-02 为例)
-cd source_code/chapter-04/01-02-weather-assistant
-<venv>/Scripts/python.exe main.py     # venv = source_code/chapter-03/.venv
+cd book-examples/chapter-04/01-02-weather-assistant
+<venv>/Scripts/python.exe main.py     # venv = book-examples/chapter-03/.venv
 
 # Node 示例(以 02-01 为例)
-cd source_code/chapter-04/02-01-shownotes-assistant
+cd book-examples/chapter-04/02-01-shownotes-assistant
 node index.js
 ```
 
