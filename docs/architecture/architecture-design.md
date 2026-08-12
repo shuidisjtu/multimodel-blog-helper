@@ -108,13 +108,13 @@ type BlogJob = {
 
 时长约束：超长音频在受理阶段明确报错（`400 AUDIO_TOO_LONG`），避免转录阶段才失败。时长上限为本项目自定义配置 `MAX_AUDIO_DURATION_SECONDS`（默认 3600，兼容多平台），检测手段：签名校验通过后用 `ffprobe` 读取时长；环境无 ffprobe 时降级为仅大小校验并在日志记录降级原因，不得误杀合法音频。
 
-幂等：通过 `Idempotency-Key` 支持 24 小时内重复提交——同一 key 且文件 `sha256` 一致时返回原 Job（`200`，非 `202`）；同一 key 但文件内容不同返回 `409 IDEMPOTENCY_CONFLICT`；key 随任务元数据持久化，随任务过期/tombstone 清理。幂等在仓储层原子保证：`JobRepository.createOrGetByIdempotencyKey` 以 `fs.open(path, 'wx')`（O_EXCL）原子创建幂等占位文件实现互斥——创建成功者拥有该 key；收到 `EEXIST` 的请求回读既有记录，比较 `sha256` 后返回 `replayed` 或 `conflict`（注意：不能依赖 `rename` 失败判定冲突，POSIX/Node 的 rename 到已有目标会覆盖而非失败）。占位记录创建成功但后续步骤失败时须清除或标记，防止幂等键永久卡死；并发幂等请求的落败者（`replayed`/`conflict`）清理其已上传的临时文件。`idempotencyKey` 与 `sha256` 持久化为任务元数据。无幂等 key 的请求走普通 `create`。
+幂等：通过 `Idempotency-Key` 支持 24 小时内重复提交——同一 key 且文件 `sha256` 一致时返回原 Job（`200`，非 `202`）；同一 key 但文件内容不同返回 `409 IDEMPOTENCY_CONFLICT`；key 随任务元数据持久化，随任务过期/tombstone 清理；无幂等 key 的请求走普通创建。互斥与冲突判定由仓储 `createOrGetByIdempotencyKey` 原子保证（O_EXCL 占位机制与实现注意见 ADR-0002）。
 
 > **魔数校验实现注意**：mp3 无固定文件头，通用检测库（如 file-type）对 mp3 存在误判短板；实现时以 ID3 帧头探测或 MAGIKA 等策略兜底，不得因检测失败误杀合法 mp3。
 
 ## 6. 关键处理流程
 
-1. HTTP 层生成/接收 `requestId`，校验 multipart 字段、大小、MIME 和文件签名；上传经 multer `memoryStorage` 暂存内存，并显式设置 `limits.fileSize`（默认 `MAX_UPLOAD_BYTES`）；并发上传数在进入 multer 前以 semaphore 限制（默认 10），避免请求体已开始占用内存后才被拒（路由层不落盘，与 §3.1“禁止直接读写磁盘”一致）；由 `SubmitAudio` 用例调用 `FileStore` 将输入以随机 `jobId` 写入临时区。
+1. HTTP 层生成/接收 `requestId`，校验 multipart 字段、大小、MIME 与文件签名（multer 内存暂存并显式限制大小；并发上传以 semaphore 限流，避免请求体已占用内存后才被拒；路由层不落盘，与 §3.1 一致）；`SubmitAudio` 经 `FileStore` 将输入以随机 `jobId` 写入临时区。
 2. `SubmitAudio` 创建 `queued` Job 并原子持久化，向内存队列投递 jobId，立即返回 `202`。队列容量检查、Job 持久化与入队投递须在同一个同步临界区内完成：容量已满时根本不写 Job（直接 `503 QUEUE_FULL`，磁盘不残留可恢复任务）；若持久化后入队异常，回滚删除刚创建的 Job 记录与输入文件。重放请求（`replayed`）不再次入队，直接返回既有 Job。
 3. Worker（固定并发度 `WORKER_CONCURRENCY`，默认 1）取出 job，依次迁移为 `transcribing`、`summarizing`；每一步通过端口调用适配器并保存中间产物。
 4. 成功时原子写入结果后转为 `succeeded`；可预期错误转 `failed` 并保留安全错误码；未知错误由顶层错误边界记录。
@@ -223,25 +223,4 @@ PR 与主分支 push：检出 → 安装锁定依赖 → 格式/Lint/类型检�
 
 一个功能只有同时满足以下条件才算完成：接口在 OpenAPI 中定义；输入校验和错误码齐全；成功和关键失败路径有测试；日志可关联 requestId/jobId；配置与 secrets 不泄漏；必要 ADR/运行记录已更新；代码通过架构依赖规则和 CI 门禁；临时兼容代码写明删除计划。
 
-## 附录：建议的首个 OpenAPI 片段
-
-```yaml
-post:
-  summary: 创建音频处理任务
-  operationId: createAudioJob
-  requestBody:
-    required: true
-    content:
-      multipart/form-data:
-        schema:
-          type: object
-          required: [audio]
-          properties:
-            audio: { type: string, format: binary }
-  responses:
-    '202': { description: 任务已受理 }
-    '400': { description: 文件无效 }
-    '413': { description: 文件过大 }
-    '415': { description: 不支持的媒体类型 }
-```
 

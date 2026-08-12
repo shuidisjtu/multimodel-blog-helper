@@ -38,6 +38,7 @@
 - 端口演进（§11.1 同步义务）：`JobRepository` 追加 `listInProgress`（启动恢复标记用）与 `remove`（tombstone 二次清理）；`CreateJobParams` 增加可选 `id`（用例层预生成 jobId，使文件目录与任务 id 一致）。
 - `BlogJob.input` 改为可选：tombstone 最小化后任务无 input，仓储校验（isBlogJob）对 `expired` 放行、其余状态仍严格。
 - 幂等占位文件以 `sha256(idempotencyKey)` 命名，防 key 中的路径分隔符注入。
+- **幂等占位互斥细节**：O_EXCL 创建成功者拥有该 key；收到 `EEXIST` 的请求回读既有记录，比较 `sha256` 后返回 `replayed` 或 `conflict`（不能依赖 `rename` 失败判定冲突——POSIX/Node 的 rename 到已有目标会覆盖而非失败）；占位创建成功但后续步骤失败时须清除，防止幂等键永久卡死。
 - **原子性边界**：read-modify-write 的"原子"是单进程单线程内的近似语义（update 的 mutator 以仓储最新状态执行）；多进程/多实例部署时须复审本决策（见触发复审条件）。
 
 ## 触发复审的条件
