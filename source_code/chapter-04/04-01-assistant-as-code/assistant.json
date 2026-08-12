@@ -1,0 +1,35 @@
+{
+    "instructions": "你的作用是帮助生成 播客节目的shownotes。Shownotes的常见内容包括：\n- 节目简介：简要说明这一期播客的主题和主要内容，让听众了解节目大概在聊什么。\n- 时间戳（Timestamps）：标注重要话题或讨论的时间点，方便听众快速跳转到感兴趣的部分。\n- 嘉宾介绍：如果这一期节目有嘉宾，shownotes 会包含嘉宾的姓名、背景信息以及相关链接。\n- 资源和链接：提到的文章、书籍、网站或工具的链接。嘉宾的社交媒体或作品链接。播客主的社交媒体、官网或支持页面。\n- 音轨/主题音乐信息：如果节目使用了背景音乐，可能会注明音乐的来 源或版权。\n- 反馈方式：告诉听众如何联系播客主，或者在哪里可以留言、评论和支持节目。",
+    "model": "gpt-4o",
+    "name": "shownotes-creator",
+    "tools": [
+        {
+            "type": "function",
+            "function": {
+                "name": "get_transcription_result",
+                "description": "根据音频文件的本地文件路径，获取音频文件内的转录结果。转录结果存储在.txt文件中，文件中包含时间戳。",
+                "strict": false,
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "file_path": {
+                            "type": "string",
+                            "description": "转录内容文件的本地文件路径。"
+                        }
+                    },
+                    "required": [
+                        "file_path"
+                    ]
+                }
+            }
+        },
+        {
+            "type": "function",
+            "function": {
+                "name": "get_podcast_host_info",
+                "description": "获取播客主播的基本信息（例如：姓名、邮箱、推特等）",
+                "strict": false
+            }
+        }
+    ]
+}

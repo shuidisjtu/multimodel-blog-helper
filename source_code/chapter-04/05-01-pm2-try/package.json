@@ -1,0 +1,9 @@
+{
+    "name": "pm2-demo",
+    "type": "module",
+    "dependencies": {
+        "express": "^4.21.2",
+        "install": "^0.13.0",
+        "npm": "^11.1.0"
+    }
+}

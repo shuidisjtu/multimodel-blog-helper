@@ -1,0 +1,51 @@
+name: deploy-to-digitalocean-droplet
+
+on:
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    env:
+      REPO_NAME: $(basename ${{ github.repository }})
+    steps:
+      - name: Setup Node.js environment
+        uses: actions/setup-node@v4
+
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Zip package
+        run: zip -r ${{ env.REPO_NAME }}.zip .     
+
+      - name: Copy file via ssh key
+        uses: appleboy/scp-action@v0.1.4
+        with:
+          host: xxx.xxx.xxx.xxx
+          username: root
+          key: ${{ secrets.SSH_KEY }}
+          source: "*.zip"
+          target: "~"
+
+      - name: SSH Remote Commands
+        uses: appleboy/ssh-action@v1.0.0
+        with:
+          host: xxx.xxx.xxx.xxx
+          username: root
+          key: ${{ secrets.SSH_KEY }}
+          script: |
+            export NVM_DIR=~/.nvm
+            source ~/.nvm/nvm.sh
+            rm -rf ${{ env.REPO_NAME }}-backup
+            cp ${{ env.REPO_NAME }} -r ./${{ env.REPO_NAME }}-backup
+            unzip -o ${{ env.REPO_NAME }}.zip -d ${{ env.REPO_NAME }} 
+            cd ${{ env.REPO_NAME }}
+            pm2 stop ${{ env.REPO_NAME }}
+            pm2 flush ${{ env.REPO_NAME }}
+            pm2 start ecosystem.config.cjs
+            exit
+
+

@@ -1,0 +1,4 @@
+00:00:00 - Hello, everyone, and welcome back to the show.
+00:00:05 - Today we're going to talk about how AI is changing the way we write code.
+00:00:10 - We'll discuss practical tips for integrating AI into your daily development workflow.
+00:00:15 - Let's get started.
