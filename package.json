@@ -1,0 +1,19 @@
+{
+  "name": "multimodel-blog-helper",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "OpenAI 多模态博客助手:音频转录 + 摘要 + 天气工具调用 HTTP 服务(学习研究项目)",
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "dev": "tsx watch src/bootstrap/server.ts"
+  },
+  "devDependencies": {
+    "@types/node": "^26.2.0",
+    "tsx": "^4.23.12",
+    "typescript": "^7.0.2",
+    "vitest": "^4.1.10"
+  }
+}
