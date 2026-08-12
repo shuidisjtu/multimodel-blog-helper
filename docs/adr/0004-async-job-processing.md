@@ -34,6 +34,12 @@
 - 禁止任务状态只存在于进程内存或日志。
 - 禁止未实现的"成功"（状态迁移必须与产物文件存在性一致）。
 
+## 实现记录（A3 落地, 2026-08-12）
+
+- `MemoryJobQueue`（有界 FIFO，同步 enqueue 使容量检查/持久化/入队在单线程内原子）、`SubmitAudio`/`ProcessJob`/`QueryJob`、`RecoverJobs`/`ProcessJobWorker`/`CleanupExpired` 已实现，状态机与幂等三态（created/replayed/conflict）落地。
+- **启动顺序契约**：`RecoverJobs.run()` 必须在 `ProcessJobWorker.start()` 之前执行——先启 worker 会立即消费恢复重入队的任务并迁到进行中，随后恢复阶段会将其标记 `PROCESS_INTERRUPTED`，造成同一任务既被处理又被标记失败（重复转录计费）。
+- 失败任务保留安全错误码（`failure.code`），未知错误统一转 `INTERNAL_ERROR`，原始错误仅写日志（架构文档 §8.1）；仓储 DomainError message 中性化，内部路径仅存在于 `details`。
+
 ## 触发复审的条件
 
 - 任务量超过单进程吞吐、需要多实例，或需要持久化队列保证投递时。

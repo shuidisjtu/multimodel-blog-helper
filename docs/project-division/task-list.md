@@ -10,9 +10,9 @@
 
 | 编号 | 任务 | 前置 | 验收标准 | 状态/认领人 |
 | --- | --- | --- | --- | --- |
-| A1 | 架构 ADR（Responses API、任务异步化、文件存储边界） | — | 每项包含背景、决策、替代方案、后果、复审条件 | 待办/待定 |
-| A2 | `Transcriber`、`Summarizer` 端口与 OpenAI 适配器 | A1 | 领域层不导入 SDK；可用 fake 实现通过集成测试 | 待办/待定 |
-| A3 | 音频转录与摘要任务用例 | A1、A2 | Job 状态按 `queued→transcribing→summarizing→succeeded/failed` 迁移；失败可查询；启动恢复（queued 重入队、进行中标记 `PROCESS_INTERRUPTED`） | 待办/待定 |
+| A1 | 架构 ADR（Responses API、任务异步化、文件存储边界） | — | 每项包含背景、决策、替代方案、后果、复审条件 | ✅ 已完成 |
+| A2 | `Transcriber`、`Summarizer` 端口与 OpenAI 适配器 | A1 | 领域层不导入 SDK；可用 fake 实现通过集成测试 | ✅ 已完成 |
+| A3 | 音频转录与摘要任务用例 | A1、A2 | Job 状态按 `queued→transcribing→summarizing→succeeded/failed` 迁移；失败可查询；启动恢复（queued 重入队、进行中标记 `PROCESS_INTERRUPTED`） | ✅ 已完成 |
 | A4 | 模型调用重试/超时策略 | A1 | 仅网络、429、5xx 重试；最多 3 次；4xx 不重试 | 待办/待定 |
 | A5 | 核心技术说明与答辩材料 | A2、A3、A4 | 可说明 Assistants API 迁移为 Responses API 的原因与影响 | 待办/待定 |
 

@@ -32,6 +32,14 @@
 - 禁止把任务状态只放在进程内存。
 - 禁止领域层知道文件路径或直接读写 `fs`。
 
+## 实现记录（A3 落地, 2026-08-12）
+
+- `FileJobRepository`（infrastructure/repository/）与 `LocalFileStore`（infrastructure/storage/）已实现：tmp+rename 原子写、O_EXCL 幂等占位、列表扫描容忍单文件损坏（记录跳过）。
+- 端口演进（§11.1 同步义务）：`JobRepository` 追加 `listInProgress`（启动恢复标记用）与 `remove`（tombstone 二次清理）；`CreateJobParams` 增加可选 `id`（用例层预生成 jobId，使文件目录与任务 id 一致）。
+- `BlogJob.input` 改为可选：tombstone 最小化后任务无 input，仓储校验（isBlogJob）对 `expired` 放行、其余状态仍严格。
+- 幂等占位文件以 `sha256(idempotencyKey)` 命名，防 key 中的路径分隔符注入。
+- **原子性边界**：read-modify-write 的"原子"是单进程单线程内的近似语义（update 的 mutator 以仓储最新状态执行）；多进程/多实例部署时须复审本决策（见触发复审条件）。
+
 ## 触发复审的条件
 
 - 需要多实例横向扩展、任务量超过单目录可维护性，或运行环境要求独立存储服务时。
