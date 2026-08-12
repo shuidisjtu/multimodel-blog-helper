@@ -9,7 +9,7 @@
 
 | 组件 | 配置 |
 |---|---|
-| Python | `book-examples/chapter-03/.venv` 共享环境(openai 2.53.0 + python-dotenv + requests);`.venv` 不入库,克隆后自行创建(uv 或原生 venv 均可,见"快速开始(教材示例)") |
+| Python | `book-examples/chapter-03/.venv` 共享环境(openai 2.53.0 + python-dotenv + requests);`.venv` 不入库,克隆后自行创建(uv / 原生 venv / Anaconda 任选,见"快速开始(教材示例)") |
 | Node.js | v24,各章节项目自带 `node_modules` |
 | LLM API | 第三方中转站 **openai-hk**(`OPENAI_BASE_URL=https://api.openai-hk.com/v1`),key 为 `hk-` 前缀,存于各项目 `.env`(用户自填) |
 | 天气 API | 免费无 key 的 **wttr.in**(仅个人/非商业用途) |
@@ -74,17 +74,21 @@ npm run verify
 ## 快速开始(教材示例)
 
 ```bash
-# 0. 创建共享 Python 环境(book-examples/chapter-03/.venv,二选一,按你的工具习惯)
+# 0. 创建共享 Python 环境(book-examples/chapter-03/.venv,三选一,按你的工具习惯)
 #    方式 A: uv
 #    uv venv book-examples/chapter-03/.venv
 #    uv pip install --python book-examples/chapter-03/.venv/Scripts/python.exe openai python-dotenv requests
 #    方式 B: 原生 venv(python 需 3.10+)
 #    python -m venv book-examples/chapter-03/.venv
 #    book-examples/chapter-03/.venv/Scripts/pip install openai python-dotenv requests
+#    方式 C: Anaconda(conda 环境激活后直接用 python/pip 命令)
+#    conda create -p book-examples/chapter-03/.venv python=3.13 -y
+#    conda activate book-examples/chapter-03/.venv
+#    pip install openai python-dotenv requests
 
 # Python 示例(以 01-02 为例)
 cd book-examples/chapter-04/01-02-weather-assistant
-<venv>/Scripts/python.exe main.py     # venv = book-examples/chapter-03/.venv(上一步创建)
+<venv>/Scripts/python.exe main.py     # venv = book-examples/chapter-03/.venv(上一步创建;conda 用户可先 activate 再直接 python main.py)
 
 # Node 示例(以 02-01 为例)
 cd book-examples/chapter-04/02-01-shownotes-assistant
