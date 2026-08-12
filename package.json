@@ -8,7 +8,11 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
+    "verify": "npm run typecheck && npm test && npx vitest run --coverage",
     "dev": "tsx watch src/bootstrap/server.ts"
+  },
+  "engines": {
+    "node": ">=24"
   },
   "devDependencies": {
     "@types/node": "^26.2.0",

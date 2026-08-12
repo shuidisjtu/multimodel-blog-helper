@@ -41,14 +41,37 @@
 | 05-whisper-API(第 3 章遗留) | 本地 whisper 模型,需下载 ~2GB |
 | 第 5 章起 | 未开始;05-01 需 `npm install -g pm2`(部署演示) |
 
-### 🔧 重构(规划中)
+### 🔧 重构(进行中)
 
-将第 3、4 章示例整合为可部署的学习研究型 HTTP 服务：上传音频 → 异步转录 + 摘要 → 查询/下载；另含天气工具调用、健康监测与 CI。方案与计划已冻结，按任务清单驱动：
+将第 3、4 章示例整合为可部署的学习研究型 HTTP 服务：上传音频 → 异步转录 + 摘要 → 查询/下载；另含天气工具调用、健康监测与 CI。方案与计划已冻结，按任务清单驱动。当前进度：**A1–A3 已完成**(架构 ADR / OpenAI 适配器 / 任务用例核心,107 测试,覆盖率 94%+)；下一步 A4(重试/超时)与 B 系列(HTTP 接口层)。
 
 - **工程架构**：[`docs/architecture/architecture-design.md`](docs/architecture/architecture-design.md)(v1.3)
-- **任务计划**：[`docs/project-division/task-list.md`](docs/project-division/task-list.md)(21 项，含验收标准与依赖)
+- **任务计划**：[`docs/project-division/task-list.md`](docs/project-division/task-list.md)(20 项，含验收标准与依赖)
 
-## 快速开始
+## 重构项目快速开始
+
+> 主线代码在 `src/` + `tests/`(TypeScript ESM)。按以下三步复现开发环境,约 2 分钟:
+
+```bash
+# 1. 安装依赖(要求 Node >= 24;npm ci 按 lock 文件精确安装)
+npm ci
+
+# 2. 配置环境变量(模板见 .env.example;OPENAI_API_KEY 为 openai-hk 中转站 key,`hk-` 前缀,向项目成员获取)
+cp .env.example .env      # Windows: copy .env.example .env
+
+# 3. 验证环境就绪(类型检查 + 全部测试 + 覆盖率,全绿即 OK)
+npm run verify
+```
+
+**环境要求与已知坑**：
+
+- **Node ≥ 24**——`openAsBlob` 等内置 API 依赖新版本；启动时也会校验,版本过低直接报 `ConfigError`。版本不符用 `nvm install 24` / 官网安装包
+- `.env` 缺失或 key 未填时,启动会抛 `ConfigError` 并退出,不会带病运行(不会静默缺 key)
+- npm 11 的 allow-scripts 会拦 esbuild postinstall——**不影响 vitest/tsx 运行**,可忽略
+- Windows 终端中文乱码是 GBK 显示问题(数据正确):先执行 `chcp 65001`；Node 程序需 `cd` 进项目目录再运行(dotenv 从 cwd 找 .env)
+- 开发服务器:`npm run dev`(当前阶段仅配置校验;HTTP 接口层 B 系列开发中,完成后支持上传/查询)
+
+## 快速开始(教材示例)
 
 ```bash
 # Python 示例(以 01-02 为例)

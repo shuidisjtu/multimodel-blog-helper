@@ -69,6 +69,15 @@ function intEnv(
 }
 
 export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
+  // Node 版本门槛:openAsBlob 等内置 API 依赖 Node 24+,版本过低直接失败(环境自检,不带到运行期)
+  const nodeVersion = process.versions.node ?? '';
+  if (nodeVersion === '') {
+    throw new ConfigError('Cannot determine Node version');
+  }
+  const nodeMajor = Number.parseInt(nodeVersion.split('.')[0] ?? '', 10);
+  if (Number.isNaN(nodeMajor) || nodeMajor < 24) {
+    throw new ConfigError(`Node >= 24 required (current: ${nodeVersion})`);
+  }
   return {
     nodeEnv: env.NODE_ENV ?? 'development',
     port: intEnv(env, 'PORT', 3000, 1),

@@ -1,5 +1,9 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { ConfigError, loadConfig } from '../../src/bootstrap/config.js';
+
+afterEach(() => {
+  vi.restoreAllMocks();
+});
 
 const BASE_ENV: NodeJS.ProcessEnv = {
   OPENAI_API_KEY: 'hk-test',
@@ -43,5 +47,26 @@ describe('loadConfig(架构文档 §7.2)', () => {
     expect(config.port).toBe(8080);
     expect(config.limits.rateLimitUploadPerMinute).toBe(5);
     expect(config.logLevel).toBe('debug');
+  });
+
+  it('Node 版本低于 24 时抛 ConfigError(环境自检)', () => {
+    const realVersions = process.versions;
+    vi.spyOn(process, 'versions', 'get').mockReturnValue({
+      ...realVersions,
+      node: '22.14.0',
+    });
+    expect(() => loadConfig(BASE_ENV)).toThrow(/Node >= 24 required/);
+  });
+
+  it('Node 版本缺失或非法时抛 ConfigError', () => {
+    const realVersions = process.versions;
+    const mockVersions = (node: string) =>
+      vi
+        .spyOn(process, 'versions', 'get')
+        .mockReturnValue({ ...realVersions, node });
+    mockVersions('');
+    expect(() => loadConfig(BASE_ENV)).toThrow(/Cannot determine Node version/);
+    mockVersions('abc');
+    expect(() => loadConfig(BASE_ENV)).toThrow(/Node >= 24 required/);
   });
 });
