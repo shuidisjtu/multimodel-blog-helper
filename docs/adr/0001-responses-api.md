@@ -5,7 +5,7 @@
 
 ## 背景
 
-书第 4 章 5 个示例（01-01/01-02/02-01/03-03/03-04）基于 Assistants API（threads/runs）。该 API 已于 2026-04 关闭；本项目使用的中转站 openai-hk（`OPENAI_BASE_URL=https://api.openai-hk.com/v1`）仅提供 Responses API 兼容端点。示例已全部重写为 Responses API 并实测跑通，本轮重构将其固化为核心决策。
+书第 4 章 5 个示例（01-01/01-02/02-01/03-03/03-04）基于 Assistants API（threads/runs）。该 API 官方已弃用、将于 2026-08-26 正式关闭；本项目使用的中转站 openai-hk（`OPENAI_BASE_URL=https://api.openai-hk.com/v1`）仅提供 Responses API 兼容端点。示例已全部重写为 Responses API 并实测跑通，本轮重构将其固化为核心决策。
 
 ## 决策
 

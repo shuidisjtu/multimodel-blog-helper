@@ -1,6 +1,6 @@
 # 01-01: 使用 Responses API 定义"助手配置"
 #
-# 背景: OpenAI 已于 2026 年 4 月关闭 Assistants API, 官方迁移方案为 Responses API。
+# 背景: OpenAI 已弃用 Assistants API(将于 2026 年 8 月 26 日关闭), 官方迁移方案为 Responses API。
 # 在 Responses API 中, "助手"不再需要预先创建(assistants.create),
 # 它只是一个配置对象: instructions(职责) + tools(可用工具)。
 # 每次调用时把配置传给 responses.create 即可, 无需保存 assistant_id。

@@ -23,7 +23,7 @@
 | 第 3 章 | 全部跑通(示例:whisper 转录 / 语音合成 / Express 文件上传等) |
 | 第 4 章 | 全部跑通(工具调用 / 流式输出 / 路由 / 健壮性) |
 
-**第 4 章关键迁移**:OpenAI 已关闭 Assistants API(threads/runs,2026-04),5 个依赖它的示例全部重写为 **Responses API**:
+**第 4 章关键迁移**:OpenAI 已弃用 Assistants API(threads/runs,将于 2026-08-26 关闭),5 个依赖它的示例全部重写为 **Responses API**:
 
 - `01-01-create-assistant`(助手即配置)
 - `01-02-weather-assistant`(工具调用循环 + 真实天气查询)
