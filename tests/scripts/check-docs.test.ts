@@ -3,11 +3,11 @@ import { checkIndexCompleteness, checkMdLinks, checkPathRefs } from '../../scrip
 
 describe('checkPathRefs', () => {
   it('不存在的反引号路径报错,存在的通过', () => {
-    const text = '见 `src/application/process-job.ts` 与 `src/does-not-exist.ts`';
+    const text = '见 `src/application/process-job.ts` 与 `src/__definitely_no_such_file__.ts`';
     const issues = checkPathRefs(text, 'README.md');
     expect(issues).toHaveLength(1);
     expect(issues[0]?.rule).toBe('rule-1');
-    expect(issues[0]?.message).toContain('src/does-not-exist.ts');
+    expect(issues[0]?.message).toContain('src/__definitely_no_such_file__.ts');
   });
 
   it('glob 列表简写跳过(如 src/application/{a,b}.ts)', () => {
@@ -28,6 +28,10 @@ describe('checkMdLinks', () => {
     expect(issues).toHaveLength(1);
     expect(issues[0]?.message).toContain('docs/architecture/does-not-exist.md');
   });
+
+  it('CLAUDE.md 链接跳过(gitignored,CI 中不存在,与本地行为一致)', () => {
+    expect(checkMdLinks('[CLAUDE.md](CLAUDE.md)', 'README.md')).toHaveLength(0);
+  });
 });
 
 describe('checkIndexCompleteness', () => {
@@ -35,6 +39,7 @@ describe('checkIndexCompleteness', () => {
     const readme = '[架构](docs/architecture/)\n[任务清单](docs/project-division/task-list.md)';
     const issues = checkIndexCompleteness(readme);
     // 目录级覆盖与精确链接都应通过;缺 records/ 时报错
-    expect(issues.filter((i) => i.message.includes('records/2026'))).toHaveLength(1);
+    // (用 some 而非固定数量,不依赖 records/2026 下恰好 1 个文件)
+    expect(issues.some((i) => i.message.includes('records/2026'))).toBe(true);
   });
 });

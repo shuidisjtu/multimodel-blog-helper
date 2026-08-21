@@ -74,7 +74,7 @@ fixtures/           audio-sample.mp3        # E2E 测试音频 fixture
 docs/               adr/, architecture/, project-division/, records/
                                             # 决策记录/架构设计/任务清单/过程证据
 temp/               uploads/, outputs/      # 运行期文件(gitignored, 启动后生成)
-.github/workflows/  ci.yml                  # 待 C1
+.github/workflows/  ci.yml                  # ✅ C1
 ```
 
 ## 各目录职责与落地状态
@@ -91,7 +91,7 @@ temp/               uploads/, outputs/      # 运行期文件(gitignored, 启动
 | `fixtures/` | E2E 测试音频(随仓库分发) | ✅ |
 | `docs/` | ADR / 架构设计 / 任务清单 / 过程证据(records) | ✅;runbooks 待 C7 |
 | `temp/` | 上传文件与处理产物(gitignored) | 运行期生成 |
-| `.github/workflows/` | CI 流水线 | 🚧 C1 |
+| `.github/workflows/` | CI 流水线 | ✅ C1 |
 
 ## 变更规则
 

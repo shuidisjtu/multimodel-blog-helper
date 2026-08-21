@@ -8,7 +8,12 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
-    "verify": "npm run typecheck && npm test && npx vitest run --coverage",
+    "lint": "biome check src tests scripts",
+    "lint:fix": "biome check --write src tests scripts",
+    "check:docs": "tsx scripts/check-docs.ts",
+    "check:structure": "tsx scripts/generate-structure.ts --check",
+    "structure:update": "tsx scripts/generate-structure.ts --update",
+    "verify": "npm run lint && npm run typecheck && npm test && npx vitest run --coverage",
     "dev": "tsx watch src/bootstrap/server.ts"
   },
   "engines": {
