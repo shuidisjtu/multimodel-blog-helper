@@ -13,7 +13,7 @@
     "check:docs": "tsx scripts/check-docs.ts",
     "check:structure": "tsx scripts/generate-structure.ts --check",
     "structure:update": "tsx scripts/generate-structure.ts --update",
-    "verify": "npm run lint && npm run typecheck && npm test && npx vitest run --coverage",
+    "verify": "npm run lint && npm run typecheck && npm run check:docs && npm run check:structure && npm test && npx vitest run --coverage",
     "dev": "tsx watch src/bootstrap/server.ts"
   },
   "engines": {
