@@ -53,7 +53,7 @@
 | 任一进行中 → `failed` | 可预期错误（保留安全错误码）；未知错误由顶层错误边界记录 |
 | 终态 → `expired` | 过期清理后（保留最小 tombstone，见 §5） |
 
-上传接口只负责受理：校验通过后创建 `queued` Job 并原子持久化，入队后立即返回 `202`，客户端轮询查询接口获取结果（ADR-0004）。内存队列为有界 FIFO，容量检查、Job 持久化、入队在同一同步临界区内完成。启动时执行任务恢复：`queued` 任务重新入队；`transcribing/summarizing` 进行中任务标记为 `failed: PROCESS_INTERRUPTED` 且**不自动重试**——避免不确定的重复转录计费，也不假装成功。恢复与 Worker 存在启动顺序契约：`RecoverJobs.run()` 必须先于 `ProcessJobWorker.start()` 执行，否则先启动的 worker 会消费恢复重入队的任务并迁移到进行中，随后被恢复阶段误标 `PROCESS_INTERRUPTED`。任务的最终真相始终是仓储记录（`temp/jobs/<jobId>.json`），不是日志或文件是否存在；进程收到 SIGTERM/SIGINT 时优雅关闭，未完成任务交给下次启动的恢复逻辑。
+设计上，上传接口只负责受理：校验通过后创建 `queued` Job 并原子持久化，入队后立即返回 `202`，客户端轮询查询接口获取结果（ADR-0004）。内存队列为有界 FIFO，容量检查、Job 持久化、入队在同一同步临界区内完成。启动时执行任务恢复：`queued` 任务重新入队；`transcribing/summarizing` 进行中任务标记为 `failed: PROCESS_INTERRUPTED` 且**不自动重试**——避免不确定的重复转录计费，也不假装成功。恢复与 Worker 存在启动顺序契约：`RecoverJobs.run()` 必须先于 `ProcessJobWorker.start()` 执行，否则先启动的 worker 会消费恢复重入队的任务并迁移到进行中，随后被恢复阶段误标 `PROCESS_INTERRUPTED`。任务的最终真相始终是仓储记录（`temp/jobs/<jobId>.json`），不是日志或文件是否存在；进程收到 SIGTERM/SIGINT 时优雅关闭，未完成任务交给下次启动的恢复逻辑。
 
 ## 5. 幂等与文件安全
 
@@ -78,7 +78,7 @@
 
 ## 8. 防护与质量门禁
 
-- **统一错误边界**：路由末尾配置唯一的 Express 错误中间件，所有 async handler 经统一包装器交给它；领域错误映射为 4xx，外部依赖超时/不可用映射为 502/503，未分类异常映射为 `500 INTERNAL_ERROR`。统一响应体带 `X-Request-Id`，**不向客户端返回堆栈、上游原始报错或密钥**（架构文档 §5/§8.1）。
+- **统一错误边界**：设计上，路由末尾配置唯一的 Express 错误中间件，所有 async handler 经统一包装器交给它；领域错误映射为 4xx，外部依赖超时/不可用映射为 502/503，未分类异常映射为 `500 INTERNAL_ERROR`。统一响应体带 `X-Request-Id`，**不向客户端返回堆栈、上游原始报错或密钥**（架构文档 §5/§8.1）。
 - **日志脱敏**：日志为 JSON 一行一个事件，对文件名、文本内容、音频路径、Authorization、API key 等敏感字段统一脱敏为 `[redacted]`，禁止记录完整转录内容（架构文档 §8.2）。
 - **质量门禁**：格式化、Lint、类型检查、测试、覆盖率阈值（先对新增/修改代码 ≥80%）、依赖漏洞扫描、secret 扫描、OpenAPI 校验全部为必过项，失败不得以 `continue-on-error` 静默放行（架构文档 §9）。
 - **ADR 护栏**：任一 PR 若改变端口、公开 API、状态机、存储策略、重试语义或安全边界，必须同步更新 ADR/OpenAPI/测试，代码评审清单明确检查该项（架构文档 §11.1）。架构测试以可执行规则落地（§11.2）：`domain/**` 不得导入 express/openai/multer/fs；`application/**` 只能依赖 `domain/**` 与 `shared/**`；每个 `/api/v1` 路由必须有 OpenAPI 定义及至少一个集成测试；每个新环境变量必须进入配置 schema 与 `.env.example`。
@@ -95,6 +95,6 @@
 
 **当前实测结果（2026-08-21）**：19 个测试文件、126 个测试全部通过；覆盖率 Statements 94.96%、Branches 90.82%、Functions 98.9%、Lines 96.69%，远超 80% 门禁。
 
-**分阶段证据**：A2（Transcriber/Summarizer 端口与 OpenAI 适配器）14 个测试；A3（音频转录与摘要任务用例）107 个测试，当时语句覆盖率 94.52%；A4（模型调用重试/超时策略）以 `withRetry` 重试行为测试覆盖——仅网络错误/429/5xx 重试、退避序列、4xx 不重试等用例（CLAUDE.md 重构进度记录）。
+**分阶段证据**：A2（Transcriber/Summarizer 端口与 OpenAI 适配器）14 个测试；A3（音频转录与摘要任务用例）107 个测试，当时语句覆盖率 94.52%（CLAUDE.md 重构进度记录）；A4（模型调用重试/超时策略）以 `withRetry` 重试行为测试覆盖——仅网络错误/429/5xx 重试、退避序列、4xx 不重试等用例，随 2026-08-21 全量验证（`npm run verify`）一并通过，覆盖率见上方实测结果。
 
 **文档**：架构设计 v1.3（[docs/architecture/architecture-design.md](../architecture/architecture-design.md)）；任务清单 v1.3（[docs/project-division/task-list.md](../project-division/task-list.md)）；决策记录 ADR-0001~0004（[docs/adr/](../adr/)，分别覆盖 Responses API 迁移、temp/ 文件任务仓储、wttr.in 天气适配、异步任务处理）。
