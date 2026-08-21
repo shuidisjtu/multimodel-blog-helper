@@ -4,10 +4,18 @@ import type { LogFields, Logger } from '../../src/shared/logger.js';
 
 class FakeLogger implements Logger {
   readonly calls: LogFields[] = [];
-  debug(f: LogFields): void { this.calls.push({ ...f, level: 'debug' }); }
-  info(f: LogFields): void { this.calls.push({ ...f, level: 'info' }); }
-  warn(f: LogFields): void { this.calls.push({ ...f, level: 'warn' }); }
-  error(f: LogFields): void { this.calls.push({ ...f, level: 'error' }); }
+  debug(f: LogFields): void {
+    this.calls.push({ ...f, level: 'debug' });
+  }
+  info(f: LogFields): void {
+    this.calls.push({ ...f, level: 'info' });
+  }
+  warn(f: LogFields): void {
+    this.calls.push({ ...f, level: 'warn' });
+  }
+  error(f: LogFields): void {
+    this.calls.push({ ...f, level: 'error' });
+  }
 }
 
 /** 构造带 status 的 fake 错误(与 APIError 结构兼容)。 */
@@ -50,10 +58,7 @@ describe('withRetry(架构文档 §6)', () => {
 
   it('429 后成功: 重试 1 次, 退避 1s, warn 日志含 jobId/attempt/errorName', async () => {
     const { sleep, logger } = setup();
-    const fn = vi
-      .fn()
-      .mockRejectedValueOnce(statusError(429))
-      .mockResolvedValueOnce('ok');
+    const fn = vi.fn().mockRejectedValueOnce(statusError(429)).mockResolvedValueOnce('ok');
 
     const { value, retryCount } = await withRetry(fn, {
       maxAttempts: 3,
@@ -68,8 +73,8 @@ describe('withRetry(架构文档 §6)', () => {
     expect(retryCount).toBe(1);
     expect(fn).toHaveBeenCalledTimes(2);
     expect(sleep).toHaveBeenCalledTimes(1);
-    expect(sleep.mock.calls[0]![0]).toBe(1000);
-    const warn = logger.calls.find((c) => c.event === 'upstream.retry')!;
+    expect(sleep.mock.calls[0]?.[0]).toBe(1000);
+    const warn = logger.calls.find((c) => c.event === 'upstream.retry') as LogFields;
     expect(warn).toMatchObject({ level: 'warn', attempt: 1, errorName: 'Error', jobId: 'job-1' });
   });
 

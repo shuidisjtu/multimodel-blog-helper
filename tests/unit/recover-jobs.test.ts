@@ -8,8 +8,8 @@ import { RecoverJobs } from '../../src/application/recover-jobs.js';
 import { DomainError } from '../../src/domain/errors.js';
 import type { BlogJob } from '../../src/domain/job.js';
 import type { CreateOrGetOutcome, JobQueue, JobRepository } from '../../src/domain/ports.js';
-import type { LogFields, Logger } from '../../src/shared/logger.js';
 import { MemoryJobQueue } from '../../src/infrastructure/queue/memory-job-queue.js';
+import type { LogFields, Logger } from '../../src/shared/logger.js';
 
 const FIXED_NOW = '2026-08-12T00:00:00.000Z';
 
@@ -66,7 +66,9 @@ class InMemoryJobRepo implements JobRepository {
 
   async listInProgress(): Promise<BlogJob[]> {
     if (this.inProgressList !== null) return this.inProgressList;
-    return [...this.jobs.values()].filter((j) => j.status === 'transcribing' || j.status === 'summarizing');
+    return [...this.jobs.values()].filter(
+      (j) => j.status === 'transcribing' || j.status === 'summarizing',
+    );
   }
 
   async listExpired(): Promise<BlogJob[]> {
@@ -135,7 +137,9 @@ describe('RecoverJobs(架构文档 §4.2 启动恢复)', () => {
 
     expect(result).toEqual({ requeued: 3, interrupted: 0 });
     expect(queue.size()).toBe(3); // 无订阅者, pending 全部滞留
-    const requeuedLogs = logger.calls.filter((c) => c.event === 'job.requeued' && c.level === 'info');
+    const requeuedLogs = logger.calls.filter(
+      (c) => c.event === 'job.requeued' && c.level === 'info',
+    );
     expect(requeuedLogs.map((l) => l.jobId).sort()).toEqual(['q-1', 'q-2', 'q-3']);
     expect(logger.calls.every((c) => c.level !== 'error' && c.level !== 'warn')).toBe(true);
   });
@@ -149,13 +153,21 @@ describe('RecoverJobs(架构文档 §4.2 启动恢复)', () => {
 
     expect(result).toEqual({ requeued: 0, interrupted: 2 });
     expect(queue.size()).toBe(0);
-    const t1 = repo.jobs.get('t-1')!;
-    const s1 = repo.jobs.get('s-1')!;
+    const t1 = repo.jobs.get('t-1') as BlogJob;
+    const s1 = repo.jobs.get('s-1') as BlogJob;
     expect(t1.status).toBe('failed');
-    expect(t1.failure).toEqual({ code: 'PROCESS_INTERRUPTED', safeMessage: 'Processing interrupted by restart' });
+    expect(t1.failure).toEqual({
+      code: 'PROCESS_INTERRUPTED',
+      safeMessage: 'Processing interrupted by restart',
+    });
     expect(s1.status).toBe('failed');
-    expect(s1.failure).toEqual({ code: 'PROCESS_INTERRUPTED', safeMessage: 'Processing interrupted by restart' });
-    const interruptLogs = logger.calls.filter((c) => c.event === 'job.interrupted' && c.level === 'error');
+    expect(s1.failure).toEqual({
+      code: 'PROCESS_INTERRUPTED',
+      safeMessage: 'Processing interrupted by restart',
+    });
+    const interruptLogs = logger.calls.filter(
+      (c) => c.event === 'job.interrupted' && c.level === 'error',
+    );
     expect(interruptLogs.map((l) => l.jobId).sort()).toEqual(['s-1', 't-1']);
     expect(interruptLogs.every((l) => l.errorCode === 'PROCESS_INTERRUPTED')).toBe(true);
   });
@@ -168,10 +180,12 @@ describe('RecoverJobs(架构文档 §4.2 启动恢复)', () => {
 
     expect(result).toEqual({ requeued: 2, interrupted: 0 });
     expect(queue.size()).toBe(2); // 前两个入队, 第三个因满员跳过
-    const fullLogs = logger.calls.filter((c) => c.event === 'recovery.queue_full' && c.level === 'warn');
+    const fullLogs = logger.calls.filter(
+      (c) => c.event === 'recovery.queue_full' && c.level === 'warn',
+    );
     expect(fullLogs.map((l) => l.jobId)).toEqual(['q-3']);
     // 该任务保持 queued, 下次启动或手动重试仍可恢复
-    expect(repo.jobs.get('q-3')!.status).toBe('queued');
+    expect(repo.jobs.get('q-3')?.status).toBe('queued');
   });
 
   it('混合场景计数: 2 queued + 1 transcribing → { requeued: 2, interrupted: 1 }', async () => {
@@ -184,20 +198,24 @@ describe('RecoverJobs(架构文档 §4.2 启动恢复)', () => {
 
     expect(result).toEqual({ requeued: 2, interrupted: 1 });
     expect(queue.size()).toBe(2);
-    expect(repo.jobs.get('t-1')!.status).toBe('failed');
+    expect(repo.jobs.get('t-1')?.status).toBe('failed');
   });
 
   it('单任务 update 失败: 记录日志继续处理其余任务(整体不抛错)', async () => {
-    const { repo, queue, logger, useCase } = setup();
+    const { repo, logger, useCase } = setup();
     repo.jobs.set('t-1', makeJob({ id: 't-1', status: 'transcribing' }));
     repo.jobs.set('s-1', makeJob({ id: 's-1', status: 'summarizing' }));
     repo.updateErrorFor.add('t-1');
 
     await expect(useCase.run()).resolves.toEqual({ requeued: 0, interrupted: 1 });
 
-    expect(repo.jobs.get('t-1')!.status).toBe('transcribing'); // 失败任务保持原状态
-    expect(repo.jobs.get('s-1')!.status).toBe('failed'); // 其余任务继续
-    expect(logger.calls.some((c) => c.event === 'recovery.interrupt_failed' && c.jobId === 't-1' && c.level === 'error')).toBe(true);
+    expect(repo.jobs.get('t-1')?.status).toBe('transcribing'); // 失败任务保持原状态
+    expect(repo.jobs.get('s-1')?.status).toBe('failed'); // 其余任务继续
+    expect(
+      logger.calls.some(
+        (c) => c.event === 'recovery.interrupt_failed' && c.jobId === 't-1' && c.level === 'error',
+      ),
+    ).toBe(true);
   });
 
   it('update 竞态: 列表时 transcribing、更新时已被外部迁移 expired → 跳过, 以仓储最终状态为准, 不产生幽灵任务', async () => {
@@ -209,8 +227,8 @@ describe('RecoverJobs(架构文档 §4.2 启动恢复)', () => {
     const result = await useCase.run();
 
     expect(result).toEqual({ requeued: 0, interrupted: 0 }); // 未实际标记中断不计数
-    expect(repo.jobs.get('x')!.status).toBe('expired'); // 不被覆盖为 failed, 不会写出无 input 的幽灵任务
-    expect(repo.jobs.get('x')!.failure).toBeUndefined();
+    expect(repo.jobs.get('x')?.status).toBe('expired'); // 不被覆盖为 failed, 不会写出无 input 的幽灵任务
+    expect(repo.jobs.get('x')?.failure).toBeUndefined();
     expect(logger.calls.some((c) => c.event === 'job.interrupted')).toBe(false);
   });
 
@@ -223,7 +241,11 @@ describe('RecoverJobs(架构文档 §4.2 启动恢复)', () => {
     const result = await useCase.run();
 
     expect(result).toEqual({ requeued: 1, interrupted: 0 });
-    expect(logger.calls.some((c) => c.event === 'recovery.requeue_failed' && c.jobId === 'q-2' && c.level === 'error')).toBe(true);
+    expect(
+      logger.calls.some(
+        (c) => c.event === 'recovery.requeue_failed' && c.jobId === 'q-2' && c.level === 'error',
+      ),
+    ).toBe(true);
   });
 
   it('listRecoverable 失败(仓储不可用): 向外抛错, 让启动失败可感知', async () => {

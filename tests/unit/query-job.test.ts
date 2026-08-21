@@ -102,7 +102,11 @@ describe('QueryJob(架构文档 §5)', () => {
         status: 'succeeded',
         result: { transcriptPath: '/tmp/outputs/s1/transcript.txt', summary: 's', model: 'm' },
       }),
-      makeJob({ id: 'f1', status: 'failed', failure: { code: 'WEATHER_UNAVAILABLE', safeMessage: 'up' } }),
+      makeJob({
+        id: 'f1',
+        status: 'failed',
+        failure: { code: 'WEATHER_UNAVAILABLE', safeMessage: 'up' },
+      }),
     ];
     for (const job of jobs) repo.jobs.set(job.id, job);
 
@@ -144,7 +148,11 @@ describe('QueryJob(架构文档 §5)', () => {
     const { repo, useCase } = setup();
     repo.jobs.set(
       'f1',
-      makeJob({ id: 'f1', status: 'failed', failure: { code: 'INTERNAL_ERROR', safeMessage: 'Processing failed' } }),
+      makeJob({
+        id: 'f1',
+        status: 'failed',
+        failure: { code: 'INTERNAL_ERROR', safeMessage: 'Processing failed' },
+      }),
     );
 
     const job = await useCase.run('f1');
@@ -168,7 +176,10 @@ describe('QueryJob(架构文档 §5)', () => {
     expect((thrown as DomainError).message).toBe('Internal error');
     expect(
       logger.calls.some(
-        (c) => c.event === 'job.query.failed' && c.errorCode === 'INTERNAL_ERROR' && c.error !== undefined,
+        (c) =>
+          c.event === 'job.query.failed' &&
+          c.errorCode === 'INTERNAL_ERROR' &&
+          c.error !== undefined,
       ),
     ).toBe(true);
   });

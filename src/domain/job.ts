@@ -66,10 +66,6 @@ export function isTerminal(status: JobStatus): boolean {
 
 export function assertCanTransition(from: JobStatus, to: JobStatus): void {
   if (!canTransition(from, to)) {
-    throw new JobStateError(
-      `Illegal state transition: ${from} -> ${to}`,
-      from,
-      to,
-    );
+    throw new JobStateError(`Illegal state transition: ${from} -> ${to}`, from, to);
   }
 }

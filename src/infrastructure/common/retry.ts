@@ -53,8 +53,7 @@ export async function withRetry<T>(
         errorName: err instanceof Error ? err.name : typeof err,
         ...context,
       });
-      const delay =
-        BASE_DELAY_MS * 2 ** (attempt - 1) + Math.floor(Math.random() * jitterMs);
+      const delay = BASE_DELAY_MS * 2 ** (attempt - 1) + Math.floor(Math.random() * jitterMs);
       await sleep(delay);
     }
   }

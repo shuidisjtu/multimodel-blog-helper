@@ -6,8 +6,8 @@
  * - 错误消息中性化: DomainError 的 message 不含路径等内部细节(§8.1), 细节入 details 供排障
  */
 import { createHash } from 'node:crypto';
-import { mkdirSync, type Dirent } from 'node:fs';
-import { open, readdir, readFile, rename, rm, writeFile, type FileHandle } from 'node:fs/promises';
+import { type Dirent, mkdirSync } from 'node:fs';
+import { type FileHandle, open, readdir, readFile, rename, rm, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { DomainError } from '../../domain/errors.js';
 import type { BlogJob, JobStatus } from '../../domain/job.js';
@@ -45,7 +45,10 @@ export class FileJobRepository implements JobRepository {
     await this.writeJobFile(job);
     if (params.idempotencyKey !== undefined) {
       // 与 createOrGet 保持一致性: 同一 key 后续幂等请求可命中占位
-      await this.writePlaceholder(params.idempotencyKey, { jobId: id, sha256: params.input.sha256 });
+      await this.writePlaceholder(params.idempotencyKey, {
+        jobId: id,
+        sha256: params.input.sha256,
+      });
     }
     return job;
   }
@@ -200,7 +203,10 @@ export class FileJobRepository implements JobRepository {
   }
 
   /** 占位覆盖写(供 create 路径使用, 幂等创建互斥仍走 createOrGet 的 O_EXCL)。 */
-  private async writePlaceholder(key: string, content: { jobId: string; sha256: string }): Promise<void> {
+  private async writePlaceholder(
+    key: string,
+    content: { jobId: string; sha256: string },
+  ): Promise<void> {
     const filePath = this.placeholderPath(key);
     const tmpPath = `${filePath}.tmp`;
     await writeFile(tmpPath, JSON.stringify(content), 'utf8');
@@ -234,12 +240,16 @@ export class FileJobRepository implements JobRepository {
       content = await readFile(keyPath, 'utf8');
     } catch (err) {
       if ((err as NodeJS.ErrnoException)?.code === 'ENOENT') {
-        throw new DomainError('INTERNAL_ERROR', 'Idempotency placeholder disappeared', { path: keyPath });
+        throw new DomainError('INTERNAL_ERROR', 'Idempotency placeholder disappeared', {
+          path: keyPath,
+        });
       }
       throw err;
     }
     if (content.length === 0) {
-      throw new DomainError('INTERNAL_ERROR', 'Idempotency placeholder is empty', { path: keyPath });
+      throw new DomainError('INTERNAL_ERROR', 'Idempotency placeholder is empty', {
+        path: keyPath,
+      });
     }
     try {
       const parsed: unknown = JSON.parse(content);
@@ -248,7 +258,10 @@ export class FileJobRepository implements JobRepository {
       }
       return parsed;
     } catch (err) {
-      throw new DomainError('INTERNAL_ERROR', 'Idempotency placeholder corrupt', { path: keyPath, cause: err });
+      throw new DomainError('INTERNAL_ERROR', 'Idempotency placeholder corrupt', {
+        path: keyPath,
+        cause: err,
+      });
     }
   }
 

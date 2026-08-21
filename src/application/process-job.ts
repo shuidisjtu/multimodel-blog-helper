@@ -4,9 +4,15 @@
  * 并持久化; 任一处理错误转 failed(保留安全错误码), 本方法不向外抛错(worker 不需要 catch)。
  */
 import { DomainError } from '../domain/errors.js';
+import type { JobFailure, JobStatus } from '../domain/job.js';
 import { assertCanTransition, isTerminal } from '../domain/job.js';
-import type { BlogJob, JobFailure, JobStatus } from '../domain/job.js';
-import type { FileStore, JobRepository, Summarizer, Transcriber, Transcript } from '../domain/ports.js';
+import type {
+  FileStore,
+  JobRepository,
+  Summarizer,
+  Transcriber,
+  Transcript,
+} from '../domain/ports.js';
 import type { LogFields, Logger } from '../shared/logger.js';
 
 export class ProcessJob {
@@ -31,13 +37,23 @@ export class ProcessJob {
     }
     if (isTerminal(job.status)) {
       // 终态保护: 不重复处理(§4.1)
-      this.deps.logger.warn({ event: 'job.skipped', jobId, status: job.status, reason: 'terminal' });
+      this.deps.logger.warn({
+        event: 'job.skipped',
+        jobId,
+        status: job.status,
+        reason: 'terminal',
+      });
       return;
     }
     const input = job.input;
     if (input === undefined) {
       // tombstone 最小化后无 input; 非终态任务在仓储校验下必有 input, 此处仅防御端口违约(§11.2)
-      this.deps.logger.warn({ event: 'job.skipped', jobId, status: job.status, reason: 'missing-input' });
+      this.deps.logger.warn({
+        event: 'job.skipped',
+        jobId,
+        status: job.status,
+        reason: 'missing-input',
+      });
       return;
     }
     try {
@@ -58,7 +74,7 @@ export class ProcessJob {
         kind: 'transcript',
         content: transcript.text,
       });
-      const summaryOut = await this.deps.files.saveOutput({
+      await this.deps.files.saveOutput({
         jobId,
         kind: 'summary',
         content: summary.text,
@@ -112,7 +128,12 @@ export class ProcessJob {
       );
     } catch (updateErr) {
       // 竞态兜底(任务已被外部移除等): 不向外抛错(方法契约), 仅记录
-      this.deps.logger.warn({ event: 'job.failed', jobId, errorCode: failure.code, error: updateErr });
+      this.deps.logger.warn({
+        event: 'job.failed',
+        jobId,
+        errorCode: failure.code,
+        error: updateErr,
+      });
       return;
     }
     // 迁移到 failed 后记录(含 errorCode); 未知错误附带原始 error 字段

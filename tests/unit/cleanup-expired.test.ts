@@ -128,7 +128,13 @@ function setup() {
   const files = new FakeFiles();
   const logger = new FakeLogger();
   const clock: Clock = { now: () => FIXED_NOW };
-  const useCase = new CleanupExpired({ jobs: repo, files, clock, logger, tombstoneRetentionDays: 30 });
+  const useCase = new CleanupExpired({
+    jobs: repo,
+    files,
+    clock,
+    logger,
+    tombstoneRetentionDays: 30,
+  });
   return { repo, files, logger, useCase };
 }
 
@@ -142,25 +148,61 @@ describe('CleanupExpired 单元(架构文档 §4.2/§5)', () => {
 
   it('单任务删除文件失败: 记录日志继续处理其余任务, 计数只含成功项', async () => {
     const { repo, files, logger, useCase } = setup();
-    repo.jobs.set('a', makeJob({ id: 'a', status: 'succeeded', result: { transcriptPath: '/t', summary: 's', model: 'm' } }));
-    repo.jobs.set('b', makeJob({ id: 'b', status: 'succeeded', result: { transcriptPath: '/t', summary: 's', model: 'm' } }));
-    repo.expiredList = [repo.jobs.get('a')!, repo.jobs.get('b')!];
+    repo.jobs.set(
+      'a',
+      makeJob({
+        id: 'a',
+        status: 'succeeded',
+        result: { transcriptPath: '/t', summary: 's', model: 'm' },
+      }),
+    );
+    repo.jobs.set(
+      'b',
+      makeJob({
+        id: 'b',
+        status: 'succeeded',
+        result: { transcriptPath: '/t', summary: 's', model: 'm' },
+      }),
+    );
+    repo.expiredList = [repo.jobs.get('a') as BlogJob, repo.jobs.get('b') as BlogJob];
     files.deleteErrorFor.add('a');
 
     const result = await useCase.run();
 
     expect(result).toEqual({ expiredCount: 1, removedTombstones: 0 });
-    expect(repo.jobs.get('a')!.status).toBe('succeeded'); // 失败任务保持原状态
-    expect(repo.jobs.get('b')!.status).toBe('expired');
-    expect(logger.calls.some((c) => c.event === 'cleanup.job_failed' && c.jobId === 'a' && c.level === 'error')).toBe(true);
-    expect(logger.calls.some((c) => c.event === 'cleanup.done' && c.expiredCount === 1 && c.level === 'info')).toBe(true);
+    expect(repo.jobs.get('a')?.status).toBe('succeeded'); // 失败任务保持原状态
+    expect(repo.jobs.get('b')?.status).toBe('expired');
+    expect(
+      logger.calls.some(
+        (c) => c.event === 'cleanup.job_failed' && c.jobId === 'a' && c.level === 'error',
+      ),
+    ).toBe(true);
+    expect(
+      logger.calls.some(
+        (c) => c.event === 'cleanup.done' && c.expiredCount === 1 && c.level === 'info',
+      ),
+    ).toBe(true);
   });
 
   it('单任务 update 失败: 记录日志继续处理其余任务', async () => {
     const { repo, files, logger, useCase } = setup();
-    repo.jobs.set('a', makeJob({ id: 'a', status: 'succeeded', result: { transcriptPath: '/t', summary: 's', model: 'm' } }));
-    repo.jobs.set('b', makeJob({ id: 'b', status: 'succeeded', result: { transcriptPath: '/t', summary: 's', model: 'm' } }));
-    repo.expiredList = [repo.jobs.get('a')!, repo.jobs.get('b')!];
+    repo.jobs.set(
+      'a',
+      makeJob({
+        id: 'a',
+        status: 'succeeded',
+        result: { transcriptPath: '/t', summary: 's', model: 'm' },
+      }),
+    );
+    repo.jobs.set(
+      'b',
+      makeJob({
+        id: 'b',
+        status: 'succeeded',
+        result: { transcriptPath: '/t', summary: 's', model: 'm' },
+      }),
+    );
+    repo.expiredList = [repo.jobs.get('a') as BlogJob, repo.jobs.get('b') as BlogJob];
     repo.updateErrorFor.add('a');
 
     const result = await useCase.run();
@@ -168,28 +210,43 @@ describe('CleanupExpired 单元(架构文档 §4.2/§5)', () => {
     expect(result).toEqual({ expiredCount: 1, removedTombstones: 0 });
     // 删除先于 update 执行(§4.2 顺序), 但任务未被迁移为 expired
     expect(files.deletedJobIds).toContain('a');
-    expect(repo.jobs.get('a')!.status).toBe('succeeded');
-    expect(repo.jobs.get('b')!.status).toBe('expired');
-    expect(logger.calls.some((c) => c.event === 'cleanup.job_failed' && c.jobId === 'a' && c.level === 'error')).toBe(true);
+    expect(repo.jobs.get('a')?.status).toBe('succeeded');
+    expect(repo.jobs.get('b')?.status).toBe('expired');
+    expect(
+      logger.calls.some(
+        (c) => c.event === 'cleanup.job_failed' && c.jobId === 'a' && c.level === 'error',
+      ),
+    ).toBe(true);
   });
 
   it('update 竞态: 列表时终态、更新时已被外部迁移 → 跳过, 以仓储最终状态为准', async () => {
     const { repo, files, useCase } = setup();
     // listExpired 返回的仍是 succeeded 快照, 但仓储当前已是 queued(如被恢复逻辑处理)
-    repo.expiredList = [makeJob({ id: 'x', status: 'succeeded', result: { transcriptPath: '/t', summary: 's', model: 'm' } })];
+    repo.expiredList = [
+      makeJob({
+        id: 'x',
+        status: 'succeeded',
+        result: { transcriptPath: '/t', summary: 's', model: 'm' },
+      }),
+    ];
     repo.jobs.set('x', makeJob({ id: 'x', status: 'queued' }));
 
     const result = await useCase.run();
 
     expect(result).toEqual({ expiredCount: 0, removedTombstones: 0 }); // 未实际置 tombstone 不计数
-    expect(repo.jobs.get('x')!.status).toBe('queued'); // 终态以仓储为准
+    expect(repo.jobs.get('x')?.status).toBe('queued'); // 终态以仓储为准
     // 按 §4.2 顺序删除先于 update, 竞态窗口内的文件已删(任务元数据未被破坏)
     expect(files.deletedJobIds).toEqual(['x']);
   });
 
   it('tombstone 超过保留期(updatedAt < now - retention): remove 并计数', async () => {
     const { repo, useCase } = setup();
-    const old = makeJob({ id: 'old-1', status: 'expired', updatedAt: '2026-07-01T00:00:00.000Z', input: undefined });
+    const old = makeJob({
+      id: 'old-1',
+      status: 'expired',
+      updatedAt: '2026-07-01T00:00:00.000Z',
+      input: undefined,
+    });
     repo.expiredList = [old];
 
     const result = await useCase.run();
@@ -204,7 +261,14 @@ describe('CleanupExpired 单元(架构文档 §4.2/§5)', () => {
     const logger = new FakeLogger();
     const clock: Clock = { now: () => FIXED_NOW };
     const useCase = new CleanupExpired({ jobs: repo, files, clock, logger });
-    repo.expiredList = [makeJob({ id: 'old-1', status: 'expired', updatedAt: '2026-07-01T00:00:00.000Z', input: undefined })];
+    repo.expiredList = [
+      makeJob({
+        id: 'old-1',
+        status: 'expired',
+        updatedAt: '2026-07-01T00:00:00.000Z',
+        input: undefined,
+      }),
+    ];
 
     const result = await useCase.run();
 
@@ -214,7 +278,12 @@ describe('CleanupExpired 单元(架构文档 §4.2/§5)', () => {
 
   it('tombstone 未超过保留期: 保留不删', async () => {
     const { repo, useCase } = setup();
-    const fresh = makeJob({ id: 'fresh-1', status: 'expired', updatedAt: '2026-08-01T00:00:00.000Z', input: undefined });
+    const fresh = makeJob({
+      id: 'fresh-1',
+      status: 'expired',
+      updatedAt: '2026-08-01T00:00:00.000Z',
+      input: undefined,
+    });
     repo.expiredList = [fresh];
     repo.jobs.set('fresh-1', fresh);
 
@@ -228,8 +297,18 @@ describe('CleanupExpired 单元(架构文档 §4.2/§5)', () => {
   it('tombstone 单个移除失败: 记录日志继续处理其余 tombstone', async () => {
     const { repo, logger, useCase } = setup();
     repo.expiredList = [
-      makeJob({ id: 'x', status: 'expired', updatedAt: '2026-07-01T00:00:00.000Z', input: undefined }),
-      makeJob({ id: 'y', status: 'expired', updatedAt: '2026-07-01T00:00:00.000Z', input: undefined }),
+      makeJob({
+        id: 'x',
+        status: 'expired',
+        updatedAt: '2026-07-01T00:00:00.000Z',
+        input: undefined,
+      }),
+      makeJob({
+        id: 'y',
+        status: 'expired',
+        updatedAt: '2026-07-01T00:00:00.000Z',
+        input: undefined,
+      }),
     ];
     repo.removeErrorFor.add('x');
 
@@ -237,6 +316,10 @@ describe('CleanupExpired 单元(架构文档 §4.2/§5)', () => {
 
     expect(result).toEqual({ expiredCount: 0, removedTombstones: 1 });
     expect(repo.removedIds).toEqual(['y']);
-    expect(logger.calls.some((c) => c.event === 'cleanup.job_failed' && c.jobId === 'x' && c.level === 'error')).toBe(true);
+    expect(
+      logger.calls.some(
+        (c) => c.event === 'cleanup.job_failed' && c.jobId === 'x' && c.level === 'error',
+      ),
+    ).toBe(true);
   });
 });

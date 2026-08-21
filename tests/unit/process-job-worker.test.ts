@@ -3,10 +3,10 @@
  * 覆盖: 订阅消费 / handler 抛错不影响后续任务 / start 幂等(重复订阅被 MemoryJobQueue 拒绝)。
  */
 import { describe, expect, it } from 'vitest';
-import { ProcessJobWorker } from '../../src/application/process-job-worker.js';
 import type { ProcessJob } from '../../src/application/process-job.js';
-import type { LogFields, Logger } from '../../src/shared/logger.js';
+import { ProcessJobWorker } from '../../src/application/process-job-worker.js';
 import { MemoryJobQueue } from '../../src/infrastructure/queue/memory-job-queue.js';
+import type { LogFields, Logger } from '../../src/shared/logger.js';
 
 /** 记录型 fake 日志: 每个调用打上 level 便于断言。 */
 class FakeLogger implements Logger {
@@ -74,7 +74,11 @@ describe('ProcessJobWorker(架构文档 §6.3)', () => {
 
     await waitUntil(() => process.calls.length === 2);
     expect(process.calls).toEqual(['bad', 'good']); // 队列继续消费
-    expect(logger.calls.some((c) => c.event === 'worker.handler_error' && c.jobId === 'bad' && c.level === 'error')).toBe(true);
+    expect(
+      logger.calls.some(
+        (c) => c.event === 'worker.handler_error' && c.jobId === 'bad' && c.level === 'error',
+      ),
+    ).toBe(true);
   });
 
   it('start 幂等: 重复调用无副作用(不重复订阅, 任务只消费一次)', async () => {

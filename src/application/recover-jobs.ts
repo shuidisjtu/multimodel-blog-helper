@@ -50,14 +50,21 @@ export class RecoverJobs {
             ? {
                 ...j,
                 status: 'failed',
-                failure: { code: 'PROCESS_INTERRUPTED', safeMessage: 'Processing interrupted by restart' },
+                failure: {
+                  code: 'PROCESS_INTERRUPTED',
+                  safeMessage: 'Processing interrupted by restart',
+                },
               }
             : j,
         );
         // 仅在实际标记中断时计数与告警(update 竞态跳过时不计数)
         if (updated.status === 'failed' && updated.failure?.code === 'PROCESS_INTERRUPTED') {
           interrupted++;
-          this.deps.logger.error({ event: 'job.interrupted', jobId: job.id, errorCode: 'PROCESS_INTERRUPTED' });
+          this.deps.logger.error({
+            event: 'job.interrupted',
+            jobId: job.id,
+            errorCode: 'PROCESS_INTERRUPTED',
+          });
         }
       } catch (err) {
         this.deps.logger.error({ event: 'recovery.interrupt_failed', jobId: job.id, error: err });

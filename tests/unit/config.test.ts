@@ -56,10 +56,16 @@ describe('loadConfig(架构文档 §7.2)', () => {
   });
 
   it('A4 新增配置: 显式覆盖与非法值校验', () => {
-    const config = loadConfig({ ...BASE_ENV, OPENAI_SUMMARY_TIMEOUT_MS: '30000', OPENAI_MAX_RETRIES: '0' });
+    const config = loadConfig({
+      ...BASE_ENV,
+      OPENAI_SUMMARY_TIMEOUT_MS: '30000',
+      OPENAI_MAX_RETRIES: '0',
+    });
     expect(config.openai.summaryTimeoutMs).toBe(30000);
     expect(config.openai.maxRetries).toBe(0);
-    expect(() => loadConfig({ ...BASE_ENV, OPENAI_SUMMARY_TIMEOUT_MS: 'abc' })).toThrow(ConfigError);
+    expect(() => loadConfig({ ...BASE_ENV, OPENAI_SUMMARY_TIMEOUT_MS: 'abc' })).toThrow(
+      ConfigError,
+    );
     expect(() => loadConfig({ ...BASE_ENV, OPENAI_SUMMARY_TIMEOUT_MS: '0' })).toThrow(ConfigError); // min 1
     expect(() => loadConfig({ ...BASE_ENV, OPENAI_MAX_RETRIES: '-1' })).toThrow(ConfigError); // min 0
   });
@@ -76,9 +82,7 @@ describe('loadConfig(架构文档 §7.2)', () => {
   it('Node 版本缺失或非法时抛 ConfigError', () => {
     const realVersions = process.versions;
     const mockVersions = (node: string) =>
-      vi
-        .spyOn(process, 'versions', 'get')
-        .mockReturnValue({ ...realVersions, node });
+      vi.spyOn(process, 'versions', 'get').mockReturnValue({ ...realVersions, node });
     mockVersions('');
     expect(() => loadConfig(BASE_ENV)).toThrow(/Cannot determine Node version/);
     mockVersions('abc');

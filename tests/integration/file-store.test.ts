@@ -2,11 +2,12 @@
  * LocalFileStore 集成测试(架构文档 §9):真实临时目录(mkdtemp)验证落盘/读取/删除。
  * 测试结束统一清理临时目录(afterAll)。
  */
-import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+
 import { createHash } from 'node:crypto';
 import { mkdtemp, readdir, readFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { isAbsolute, join } from 'node:path';
+import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { LocalFileStore } from '../../src/infrastructure/storage/file-store.js';
 
 let tempDir: string;
@@ -61,7 +62,11 @@ describe('LocalFileStore(架构文档 §4.2/§7.1)', () => {
   });
 
   it('saveOutput: 按 kind 写 transcript.txt / summary.txt 到 outputs/<jobId>/', async () => {
-    const t = await store.saveOutput({ jobId: 'j2', kind: 'transcript', content: 'hello transcript' });
+    const t = await store.saveOutput({
+      jobId: 'j2',
+      kind: 'transcript',
+      content: 'hello transcript',
+    });
     const s = await store.saveOutput({ jobId: 'j2', kind: 'summary', content: 'hello summary' });
     expect(t.path).toBe(join(tempDir, 'outputs', 'j2', 'transcript.txt'));
     expect(s.path).toBe(join(tempDir, 'outputs', 'j2', 'summary.txt'));
@@ -82,8 +87,18 @@ describe('LocalFileStore(架构文档 §4.2/§7.1)', () => {
   });
 
   it('deleteJobFiles: 删除 uploads/outputs 两个目录并返回文件总数,再次调用幂等返回 0', async () => {
-    await store.saveInput({ jobId: 'j4', originalName: 'a.mp3', mimeType: 'audio/mpeg', bytes: Buffer.from('1') });
-    await store.saveInput({ jobId: 'j4', originalName: 'b.wav', mimeType: 'audio/wav', bytes: Buffer.from('2') });
+    await store.saveInput({
+      jobId: 'j4',
+      originalName: 'a.mp3',
+      mimeType: 'audio/mpeg',
+      bytes: Buffer.from('1'),
+    });
+    await store.saveInput({
+      jobId: 'j4',
+      originalName: 'b.wav',
+      mimeType: 'audio/wav',
+      bytes: Buffer.from('2'),
+    });
     await store.saveOutput({ jobId: 'j4', kind: 'transcript', content: 't' });
     await store.saveOutput({ jobId: 'j4', kind: 'summary', content: 's' });
     const count = await store.deleteJobFiles('j4');

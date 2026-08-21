@@ -1,6 +1,6 @@
-import { describe, expect, it, vi } from 'vitest';
-import { APIError } from 'openai';
 import type OpenAI from 'openai';
+import { APIError } from 'openai';
+import { describe, expect, it, vi } from 'vitest';
 import { OpenAITranscriber } from '../../src/infrastructure/openai/transcriber.js';
 import type { LogFields, Logger } from '../../src/shared/logger.js';
 
@@ -48,7 +48,9 @@ describe('OpenAITranscriber', () => {
     });
 
     expect(result.text).toBe('transcript text');
-    const [args, opts] = client.create.mock.calls[0]!;
+    const [args, opts] = client.create.mock.calls[0] as NonNullable<
+      (typeof client.create.mock.calls)[0]
+    >;
     expect(args).toMatchObject({ model: 'whisper-1' });
     expect(args.file).toBeInstanceOf(Blob);
     expect(opts).toMatchObject({ timeout: 60000, maxRetries: 0 });
@@ -66,7 +68,11 @@ describe('OpenAITranscriber', () => {
     );
 
     await expect(
-      transcriber.transcribe({ jobId: 'job-1', path: 'fixtures/audio-sample.mp3', mimeType: 'audio/mpeg' }),
+      transcriber.transcribe({
+        jobId: 'job-1',
+        path: 'fixtures/audio-sample.mp3',
+        mimeType: 'audio/mpeg',
+      }),
     ).rejects.toThrow('upstream 429');
   });
 
@@ -93,7 +99,7 @@ describe('OpenAITranscriber', () => {
     expect(client.create).toHaveBeenCalledTimes(2);
     const warn = logger.calls.find((c) => c.event === 'upstream.retry');
     expect(warn).toMatchObject({ level: 'warn', jobId: 'job-1', attempt: 1 });
-    const done = logger.calls.find((c) => c.event === 'openai.transcribed')!;
+    const done = logger.calls.find((c) => c.event === 'openai.transcribed') as LogFields;
     expect(done).toMatchObject({ jobId: 'job-1', model: 'whisper-1', retryCount: 1 });
     expect(typeof done.durationMs).toBe('number');
   });
@@ -111,7 +117,11 @@ describe('OpenAITranscriber', () => {
     );
 
     await expect(
-      transcriber.transcribe({ jobId: 'job-1', path: 'fixtures/audio-sample.mp3', mimeType: 'audio/mpeg' }),
+      transcriber.transcribe({
+        jobId: 'job-1',
+        path: 'fixtures/audio-sample.mp3',
+        mimeType: 'audio/mpeg',
+      }),
     ).rejects.toBe(bad);
     expect(client.create).toHaveBeenCalledTimes(1);
     expect(logger.calls.some((c) => c.event === 'upstream.retry')).toBe(false);

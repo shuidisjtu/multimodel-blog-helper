@@ -63,7 +63,9 @@ class InMemoryJobRepo implements JobRepository {
   }
 
   async listInProgress(): Promise<BlogJob[]> {
-    return [...this.jobs.values()].filter((j) => j.status === 'transcribing' || j.status === 'summarizing');
+    return [...this.jobs.values()].filter(
+      (j) => j.status === 'transcribing' || j.status === 'summarizing',
+    );
   }
 
   async listExpired(): Promise<BlogJob[]> {
@@ -181,7 +183,7 @@ describe('ProcessJob(架构文档 §4.1/§6.3-§6.4)', () => {
 
     await useCase.run('job-1');
 
-    const job = repo.jobs.get('job-1')!;
+    const job = repo.jobs.get('job-1') as BlogJob;
     expect(job.status).toBe('succeeded');
     expect(job.result).toEqual({
       transcriptPath: '/tmp/outputs/job-1/transcript.txt',
@@ -216,11 +218,16 @@ describe('ProcessJob(架构文档 §4.1/§6.3-§6.4)', () => {
 
     await useCase.run('job-1');
 
-    const job = repo.jobs.get('job-1')!;
+    const job = repo.jobs.get('job-1') as BlogJob;
     expect(job.status).toBe('failed');
-    expect(job.failure).toEqual({ code: 'WEATHER_UNAVAILABLE', safeMessage: 'Upstream unavailable' });
+    expect(job.failure).toEqual({
+      code: 'WEATHER_UNAVAILABLE',
+      safeMessage: 'Upstream unavailable',
+    });
     expect(job.result).toBeUndefined();
-    expect(logger.calls.some((c) => c.level === 'error' && c.errorCode === 'WEATHER_UNAVAILABLE')).toBe(true);
+    expect(
+      logger.calls.some((c) => c.level === 'error' && c.errorCode === 'WEATHER_UNAVAILABLE'),
+    ).toBe(true);
   });
 
   it('摘要失败(非 DomainError): 转 failed + INTERNAL_ERROR + 通用文案, logger.error 记录原始错误', async () => {
@@ -230,12 +237,14 @@ describe('ProcessJob(架构文档 §4.1/§6.3-§6.4)', () => {
 
     await useCase.run('job-1');
 
-    const job = repo.jobs.get('job-1')!;
+    const job = repo.jobs.get('job-1') as BlogJob;
     expect(job.status).toBe('failed');
     expect(job.failure).toEqual({ code: 'INTERNAL_ERROR', safeMessage: 'Processing failed' });
     const errorLogs = logger.calls.filter((c) => c.level === 'error');
     expect(errorLogs.length).toBeGreaterThan(0);
-    expect(errorLogs.some((c) => c.event === 'job.failed' && c.errorCode === 'INTERNAL_ERROR')).toBe(true);
+    expect(
+      errorLogs.some((c) => c.event === 'job.failed' && c.errorCode === 'INTERNAL_ERROR'),
+    ).toBe(true);
     expect(errorLogs.some((c) => c.error !== undefined)).toBe(true);
   });
 
@@ -266,9 +275,9 @@ describe('ProcessJob(架构文档 §4.1/§6.3-§6.4)', () => {
   it('处理失败但任务已被外部清理为 expired: 跳过转 failed, 状态保持 expired', async () => {
     const { repo, useCase } = setup({
       transcriber: {
-        async transcribe(params: { jobId: string; path: string; mimeType: string }) {
+        async transcribe(_params: { jobId: string; path: string; mimeType: string }) {
           // 模拟外部清理: 转录期间任务被标记 expired
-          repo.jobs.set('job-1', { ...repo.jobs.get('job-1')!, status: 'expired' });
+          repo.jobs.set('job-1', { ...(repo.jobs.get('job-1') as BlogJob), status: 'expired' });
           throw new Error('boom');
         },
       },
@@ -277,7 +286,7 @@ describe('ProcessJob(架构文档 §4.1/§6.3-§6.4)', () => {
 
     await useCase.run('job-1');
 
-    const job = repo.jobs.get('job-1')!;
+    const job = repo.jobs.get('job-1') as BlogJob;
     expect(job.status).toBe('expired'); // update 的 mutator 未把 expired 改回 failed
     expect(job.failure).toBeUndefined();
   });
@@ -291,13 +300,15 @@ describe('ProcessJob(架构文档 §4.1/§6.3-§6.4)', () => {
     expect(transcriber.calls).toBe(0);
     expect(summarizer.calls).toBe(0);
     expect(files.savedOutputs).toHaveLength(0);
-    expect(logger.calls.some((c) => c.event === 'job.skipped' && c.reason === 'missing-input')).toBe(true);
+    expect(
+      logger.calls.some((c) => c.event === 'job.skipped' && c.reason === 'missing-input'),
+    ).toBe(true);
   });
 
   it('处理失败且任务已被外部移除: 方法不抛错, 仅记录 warn', async () => {
     const { repo, logger, useCase } = setup({
       transcriber: {
-        async transcribe(params: { jobId: string; path: string; mimeType: string }) {
+        async transcribe(_params: { jobId: string; path: string; mimeType: string }) {
           repo.jobs.delete('job-1');
           throw new Error('boom');
         },

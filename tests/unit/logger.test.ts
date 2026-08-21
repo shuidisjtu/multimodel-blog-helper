@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { createLogger, type LogFields } from '../../src/shared/logger.js';
+import { createLogger } from '../../src/shared/logger.js';
 
 /** 捕获 console.log 输出并解析为 JSON 行(架构文档 §8.2:一行一事件)。 */
 function capture() {
@@ -48,7 +48,7 @@ describe('createLogger(架构文档 §8.2:JSON 一行一事件)', () => {
     const logger = createLogger('debug');
     logger.info({ event: 'job.started', jobId: 'j1', requestId: 'r1', durationMs: 12 });
     expect(lines).toHaveLength(1);
-    const line = lines[0]!;
+    const line = lines[0] as Record<string, unknown>;
     expect(line.event).toBe('job.started');
     expect(line.jobId).toBe('j1');
     expect(line.requestId).toBe('r1');
@@ -76,8 +76,18 @@ describe('createLogger(架构文档 §8.2:JSON 一行一事件)', () => {
       file: 'audio.mp3',
       audioPath: '/tmp/audio.mp3',
     });
-    const line = lines[0]!;
-    for (const key of ['path', 'text', 'content', 'transcript', 'summary', 'apiKey', 'authorization', 'file', 'audioPath']) {
+    const line = lines[0] as Record<string, unknown>;
+    for (const key of [
+      'path',
+      'text',
+      'content',
+      'transcript',
+      'summary',
+      'apiKey',
+      'authorization',
+      'file',
+      'audioPath',
+    ]) {
       expect(line[key], key).toBe('[redacted]');
     }
     // 安全字段原样保留
@@ -90,7 +100,7 @@ describe('createLogger(架构文档 §8.2:JSON 一行一事件)', () => {
   it('脱敏键名不区分大小写', () => {
     const lines = capture();
     createLogger('debug').info({ event: 'e', Path: 'P', TEXT: 'T', AudioPath: 'A' });
-    const line = lines[0]!;
+    const line = lines[0] as Record<string, unknown>;
     expect(line.Path).toBe('[redacted]');
     expect(line.TEXT).toBe('[redacted]');
     expect(line.AudioPath).toBe('[redacted]');

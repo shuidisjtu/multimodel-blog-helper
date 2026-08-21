@@ -4,8 +4,9 @@
  * - drain 消费循环: 并发受 workerConcurrency 限制; 单个 handler 失败只经 finally 回收槽位, 不阻塞其他任务。
  * - 错误不在此吞掉也不扩散: 由订阅方(worker 层)负责处理。
  */
-import type { JobQueue } from '../../domain/ports.js';
+
 import { DomainError } from '../../domain/errors.js';
+import type { JobQueue } from '../../domain/ports.js';
 
 export class MemoryJobQueue implements JobQueue {
   private readonly pending: string[] = [];
@@ -43,7 +44,11 @@ export class MemoryJobQueue implements JobQueue {
   private drain(): void {
     if (this.handler === null) return;
     while (this.processingCount < this.workerConcurrency && this.pending.length > 0) {
-      const jobId = this.pending.shift()!;
+      const jobId = this.pending.shift();
+      if (jobId === undefined) {
+        // pending 非空时 shift 必返回元素, 该分支仅用于类型收窄, 实际不会触发
+        break;
+      }
       this.processingCount++;
       const task = this.handler(jobId).finally(() => {
         this.processingCount--;

@@ -11,10 +11,10 @@ import type {
   SaveInputParams,
   SaveOutputParams,
 } from '../../src/domain/ports.js';
+import { MemoryJobQueue } from '../../src/infrastructure/queue/memory-job-queue.js';
 import type { Clock } from '../../src/shared/clock.js';
 import type { IdGenerator } from '../../src/shared/ids.js';
 import type { LogFields, Logger } from '../../src/shared/logger.js';
-import { MemoryJobQueue } from '../../src/infrastructure/queue/memory-job-queue.js';
 
 /** 可控 fake: 固定时间。 */
 const FIXED_NOW = '2026-08-12T00:00:00.000Z';
@@ -99,7 +99,9 @@ class InMemoryJobRepo implements JobRepository {
   }
 
   async listInProgress(): Promise<BlogJob[]> {
-    return [...this.jobs.values()].filter((j) => j.status === 'transcribing' || j.status === 'summarizing');
+    return [...this.jobs.values()].filter(
+      (j) => j.status === 'transcribing' || j.status === 'summarizing',
+    );
   }
 
   async listExpired(): Promise<BlogJob[]> {
@@ -193,7 +195,7 @@ describe('SubmitAudio(架构文档 §5/§6.1-§6.2)', () => {
     expect(outcome.job.id).toBe('job-1');
     expect(outcome.job.requestId).toBe('req-1');
     // BlogJob.input 在 tombstone 最小化后为可选(§4.2), 新建任务必然存在
-    const createdInput = outcome.job.input!;
+    const createdInput = outcome.job.input as NonNullable<typeof outcome.job.input>;
     expect(createdInput.originalName).toBe('demo.mp3');
     expect(createdInput.mimeType).toBe('audio/mpeg');
     expect(createdInput.bytes).toBe(Buffer.byteLength('fake audio bytes'));
@@ -201,8 +203,12 @@ describe('SubmitAudio(架构文档 §5/§6.1-§6.2)', () => {
     expect(createdInput.path).toBe('/tmp/uploads/job-1/input.bin');
 
     expect(files.savedInputs).toHaveLength(1);
-    const saved = files.savedInputs[0]!;
-    expect(saved).toMatchObject({ jobId: 'job-1', originalName: 'demo.mp3', mimeType: 'audio/mpeg' });
+    const saved = files.savedInputs[0] as NonNullable<(typeof files.savedInputs)[0]>;
+    expect(saved).toMatchObject({
+      jobId: 'job-1',
+      originalName: 'demo.mp3',
+      mimeType: 'audio/mpeg',
+    });
     expect(saved.bytes.equals(Buffer.from('fake audio bytes'))).toBe(true);
 
     expect(queue.size()).toBe(1);
@@ -225,7 +231,7 @@ describe('SubmitAudio(架构文档 §5/§6.1-§6.2)', () => {
     expect(outcome.outcome).toBe('created');
     expect(repo.createCalls).toHaveLength(0);
     expect(repo.createOrGetCalls).toHaveLength(1);
-    expect(repo.createOrGetCalls[0]!.idempotencyKey).toBe('key-1');
+    expect(repo.createOrGetCalls[0]?.idempotencyKey).toBe('key-1');
     expect(outcome.job.idempotencyKey).toBe('key-1');
     expect(outcome.job.id).toBe('job-1');
     expect(queue.size()).toBe(1);
@@ -416,7 +422,10 @@ describe('SubmitAudio(架构文档 §5/§6.1-§6.2)', () => {
     expect((thrown as DomainError).message).toBe('Internal error');
     expect(
       logger.calls.some(
-        (c) => c.event === 'job.submit.failed' && c.errorCode === 'INTERNAL_ERROR' && c.error !== undefined,
+        (c) =>
+          c.event === 'job.submit.failed' &&
+          c.errorCode === 'INTERNAL_ERROR' &&
+          c.error !== undefined,
       ),
     ).toBe(true);
   });

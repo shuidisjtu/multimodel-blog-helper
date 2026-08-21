@@ -21,8 +21,7 @@ export interface SubmitAudioParams {
   idempotencyKey?: string;
 }
 
-export type SubmitAudioOutcome =
-  | { outcome: 'created' | 'replayed' | 'conflict'; job: BlogJob };
+export type SubmitAudioOutcome = { outcome: 'created' | 'replayed' | 'conflict'; job: BlogJob };
 
 export class SubmitAudio {
   constructor(
@@ -45,7 +44,11 @@ export class SubmitAudio {
     } catch (err) {
       if (err instanceof DomainError) throw err;
       // 未知错误: 不向客户端泄漏原始报错(§8.1), 仅记录
-      this.deps.logger.error({ event: 'job.submit.failed', errorCode: 'INTERNAL_ERROR', error: err });
+      this.deps.logger.error({
+        event: 'job.submit.failed',
+        errorCode: 'INTERNAL_ERROR',
+        error: err,
+      });
       throw new DomainError('INTERNAL_ERROR', 'Internal error');
     }
   }

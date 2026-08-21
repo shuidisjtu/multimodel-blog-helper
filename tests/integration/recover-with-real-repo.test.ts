@@ -2,17 +2,18 @@
  * RecoverJobs 集成测试(架构文档 §4.2/§9): 真实 FileJobRepository + MemoryJobQueue。
  * 验证启动恢复与真实仓储文件布局协同: queued 任务重入队, transcribing 标记 failed(PROCESS_INTERRUPTED)。
  */
-import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+
 import { createHash } from 'node:crypto';
 import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { RecoverJobs } from '../../src/application/recover-jobs.js';
-import { FileJobRepository } from '../../src/infrastructure/repository/file-job-repository.js';
 import { MemoryJobQueue } from '../../src/infrastructure/queue/memory-job-queue.js';
-import type { LogFields, Logger } from '../../src/shared/logger.js';
+import { FileJobRepository } from '../../src/infrastructure/repository/file-job-repository.js';
 import type { Clock } from '../../src/shared/clock.js';
 import { systemIdGenerator } from '../../src/shared/ids.js';
+import type { LogFields, Logger } from '../../src/shared/logger.js';
 
 /** 记录型 fake 日志: 每个调用打上 level 便于断言。 */
 class FakeLogger implements Logger {
@@ -55,8 +56,18 @@ describe('RecoverJobs 集成(架构文档 §4.2/§9)', () => {
       bytes: 11,
       sha256: INPUT_SHA,
     };
-    await repo.create({ requestId: 'req-q', input, expiresAt: '2026-08-13T08:00:00.000Z', id: 'rec-q' });
-    await repo.create({ requestId: 'req-t', input, expiresAt: '2026-08-13T08:00:00.000Z', id: 'rec-t' });
+    await repo.create({
+      requestId: 'req-q',
+      input,
+      expiresAt: '2026-08-13T08:00:00.000Z',
+      id: 'rec-q',
+    });
+    await repo.create({
+      requestId: 'req-t',
+      input,
+      expiresAt: '2026-08-13T08:00:00.000Z',
+      id: 'rec-t',
+    });
     await repo.update('rec-t', (j) => ({ ...j, status: 'transcribing' }));
     const queue = new MemoryJobQueue(10, 1);
     const logger = new FakeLogger();
@@ -68,8 +79,8 @@ describe('RecoverJobs 集成(架构文档 §4.2/§9)', () => {
     expect(queue.size()).toBe(1); // 无订阅者, queued 任务滞留队列
     expect(logger.calls.some((c) => c.event === 'job.requeued' && c.jobId === 'rec-q')).toBe(true);
     const interrupted = await repo.get('rec-t');
-    expect(interrupted!.status).toBe('failed');
-    expect(interrupted!.failure).toEqual({
+    expect(interrupted?.status).toBe('failed');
+    expect(interrupted?.failure).toEqual({
       code: 'PROCESS_INTERRUPTED',
       safeMessage: 'Processing interrupted by restart',
     });

@@ -3,15 +3,16 @@
  * 覆盖: create/get/update 原子写、createOrGet 幂等三角色(created/replayed/conflict)、
  * 列表方法(含损坏文件容忍)与 remove。
  */
-import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
+
 import { createHash } from 'node:crypto';
-import { mkdtemp, readFile, readdir, rm, writeFile } from 'node:fs/promises';
+import { mkdtemp, readdir, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { FileJobRepository } from '../../src/infrastructure/repository/file-job-repository.js';
+import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import { DomainError } from '../../src/domain/errors.js';
-import type { CreateJobParams } from '../../src/domain/ports.js';
 import type { BlogJob } from '../../src/domain/job.js';
+import type { CreateJobParams } from '../../src/domain/ports.js';
+import { FileJobRepository } from '../../src/infrastructure/repository/file-job-repository.js';
 import type { Clock } from '../../src/shared/clock.js';
 import type { IdGenerator } from '../../src/shared/ids.js';
 
@@ -77,7 +78,9 @@ describe('FileJobRepository(架构文档 §4.2/§5/§7.1)', () => {
     expect(job.createdAt).toBe(clock.value);
     expect(job.updatedAt).toBe(clock.value);
     expect(job.expiresAt).toBe('2026-08-13T08:00:00.000Z');
-    const onDisk = JSON.parse(await readFile(join(tempDir, 'jobs', 'job-1.json'), 'utf8')) as unknown;
+    const onDisk = JSON.parse(
+      await readFile(join(tempDir, 'jobs', 'job-1.json'), 'utf8'),
+    ) as unknown;
     expect(onDisk).toEqual(job);
   });
 
@@ -85,7 +88,9 @@ describe('FileJobRepository(架构文档 §4.2/§5/§7.1)', () => {
     const repo = makeRepo();
     const job = await repo.create(makeParams({ id: 'custom-42' }));
     expect(job.id).toBe('custom-42');
-    await expect(readFile(join(tempDir, 'jobs', 'custom-42.json'), 'utf8')).resolves.toContain('custom-42');
+    await expect(readFile(join(tempDir, 'jobs', 'custom-42.json'), 'utf8')).resolves.toContain(
+      'custom-42',
+    );
   });
 
   it('get: 存在返回完整 job, 不存在返回 null', async () => {
@@ -128,10 +133,16 @@ describe('FileJobRepository(架构文档 §4.2/§5/§7.1)', () => {
     }));
     expect(updated.status).toBe('succeeded');
     expect(updated.updatedAt).toBe('2026-08-12T09:00:00.000Z');
-    const onDisk = JSON.parse(await readFile(join(tempDir, 'jobs', 'upd-1.json'), 'utf8')) as BlogJob;
+    const onDisk = JSON.parse(
+      await readFile(join(tempDir, 'jobs', 'upd-1.json'), 'utf8'),
+    ) as BlogJob;
     expect(onDisk.status).toBe('succeeded');
     expect(onDisk.updatedAt).toBe('2026-08-12T09:00:00.000Z');
-    expect(onDisk.result).toEqual({ transcriptPath: '/tmp/o/upd-1/transcript.txt', summary: 's', model: 'whisper-1' });
+    expect(onDisk.result).toEqual({
+      transcriptPath: '/tmp/o/upd-1/transcript.txt',
+      summary: 's',
+      model: 'whisper-1',
+    });
     await expect(repo.update('no-such', (j) => j)).rejects.toMatchObject({ code: 'JOB_NOT_FOUND' });
   });
 
@@ -141,14 +152,20 @@ describe('FileJobRepository(架构文档 §4.2/§5/§7.1)', () => {
     await repo.update('tmp-1', (j) => ({ ...j, status: 'transcribing' }));
     const entries = await readdir(join(tempDir, 'jobs'));
     expect(entries.filter((e) => e.includes('.tmp'))).toEqual([]);
-    await expect(readFile(join(tempDir, 'jobs', 'tmp-1.json'), 'utf8')).resolves.toContain('transcribing');
+    await expect(readFile(join(tempDir, 'jobs', 'tmp-1.json'), 'utf8')).resolves.toContain(
+      'transcribing',
+    );
   });
 
   it('createOrGet 幂等: 同 key 同 sha256 → 第二次 replayed 且 job.id 与首次一致, 文件仍只有一份', async () => {
     const repo = makeRepo();
-    const first = await repo.createOrGetByIdempotencyKey(makeParams({ idempotencyKey: 'key-triangle' }));
+    const first = await repo.createOrGetByIdempotencyKey(
+      makeParams({ idempotencyKey: 'key-triangle' }),
+    );
     expect(first.outcome).toBe('created');
-    const second = await repo.createOrGetByIdempotencyKey(makeParams({ idempotencyKey: 'key-triangle' }));
+    const second = await repo.createOrGetByIdempotencyKey(
+      makeParams({ idempotencyKey: 'key-triangle' }),
+    );
     expect(second.outcome).toBe('replayed');
     expect(second.job.id).toBe(first.job.id);
     expect(second.job).toEqual(first.job);
@@ -164,10 +181,15 @@ describe('FileJobRepository(架构文档 §4.2/§5/§7.1)', () => {
 
   it('createOrGet 幂等: 同 key 不同 sha256 → conflict, 返回首次 job', async () => {
     const repo = makeRepo();
-    const first = await repo.createOrGetByIdempotencyKey(makeParams({ idempotencyKey: 'key-conflict' }));
+    const first = await repo.createOrGetByIdempotencyKey(
+      makeParams({ idempotencyKey: 'key-conflict' }),
+    );
     const otherSha = createHash('sha256').update('other bytes').digest('hex');
     const second = await repo.createOrGetByIdempotencyKey(
-      makeParams({ idempotencyKey: 'key-conflict', input: { ...makeParams().input, sha256: otherSha } }),
+      makeParams({
+        idempotencyKey: 'key-conflict',
+        input: { ...makeParams().input, sha256: otherSha },
+      }),
     );
     expect(second.outcome).toBe('conflict');
     expect(second.job.id).toBe(first.job.id);
@@ -180,13 +202,17 @@ describe('FileJobRepository(架构文档 §4.2/§5/§7.1)', () => {
     expect(a.outcome).toBe('created');
     expect(b.outcome).toBe('created');
     expect(a.job.id).not.toBe(b.job.id);
-    await expect(readFile(join(tempDir, 'jobs', `${a.job.id}.json`), 'utf8')).resolves.toContain(a.job.id);
-    await expect(readFile(join(tempDir, 'jobs', `${b.job.id}.json`), 'utf8')).resolves.toContain(b.job.id);
+    await expect(readFile(join(tempDir, 'jobs', `${a.job.id}.json`), 'utf8')).resolves.toContain(
+      a.job.id,
+    );
+    await expect(readFile(join(tempDir, 'jobs', `${b.job.id}.json`), 'utf8')).resolves.toContain(
+      b.job.id,
+    );
   });
 
   it('createOrGet: 占位指向 tombstone(已清空 input)时 → replayed 返回原 Job, 不比对 sha256', async () => {
     const repo = makeRepo();
-    const { job } = await repo.createOrGetByIdempotencyKey(
+    await repo.createOrGetByIdempotencyKey(
       makeParams({ idempotencyKey: 'key-tomb', id: 'tomb-1' }),
     );
     // 模拟清理: 任务转为最小 tombstone(清空 input/idempotencyKey, §4.2)
@@ -198,7 +224,9 @@ describe('FileJobRepository(架构文档 §4.2/§5/§7.1)', () => {
       updatedAt: j.updatedAt,
       expiresAt: j.expiresAt,
     }));
-    const outcome = await repo.createOrGetByIdempotencyKey(makeParams({ idempotencyKey: 'key-tomb' }));
+    const outcome = await repo.createOrGetByIdempotencyKey(
+      makeParams({ idempotencyKey: 'key-tomb' }),
+    );
     expect(outcome.outcome).toBe('replayed');
     expect(outcome.job.id).toBe('tomb-1');
     expect(outcome.job.status).toBe('expired');
@@ -210,7 +238,9 @@ describe('FileJobRepository(架构文档 §4.2/§5/§7.1)', () => {
       makeParams({ idempotencyKey: 'key-meta', id: 'meta-1' }),
     );
     expect(job.idempotencyKey).toBe('key-meta');
-    const onDisk = JSON.parse(await readFile(join(tempDir, 'jobs', 'meta-1.json'), 'utf8')) as BlogJob;
+    const onDisk = JSON.parse(
+      await readFile(join(tempDir, 'jobs', 'meta-1.json'), 'utf8'),
+    ) as BlogJob;
     expect(onDisk.idempotencyKey).toBe('key-meta');
   });
 
@@ -219,10 +249,15 @@ describe('FileJobRepository(架构文档 §4.2/§5/§7.1)', () => {
     const created = await repo.create(makeParams({ idempotencyKey: 'key-create-path', id: 'c1' }));
     expect(created.id).toBe('c1');
     const placeholder = JSON.parse(
-      await readFile(join(tempDir, 'jobs', 'by-key', `${sha256Of('key-create-path')}.json`), 'utf8'),
+      await readFile(
+        join(tempDir, 'jobs', 'by-key', `${sha256Of('key-create-path')}.json`),
+        'utf8',
+      ),
     ) as { jobId: string };
     expect(placeholder.jobId).toBe('c1');
-    const outcome = await repo.createOrGetByIdempotencyKey(makeParams({ idempotencyKey: 'key-create-path' }));
+    const outcome = await repo.createOrGetByIdempotencyKey(
+      makeParams({ idempotencyKey: 'key-create-path' }),
+    );
     expect(outcome.outcome).toBe('replayed');
     expect(outcome.job.id).toBe('c1');
   });
@@ -231,7 +266,9 @@ describe('FileJobRepository(架构文档 §4.2/§5/§7.1)', () => {
     const repo = makeRepo();
     const keyPath = join(tempDir, 'jobs', 'by-key', `${sha256Of('key-orphan')}.json`);
     await writeFile(keyPath, JSON.stringify({ jobId: 'ghost-job', sha256: INPUT_SHA }), 'utf8');
-    const { outcome, job } = await repo.createOrGetByIdempotencyKey(makeParams({ idempotencyKey: 'key-orphan' }));
+    const { outcome, job } = await repo.createOrGetByIdempotencyKey(
+      makeParams({ idempotencyKey: 'key-orphan' }),
+    );
     expect(outcome).toBe('created');
     expect(job.id).not.toBe('ghost-job');
     const placeholder = JSON.parse(await readFile(keyPath, 'utf8')) as { jobId: string };
@@ -241,10 +278,20 @@ describe('FileJobRepository(架构文档 §4.2/§5/§7.1)', () => {
   it('createOrGet: 占位文件为空/JSON 损坏/字段缺失 → INTERNAL_ERROR(保守失败)', async () => {
     const repo = makeRepo();
     await writeFile(join(tempDir, 'jobs', 'by-key', `${sha256Of('key-empty')}.json`), '', 'utf8');
-    await writeFile(join(tempDir, 'jobs', 'by-key', `${sha256Of('key-corrupt')}.json`), '{oops', 'utf8');
-    await writeFile(join(tempDir, 'jobs', 'by-key', `${sha256Of('key-shape')}.json`), '{"foo": 1}', 'utf8');
+    await writeFile(
+      join(tempDir, 'jobs', 'by-key', `${sha256Of('key-corrupt')}.json`),
+      '{oops',
+      'utf8',
+    );
+    await writeFile(
+      join(tempDir, 'jobs', 'by-key', `${sha256Of('key-shape')}.json`),
+      '{"foo": 1}',
+      'utf8',
+    );
     for (const key of ['key-empty', 'key-corrupt', 'key-shape']) {
-      await expect(repo.createOrGetByIdempotencyKey(makeParams({ idempotencyKey: key }))).rejects.toMatchObject({
+      await expect(
+        repo.createOrGetByIdempotencyKey(makeParams({ idempotencyKey: key })),
+      ).rejects.toMatchObject({
         code: 'INTERNAL_ERROR',
       });
     }
@@ -280,7 +327,11 @@ describe('FileJobRepository(架构文档 §4.2/§5/§7.1)', () => {
     await repo.create(makeParams({ id: 'rec-t' }));
     await repo.update('rec-t', (j) => ({ ...j, status: 'transcribing' }));
     await repo.create(makeParams({ id: 'rec-s' }));
-    await repo.update('rec-s', (j) => ({ ...j, status: 'succeeded', result: { transcriptPath: 't', summary: 's', model: 'm' } }));
+    await repo.update('rec-s', (j) => ({
+      ...j,
+      status: 'succeeded',
+      result: { transcriptPath: 't', summary: 's', model: 'm' },
+    }));
     const list = await repo.listRecoverable();
     expect(list.every((j) => j.status === 'queued')).toBe(true);
     expect(list.map((j) => j.id)).toEqual(expect.arrayContaining(['rec-q1']));
@@ -316,7 +367,9 @@ describe('FileJobRepository(架构文档 §4.2/§5/§7.1)', () => {
     await repo.createOrGetByIdempotencyKey(makeParams({ idempotencyKey: 'key-rm', id: 'rm-1' }));
     await repo.remove('rm-1');
     await expect(readFile(join(tempDir, 'jobs', 'rm-1.json'))).rejects.toThrow();
-    await expect(readFile(join(tempDir, 'jobs', 'by-key', `${sha256Of('key-rm')}.json`))).rejects.toThrow();
+    await expect(
+      readFile(join(tempDir, 'jobs', 'by-key', `${sha256Of('key-rm')}.json`)),
+    ).rejects.toThrow();
     await expect(repo.remove('rm-1')).resolves.toBeUndefined();
   });
 

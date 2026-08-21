@@ -7,8 +7,8 @@
  *   恢复第二阶段会将其标记 PROCESS_INTERRUPTED, 造成重复处理)
  */
 import type { JobQueue } from '../domain/ports.js';
-import type { ProcessJob } from './process-job.js';
 import type { Logger } from '../shared/logger.js';
+import type { ProcessJob } from './process-job.js';
 
 export class ProcessJobWorker {
   private started = false;

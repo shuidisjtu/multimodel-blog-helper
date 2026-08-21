@@ -1,6 +1,6 @@
-import { describe, expect, it, vi } from 'vitest';
-import { APIError } from 'openai';
 import type OpenAI from 'openai';
+import { APIError } from 'openai';
+import { describe, expect, it, vi } from 'vitest';
 import { ResponsesSummarizer } from '../../src/infrastructure/openai/summarizer.js';
 import type { LogFields, Logger } from '../../src/shared/logger.js';
 
@@ -36,7 +36,7 @@ describe('ResponsesSummarizer', () => {
     const result = await summarizer.summarize({ jobId: 'job-1', text: '这是一段转录文本。' });
 
     expect(result.text).toBe('摘要要点');
-    const [args] = create.mock.calls[0]!;
+    const [args] = create.mock.calls[0] as NonNullable<(typeof create.mock.calls)[0]>;
     expect(args).toMatchObject({ model: 'gpt-4o' });
     expect(args.input).toContain('这是一段转录文本。');
   });
@@ -59,8 +59,10 @@ describe('ResponsesSummarizer', () => {
 
     expect(result.text).toBe('摘要要点');
     expect(create).toHaveBeenCalledTimes(2);
-    expect(logger.calls.some((c) => c.event === 'upstream.retry' && c.jobId === 'job-1')).toBe(true);
-    const done = logger.calls.find((c) => c.event === 'openai.summarized')!;
+    expect(logger.calls.some((c) => c.event === 'upstream.retry' && c.jobId === 'job-1')).toBe(
+      true,
+    );
+    const done = logger.calls.find((c) => c.event === 'openai.summarized') as LogFields;
     expect(done).toMatchObject({ jobId: 'job-1', model: 'gpt-4o', retryCount: 1 });
   });
 
@@ -76,7 +78,7 @@ describe('ResponsesSummarizer', () => {
 
     await summarizer.summarize({ jobId: 'job-1', text: '文本' });
 
-    const [, opts] = create.mock.calls[0]!;
+    const [, opts] = create.mock.calls[0] as NonNullable<(typeof create.mock.calls)[0]>;
     expect(opts).toMatchObject({ timeout: 45000, maxRetries: 0 });
   });
 

@@ -1,11 +1,11 @@
 import { describe, expect, it } from 'vitest';
+import { JobStateError } from '../../src/domain/errors.js';
 import {
   assertCanTransition,
   canTransition,
   isTerminal,
   type JobStatus,
 } from '../../src/domain/job.js';
-import { JobStateError } from '../../src/domain/errors.js';
 
 const ALL_STATUSES: JobStatus[] = [
   'queued',
@@ -53,9 +53,7 @@ describe('Job 状态机(架构文档 §4.1)', () => {
   });
 
   it('assertCanTransition 对非法迁移抛出 JobStateError', () => {
-    expect(() => assertCanTransition('succeeded', 'failed')).toThrow(
-      JobStateError,
-    );
+    expect(() => assertCanTransition('succeeded', 'failed')).toThrow(JobStateError);
     expect(() => assertCanTransition('expired', 'queued')).toThrow(
       'Illegal state transition: expired -> queued',
     );

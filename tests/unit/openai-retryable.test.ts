@@ -1,5 +1,5 @@
+import { APIConnectionError, APIConnectionTimeoutError, APIError } from 'openai';
 import { describe, expect, it } from 'vitest';
-import { APIError, APIConnectionError, APIConnectionTimeoutError } from 'openai';
 import { isOpenAiRetryable } from '../../src/infrastructure/openai/retryable.js';
 
 function apiError(status: number): APIError {
@@ -21,9 +21,9 @@ describe('isOpenAiRetryable(架构文档 §6)', () => {
 
   it('连接错误与连接超时可重试(网络层)', () => {
     expect(isOpenAiRetryable(new APIConnectionError({ message: 'conn' }))).toBe(true);
-    expect(
-      isOpenAiRetryable(new APIConnectionTimeoutError({ message: 'conn timeout' })),
-    ).toBe(true);
+    expect(isOpenAiRetryable(new APIConnectionTimeoutError({ message: 'conn timeout' }))).toBe(
+      true,
+    );
   });
 
   it('非 SDK 错误不可重试', () => {

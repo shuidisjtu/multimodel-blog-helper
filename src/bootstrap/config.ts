@@ -57,12 +57,7 @@ function requireEnv(env: NodeJS.ProcessEnv, key: string): string {
   return value;
 }
 
-function intEnv(
-  env: NodeJS.ProcessEnv,
-  key: string,
-  fallback: number,
-  min = 0,
-): number {
+function intEnv(env: NodeJS.ProcessEnv, key: string, fallback: number, min = 0): number {
   const raw = env[key];
   if (raw === undefined || raw === '') return fallback;
   const value = Number.parseInt(raw, 10);

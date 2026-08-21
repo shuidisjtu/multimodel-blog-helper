@@ -33,7 +33,11 @@ export class QueryJob {
     } catch (err) {
       if (err instanceof DomainError) throw err;
       // 未知错误: 不向客户端泄漏原始报错(§8.1), 仅记录
-      this.deps.logger.error({ event: 'job.query.failed', errorCode: 'INTERNAL_ERROR', error: err });
+      this.deps.logger.error({
+        event: 'job.query.failed',
+        errorCode: 'INTERNAL_ERROR',
+        error: err,
+      });
       throw new DomainError('INTERNAL_ERROR', 'Internal error');
     }
   }

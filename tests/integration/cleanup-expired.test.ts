@@ -3,19 +3,20 @@
  * 覆盖: 终态(succeeded/failed)过期 → 文件删除 + tombstone 最小化 / 非终态过期跳过(文件保留) /
  * tombstone 二次清理(保留期内保留, 超期元数据与幂等占位一并删除) / 连续两次 run 幂等。
  */
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+
 import { createHash } from 'node:crypto';
 import { existsSync } from 'node:fs';
 import { mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { CleanupExpired } from '../../src/application/cleanup-expired.js';
+import type { BlogJob } from '../../src/domain/job.js';
 import { FileJobRepository } from '../../src/infrastructure/repository/file-job-repository.js';
 import { LocalFileStore } from '../../src/infrastructure/storage/file-store.js';
-import type { BlogJob } from '../../src/domain/job.js';
-import type { LogFields, Logger } from '../../src/shared/logger.js';
 import type { Clock } from '../../src/shared/clock.js';
 import { systemIdGenerator } from '../../src/shared/ids.js';
+import type { LogFields, Logger } from '../../src/shared/logger.js';
 
 /** 记录型 fake 日志: 每个调用打上 level 便于断言。 */
 class FakeLogger implements Logger {
@@ -79,7 +80,12 @@ async function createJobWithFiles(opts: {
     id,
     idempotencyKey: opts.idempotencyKey,
   });
-  await files.saveInput({ jobId: id, originalName: 'demo.mp3', mimeType: 'audio/mpeg', bytes: Buffer.from('audio bytes') });
+  await files.saveInput({
+    jobId: id,
+    originalName: 'demo.mp3',
+    mimeType: 'audio/mpeg',
+    bytes: Buffer.from('audio bytes'),
+  });
   if (opts.status === 'transcribing') {
     await repo.update(id, (j) => ({ ...j, status: 'transcribing' }));
   }
@@ -89,11 +95,19 @@ async function createJobWithFiles(opts: {
     await repo.update(id, (j) => ({
       ...j,
       status: 'succeeded',
-      result: { transcriptPath: `/tmp/o/${id}/transcript.txt`, summary: 'summary text', model: 'whisper-1' },
+      result: {
+        transcriptPath: `/tmp/o/${id}/transcript.txt`,
+        summary: 'summary text',
+        model: 'whisper-1',
+      },
     }));
   }
   if (opts.status === 'failed') {
-    await repo.update(id, (j) => ({ ...j, status: 'failed', failure: { code: 'INTERNAL_ERROR', safeMessage: 'Processing failed' } }));
+    await repo.update(id, (j) => ({
+      ...j,
+      status: 'failed',
+      failure: { code: 'INTERNAL_ERROR', safeMessage: 'Processing failed' },
+    }));
   }
   return job;
 }
@@ -116,15 +130,15 @@ describe('CleanupExpired 集成(架构文档 §4.2/§5/§9)', () => {
     const tombstone = await repo.get('done-1');
     expect(tombstone).not.toBeNull();
     // tombstone 最小化(§4.2): 只保留核心字段
-    expect(tombstone!.status).toBe('expired');
-    expect(tombstone!.id).toBe('done-1');
-    expect(tombstone!.requestId).toBe('req-done-1');
-    expect(tombstone!.createdAt).toBe('2026-08-12T08:00:00.000Z');
-    expect(tombstone!.expiresAt).toBe(PAST);
-    expect(tombstone!.input).toBeUndefined();
-    expect(tombstone!.result).toBeUndefined();
-    expect(tombstone!.failure).toBeUndefined();
-    expect(tombstone!.idempotencyKey).toBeUndefined();
+    expect(tombstone?.status).toBe('expired');
+    expect(tombstone?.id).toBe('done-1');
+    expect(tombstone?.requestId).toBe('req-done-1');
+    expect(tombstone?.createdAt).toBe('2026-08-12T08:00:00.000Z');
+    expect(tombstone?.expiresAt).toBe(PAST);
+    expect(tombstone?.input).toBeUndefined();
+    expect(tombstone?.result).toBeUndefined();
+    expect(tombstone?.failure).toBeUndefined();
+    expect(tombstone?.idempotencyKey).toBeUndefined();
     expect(logger.calls.some((c) => c.event === 'cleanup.done' && c.level === 'info')).toBe(true);
   });
 
@@ -137,8 +151,8 @@ describe('CleanupExpired 集成(架构文档 §4.2/§5/§9)', () => {
     expect(result).toEqual({ expiredCount: 1, removedTombstones: 0 });
     expect(existsSync(join(tempDir, 'uploads', 'fail-1'))).toBe(false);
     const tombstone = await repo.get('fail-1');
-    expect(tombstone!.status).toBe('expired');
-    expect(tombstone!.failure).toBeUndefined();
+    expect(tombstone?.status).toBe('expired');
+    expect(tombstone?.failure).toBeUndefined();
   });
 
   it('queued/transcribing 过期: 跳过(不删文件不迁移), 记录 debug', async () => {
@@ -148,8 +162,8 @@ describe('CleanupExpired 集成(架构文档 §4.2/§5/§9)', () => {
     const result = await cleanup.run();
 
     expect(result).toEqual({ expiredCount: 0, removedTombstones: 0 });
-    expect((await repo.get('q-1'))!.status).toBe('queued');
-    expect((await repo.get('t-1'))!.status).toBe('transcribing');
+    expect((await repo.get('q-1'))?.status).toBe('queued');
+    expect((await repo.get('t-1'))?.status).toBe('transcribing');
     expect(existsSync(join(tempDir, 'uploads', 'q-1'))).toBe(true);
     expect(existsSync(join(tempDir, 'uploads', 't-1'))).toBe(true);
     expect(logger.calls.some((c) => c.event === 'cleanup.skip' && c.level === 'debug')).toBe(true);
@@ -159,14 +173,14 @@ describe('CleanupExpired 集成(架构文档 §4.2/§5/§9)', () => {
     await createJobWithFiles({ id: 'old-1', status: 'succeeded', idempotencyKey: 'cleanup-key-1' });
     const keyPath = join(tempDir, 'jobs', 'by-key', `${sha256Of('cleanup-key-1')}.json`);
     await cleanup.run(); // → tombstone(updatedAt = 2026-08-12T08:00:00.000Z)
-    expect((await repo.get('old-1'))!.status).toBe('expired');
+    expect((await repo.get('old-1'))?.status).toBe('expired');
     expect(existsSync(keyPath)).toBe(true); // 二次清理前幂等占位保留(§5)
 
     // 未超过保留期(30 天) → 保留
     clockValue = '2026-08-17T08:00:00.000Z';
     let result = await cleanup.run();
     expect(result).toEqual({ expiredCount: 0, removedTombstones: 0 });
-    expect((await repo.get('old-1'))!.status).toBe('expired');
+    expect((await repo.get('old-1'))?.status).toBe('expired');
 
     // 混入损坏占位: 清理扫描需容忍, 不中断
     await writeFile(join(tempDir, 'jobs', 'by-key', 'deadbeef.json'), '{broken', 'utf8');
@@ -187,6 +201,6 @@ describe('CleanupExpired 集成(架构文档 §4.2/§5/§9)', () => {
 
     const second = await cleanup.run();
     expect(second).toEqual({ expiredCount: 0, removedTombstones: 0 });
-    expect((await repo.get('idem-1'))!.status).toBe('expired');
+    expect((await repo.get('idem-1'))?.status).toBe('expired');
   });
 });

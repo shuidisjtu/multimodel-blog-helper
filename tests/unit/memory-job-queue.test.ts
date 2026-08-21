@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
-import { MemoryJobQueue } from '../../src/infrastructure/queue/memory-job-queue.js';
 import { DomainError } from '../../src/domain/errors.js';
+import { MemoryJobQueue } from '../../src/infrastructure/queue/memory-job-queue.js';
 
 /** resolve 时机可控的 Promise(用于验证并发上限与消费顺序)。 */
 interface Deferred<T = void> {
@@ -85,12 +85,12 @@ describe('MemoryJobQueue(架构文档 §6 流程 2/3)', () => {
     await secondStarted.promise;
     expect(maxActive).toBeLessThanOrEqual(2);
     expect(queue.size()).toBe(1); // 'c' 仍在排队
-    gates[0]!.resolve();
+    gates[0]?.resolve();
     await waitUntil(() => gates.length === 3); // 'c' 开始处理
     expect(queue.size()).toBe(0);
     expect(maxActive).toBeLessThanOrEqual(2);
-    gates[1]!.resolve();
-    gates[2]!.resolve();
+    gates[1]?.resolve();
+    gates[2]?.resolve();
     await waitUntil(() => active === 0);
     expect(maxActive).toBeLessThanOrEqual(2);
   });
@@ -129,7 +129,7 @@ describe('MemoryJobQueue(架构文档 §6 流程 2/3)', () => {
     expect(consumed).toEqual(['bad', 'good']);
     // 不吞: 拒绝被兜底打印, 而非 unhandledRejection
     expect(errorSpy).toHaveBeenCalledTimes(1);
-    expect(errorSpy.mock.calls[0]![1]).toBeInstanceOf(Error);
+    expect(errorSpy.mock.calls[0]?.[1]).toBeInstanceOf(Error);
     errorSpy.mockRestore();
   });
 

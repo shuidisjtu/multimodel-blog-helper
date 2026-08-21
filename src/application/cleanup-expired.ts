@@ -6,8 +6,9 @@
  * - tombstone 二次清理: 超过 tombstoneRetentionDays(默认 30 天)后 remove(元数据与幂等占位, §5: key 随 tombstone 清理)
  * - 单任务异常记录日志继续, 清理不可因单任务失败中断; listExpired 失败(仓储不可用)则向外抛错
  */
-import { isTerminal } from '../domain/job.js';
+
 import type { BlogJob } from '../domain/job.js';
+import { isTerminal } from '../domain/job.js';
 import type { FileStore, JobRepository } from '../domain/ports.js';
 import type { Clock } from '../shared/clock.js';
 import type { Logger } from '../shared/logger.js';
@@ -51,7 +52,12 @@ export class CleanupExpired {
         }
         if (!isTerminal(job.status)) {
           // 进行中任务可能正被恢复逻辑或 worker 处理, 不可删除其文件(§4.2)
-          this.deps.logger.debug({ event: 'cleanup.skip', jobId: job.id, status: job.status, reason: 'in-progress' });
+          this.deps.logger.debug({
+            event: 'cleanup.skip',
+            jobId: job.id,
+            status: job.status,
+            reason: 'in-progress',
+          });
           continue;
         }
         // 终态: 先删文件, 再置 tombstone(update mutator 内以仓储最终状态为准, 竞态下跳过)

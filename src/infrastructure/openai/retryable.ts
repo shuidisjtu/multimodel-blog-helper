@@ -3,7 +3,7 @@
  * 可重试: 连接错误/连接超时(网络层, SDK 内部会抛)、429 限流、5xx 服务端错误。
  * 不可重试: 4xx 参数/内容错误、用户中止及其他未知错误。
  */
-import { APIError, APIConnectionError } from 'openai';
+import { APIConnectionError, APIError } from 'openai';
 
 export function isOpenAiRetryable(err: unknown): boolean {
   if (err instanceof APIConnectionError) return true; // 含 APIConnectionTimeoutError 子类
