@@ -1,6 +1,6 @@
 # OpenAI 多模态博客助手：工程架构设计文档
 
-> 文档版本：v1.3 ｜ 适用阶段：从第 3、4 章示例工程整合为可部署的学习研究型 HTTP 服务 ｜ 最后更新：2026-08-12
+> 文档版本：v1.3 ｜ 适用阶段：从第 3、4 章示例工程整合为可部署的学习研究型 HTTP 服务 ｜ 最后更新：2026-08-21
 
 ## 1. 目标、范围与边界
 
@@ -130,8 +130,8 @@ type BlogJob = {
 
 | 端口 | 最小接口 | 实现 |
 | --- | --- | --- |
-| `Transcriber` | `transcribe(file): Transcript` | `OpenAITranscriber`（模型经配置注入）；后续 `LocalWhisperTranscriber`；中期评估新增 GLM 等平台实现 |
-| `Summarizer` | `summarize(text): Summary` | `ResponsesSummarizer` |
+| `Transcriber` | `transcribe({ jobId, path, mimeType }): Transcript` | `OpenAITranscriber`（模型经配置注入）；后续 `LocalWhisperTranscriber`；中期评估新增 GLM 等平台实现 |
+| `Summarizer` | `summarize({ jobId, text }): Summary` | `ResponsesSummarizer` |
 | `WeatherProvider` | `current(location): Weather` | `WttrWeatherProvider` |
 | `JobRepository` | `create`、`createOrGetByIdempotencyKey`（原子幂等，返回 `created|replayed|conflict`）、`get`、`update`、`listRecoverable`（启动恢复用）、`listExpired` | 文件仓储 |
 | `FileStore` | `saveInput/saveOutput/read/deleteExpired` | 临时目录 |

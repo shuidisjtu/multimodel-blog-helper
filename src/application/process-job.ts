@@ -18,6 +18,7 @@ export class ProcessJob {
       summarizer: Summarizer;
       logger: Logger;
       transcribeModel: string;
+      summaryModel: string;
     },
   ) {}
 
@@ -49,7 +50,7 @@ export class ProcessJob {
         event: 'job.summarized',
         jobId,
         durationMs: Date.now() - summarizeStarted,
-        model: this.deps.transcribeModel,
+        model: this.deps.summaryModel,
       });
       // 中间产物落盘(转录 + 摘要)
       const transcriptOut = await this.deps.files.saveOutput({

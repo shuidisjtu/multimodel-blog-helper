@@ -161,6 +161,7 @@ function setup(overrides?: {
     summarizer,
     logger,
     transcribeModel: 'whisper-1',
+    summaryModel: 'gpt-4o',
   });
   // 默认场景(不带 overrides)下返回具体 fake 类型, 测试可直接访问 calls/error 等记录字段
   return {
@@ -203,7 +204,7 @@ describe('ProcessJob(架构文档 §4.1/§6.3-§6.4)', () => {
     expect(typeof transcribedLog?.durationMs).toBe('number');
     expect(logger.calls.some((c) => c.event === 'job.summarized')).toBe(true);
     const summarizedLog = logger.calls.find((c) => c.event === 'job.summarized');
-    expect(summarizedLog?.model).toBe('whisper-1');
+    expect(summarizedLog?.model).toBe('gpt-4o');
     expect(transcriber.lastJobId).toBe('job-1');
     expect(summarizer.lastJobId).toBe('job-1');
   });

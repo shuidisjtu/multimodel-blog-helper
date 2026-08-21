@@ -2,15 +2,17 @@
 
 > 日期：2026-08-21 ｜ 适用：项目答辩 ｜ 证据索引见 §9 ｜ 配套：docs/architecture/architecture-design.md、docs/adr/ADR-0001~0004
 
+> **实现状态（2026-08-21）**：A2（Transcriber/Summarizer 端口与 OpenAI 适配器）、A3（异步任务用例与状态机）、A4（重试/超时策略）均已实现，测试证据见 §9；B1–B5（HTTP 接口、幂等、限流、过期清理等）为**设计待实现**——下文 §1 闭环、§2 `503`、§5 幂等/文件安全/tombstone、§7 限流等 HTTP 行为描述均为设计语义（按架构文档 §5），尚未上线。
+
 ## 1. 项目概览
 
-本项目是一个学习研究型的多模态博客助手服务：用户上传音频后获得任务标识，服务在后台完成转录（whisper-1）与摘要（gpt-4o，Responses API）并保存产物，用户可查询任务状态、查看摘要并下载转录文本，形成"音频上传 → 异步转录 → 摘要 → 结果查询"的完整闭环（架构文档 §1.1）。项目跟随《零基础自学AI应用开发》（李光毅）第 3、4 章示例工程（音频转录、文本摘要、天气工具调用、Express 服务）逐步演进，并在此基础上按工程标准重构为可维护、可测试、可观测的 HTTP 服务，天气能力作为独立外部工具供助手调用。
+本项目是一个学习研究型的多模态博客助手服务：用户上传音频后获得任务标识，服务在后台完成转录（whisper-1）与摘要（gpt-4o，Responses API）并保存产物，用户可查询任务状态、查看摘要并下载转录文本，形成"音频上传 → 异步转录 → 摘要 → 结果查询"的完整闭环（架构文档 §1.1；闭环为 B 系列 HTTP 接口落地后的目标形态，尚未实现，见文首"实现状态"）。项目跟随《零基础自学AI应用开发》（李光毅）第 3、4 章示例工程（音频转录、文本摘要、天气工具调用、Express 服务）逐步演进，并在此基础上按工程标准重构为可维护、可测试、可观测的 HTTP 服务，天气能力作为独立外部工具供助手调用。
 
 ## 2. 技术选型
 
 - **语言与运行时**：TypeScript + ESM，Node 24；测试框架 vitest + tsx，覆盖率门禁 80%。
 - **AI 接入**：openai SDK v7，全部对话/工具调用交互统一走 Responses API（`responses.create`）；转录与摘要能力分别经 `Transcriber`/`Summarizer` 端口（适配器）隔离，模型名经配置注入，领域层不依赖 SDK。
-- **存储与队列**：`JobRepository` 文件仓储（`temp/jobs/<jobId>.json` 原子写入，先写临时文件再 rename）+ 内存有界队列（`MAX_QUEUE_LENGTH` 默认 100，满则 `503 QUEUE_FULL`）；不上数据库、不做分布式。
+- **存储与队列**：`JobRepository` 文件仓储（`temp/jobs/<jobId>.json` 原子写入，先写临时文件再 rename）+ 内存有界队列（`MAX_QUEUE_LENGTH` 默认 100，满则 `503 QUEUE_FULL`——`503` 响应映射属 B 系列设计，尚未实现）；不上数据库、不做分布式。
 - **多平台扩展**：未来接入 GLM 等其他 AI 平台时，通过 `Transcriber`/`Summarizer` 端口与模型名配置隔离，不引入新耦合（架构文档 §7.1）。
 
 ## 3. Responses API 迁移专题（核心）
@@ -53,9 +55,11 @@
 | 任一进行中 → `failed` | 可预期错误（保留安全错误码）；未知错误由顶层错误边界记录 |
 | 终态 → `expired` | 过期清理后（保留最小 tombstone，见 §5） |
 
-设计上，上传接口只负责受理：校验通过后创建 `queued` Job 并原子持久化，入队后立即返回 `202`，客户端轮询查询接口获取结果（ADR-0004）。内存队列为有界 FIFO，容量检查、Job 持久化、入队在同一同步临界区内完成。启动时执行任务恢复：`queued` 任务重新入队；`transcribing/summarizing` 进行中任务标记为 `failed: PROCESS_INTERRUPTED` 且**不自动重试**——避免不确定的重复转录计费，也不假装成功。恢复与 Worker 存在启动顺序契约：`RecoverJobs.run()` 必须先于 `ProcessJobWorker.start()` 执行，否则先启动的 worker 会消费恢复重入队的任务并迁移到进行中，随后被恢复阶段误标 `PROCESS_INTERRUPTED`。任务的最终真相始终是仓储记录（`temp/jobs/<jobId>.json`），不是日志或文件是否存在；进程收到 SIGTERM/SIGINT 时优雅关闭，未完成任务交给下次启动的恢复逻辑。
+上传接口只负责受理（B 系列设计，尚未实现，见文首"实现状态"）：校验通过后创建 `queued` Job 并原子持久化，入队后立即返回 `202`，客户端轮询查询接口获取结果（ADR-0004）。内存队列为有界 FIFO，容量检查、Job 持久化、入队在同一同步临界区内完成。启动时执行任务恢复：`queued` 任务重新入队；`transcribing/summarizing` 进行中任务标记为 `failed: PROCESS_INTERRUPTED` 且**不自动重试**——避免不确定的重复转录计费，也不假装成功。恢复与 Worker 存在启动顺序契约：`RecoverJobs.run()` 必须先于 `ProcessJobWorker.start()` 执行，否则先启动的 worker 会消费恢复重入队的任务并迁移到进行中，随后被恢复阶段误标 `PROCESS_INTERRUPTED`。任务的最终真相始终是仓储记录（`temp/jobs/<jobId>.json`），不是日志或文件是否存在；进程收到 SIGTERM/SIGINT 时优雅关闭（服务组装属 B 系列，尚未实现），未完成任务交给下次启动的恢复逻辑。
 
 ## 5. 幂等与文件安全
+
+> 本节 HTTP 行为描述（`200/409/410` 响应、MIME/魔数拒绝、清理调度）为 B 系列设计，尚未实现，见文首"实现状态"；仓储/用例层的幂等与过期清理机制已实现。
 
 - **幂等**：通过 `Idempotency-Key` 支持 24 小时内重复提交——同一 key 且文件 `sha256` 一致时返回原 Job（`200`，重放不再次入队）；同一 key 但文件内容不同返回 `409 IDEMPOTENCY_CONFLICT`；无 key 的请求走普通创建。互斥由仓储 `createOrGetByIdempotencyKey` 原子保证：以 `fs.open(path, 'wx')`（O_EXCL）原子创建占位文件，收到 `EEXIST` 的请求回读既有记录比较 `sha256` 后返回 `replayed` 或 `conflict`；占位创建成功但后续失败时必须清除，防止幂等键永久卡死。占位文件以 `sha256(key)` 命名，防 key 中的路径分隔符注入（ADR-0002）。
 - **文件安全**：文件名仅作展示，存储名由服务随机生成（`temp/uploads/<jobId>/input.<ext>`），拒绝路径分隔符和 MIME/魔数不一致的文件（架构文档 §5）。
@@ -73,7 +77,7 @@
 
 - **API 中转站**：使用 openai-hk（`OPENAI_BASE_URL=https://api.openai-hk.com/v1`），国内直连、无需代理；key 为 `hk-` 前缀，存于各项目 `.env` 的 `OPENAI_API_KEY`，严禁进入仓库、日志或 API 响应（架构文档 §1.3）。
 - **模型限制（实测）**：中转站仅提供 `whisper-1` 转录与 tts，无 `gpt-4o-transcribe` 系列——因此**词级时间戳不可用**，教材 04-02-word 示例已降级为 segment 级时间戳。转录模型默认 `whisper-1`，摘要模型 `gpt-4o`（`.env.example`）。
-- **计费**：中转站为积分制；上传接口按 IP 限流（默认每 IP 每分钟 10 次）防积分滥用，超出返回 `429 RATE_LIMITED`。
+- **计费**：中转站为积分制；上传接口按 IP 限流（默认每 IP 每分钟 10 次）防积分滥用，超出返回 `429 RATE_LIMITED`（B 系列设计，尚未实现，见文首"实现状态"）。
 - **其他**：教材第 3 章 05-whisper-API 示例的本地模型未安装（约 2GB 下载量，与中转站无关），作为独立可选实现留待后续评估（架构文档 §1.2 暂缓项）。
 
 ## 8. 防护与质量门禁
