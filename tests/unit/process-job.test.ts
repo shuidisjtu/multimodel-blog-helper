@@ -97,25 +97,29 @@ class FakeFileStore implements FileStore {
   }
 }
 
-/** 可编程 fake 转录器: 可注入错误。 */
+/** 可编程 fake 转录器: 可注入错误; 记录 jobId。 */
 class FakeTranscriber implements Transcriber {
   calls = 0;
   error: unknown;
+  lastJobId: string | undefined;
 
-  async transcribe(): Promise<Transcript> {
+  async transcribe(params: { jobId: string; path: string; mimeType: string }): Promise<Transcript> {
     this.calls++;
+    this.lastJobId = params.jobId;
     if (this.error !== undefined) throw this.error;
     return { text: 'transcript text' };
   }
 }
 
-/** 可编程 fake 摘要器: 可注入错误。 */
+/** 可编程 fake 摘要器: 可注入错误; 记录 jobId。 */
 class FakeSummarizer implements Summarizer {
   calls = 0;
   error: unknown;
+  lastJobId: string | undefined;
 
-  async summarize(): Promise<Summary> {
+  async summarize(params: { jobId: string; text: string }): Promise<Summary> {
     this.calls++;
+    this.lastJobId = params.jobId;
     if (this.error !== undefined) throw this.error;
     return { text: 'summary text' };
   }
@@ -198,6 +202,10 @@ describe('ProcessJob(架构文档 §4.1/§6.3-§6.4)', () => {
     expect(transcribedLog?.model).toBe('whisper-1');
     expect(typeof transcribedLog?.durationMs).toBe('number');
     expect(logger.calls.some((c) => c.event === 'job.summarized')).toBe(true);
+    const summarizedLog = logger.calls.find((c) => c.event === 'job.summarized');
+    expect(summarizedLog?.model).toBe('whisper-1');
+    expect(transcriber.lastJobId).toBe('job-1');
+    expect(summarizer.lastJobId).toBe('job-1');
   });
 
   it('转录失败(DomainError): 转 failed 且 failure.code 保留', async () => {
@@ -257,7 +265,7 @@ describe('ProcessJob(架构文档 §4.1/§6.3-§6.4)', () => {
   it('处理失败但任务已被外部清理为 expired: 跳过转 failed, 状态保持 expired', async () => {
     const { repo, useCase } = setup({
       transcriber: {
-        async transcribe() {
+        async transcribe(params: { jobId: string; path: string; mimeType: string }) {
           // 模拟外部清理: 转录期间任务被标记 expired
           repo.jobs.set('job-1', { ...repo.jobs.get('job-1')!, status: 'expired' });
           throw new Error('boom');
@@ -288,7 +296,7 @@ describe('ProcessJob(架构文档 §4.1/§6.3-§6.4)', () => {
   it('处理失败且任务已被外部移除: 方法不抛错, 仅记录 warn', async () => {
     const { repo, logger, useCase } = setup({
       transcriber: {
-        async transcribe() {
+        async transcribe(params: { jobId: string; path: string; mimeType: string }) {
           repo.jobs.delete('job-1');
           throw new Error('boom');
         },

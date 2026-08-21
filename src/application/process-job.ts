@@ -44,11 +44,12 @@ export class ProcessJob {
       const transcript = await this.transcribe(jobId, input.path, input.mimeType);
       await this.transition(jobId, 'transcribing', 'summarizing');
       const summarizeStarted = Date.now();
-      const summary = await this.deps.summarizer.summarize(transcript.text);
+      const summary = await this.deps.summarizer.summarize({ jobId, text: transcript.text });
       this.deps.logger.info({
         event: 'job.summarized',
         jobId,
         durationMs: Date.now() - summarizeStarted,
+        model: this.deps.transcribeModel,
       });
       // 中间产物落盘(转录 + 摘要)
       const transcriptOut = await this.deps.files.saveOutput({
@@ -88,7 +89,7 @@ export class ProcessJob {
   /** 转录并记录模型与耗时(§6: 转录请求携带 jobId 并记录模型/耗时)。 */
   private async transcribe(jobId: string, path: string, mimeType: string): Promise<Transcript> {
     const started = Date.now();
-    const transcript = await this.deps.transcriber.transcribe({ path, mimeType });
+    const transcript = await this.deps.transcriber.transcribe({ jobId, path, mimeType });
     this.deps.logger.info({
       event: 'job.transcribed',
       jobId,

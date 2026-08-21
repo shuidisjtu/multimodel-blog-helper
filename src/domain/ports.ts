@@ -19,9 +19,16 @@ export interface Weather {
 }
 
 export interface TranscribeParams {
+  /** 任务 id: 适配器据此记录重试日志(架构文档 §6)。 */
+  jobId: string;
   /** 输入文件绝对路径(由 FileStore 落盘后提供)。 */
   path: string;
   mimeType: string;
+}
+
+export interface SummarizeParams {
+  jobId: string;
+  text: string;
 }
 
 export interface Transcriber {
@@ -29,7 +36,7 @@ export interface Transcriber {
 }
 
 export interface Summarizer {
-  summarize(text: string): Promise<Summary>;
+  summarize(params: SummarizeParams): Promise<Summary>;
 }
 
 export interface WeatherProvider {
