@@ -49,6 +49,21 @@ describe('loadConfig(架构文档 §7.2)', () => {
     expect(config.logLevel).toBe('debug');
   });
 
+  it('A4 新增配置: 摘要超时与重试次数默认值生效', () => {
+    const config = loadConfig(BASE_ENV);
+    expect(config.openai.summaryTimeoutMs).toBe(60000);
+    expect(config.openai.maxRetries).toBe(2);
+  });
+
+  it('A4 新增配置: 显式覆盖与非法值校验', () => {
+    const config = loadConfig({ ...BASE_ENV, OPENAI_SUMMARY_TIMEOUT_MS: '30000', OPENAI_MAX_RETRIES: '0' });
+    expect(config.openai.summaryTimeoutMs).toBe(30000);
+    expect(config.openai.maxRetries).toBe(0);
+    expect(() => loadConfig({ ...BASE_ENV, OPENAI_SUMMARY_TIMEOUT_MS: 'abc' })).toThrow(ConfigError);
+    expect(() => loadConfig({ ...BASE_ENV, OPENAI_SUMMARY_TIMEOUT_MS: '0' })).toThrow(ConfigError); // min 1
+    expect(() => loadConfig({ ...BASE_ENV, OPENAI_MAX_RETRIES: '-1' })).toThrow(ConfigError); // min 0
+  });
+
   it('Node 版本低于 24 时抛 ConfigError(环境自检)', () => {
     const realVersions = process.versions;
     vi.spyOn(process, 'versions', 'get').mockReturnValue({

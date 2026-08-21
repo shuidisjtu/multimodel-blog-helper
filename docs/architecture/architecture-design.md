@@ -150,6 +150,8 @@ type BlogJob = {
 | `TEMP_DIR`、`MAX_UPLOAD_BYTES`、`JOB_TTL_HOURS` | 是 | 本地存储策略 |
 | `WEATHER_BASE_URL`、`WEATHER_TIMEOUT_MS` | 是 | wttr.in 适配器配置 |
 | `OPENAI_TRANSCRIBE_TIMEOUT_MS` | 否 | 转录上游超时，默认 600000（大文件转录耗时长，勿与普通请求超时共用） |
+| `OPENAI_SUMMARY_TIMEOUT_MS` | 否 | 摘要上游超时，默认 60000（摘要文本量小，不复用转录超时） |
+| `OPENAI_MAX_RETRIES` | 否 | 可恢复错误（网络/429/5xx）最大重试次数，默认 2（共 3 次尝试），0 表示不重试 |
 | `MAX_QUEUE_LENGTH` | 否 | 内存队列上限，满则 `503 QUEUE_FULL`，默认 100 |
 | `WORKER_CONCURRENCY` | 否 | 任务处理并发度，默认 1 |
 | `MAX_AUDIO_DURATION_SECONDS` | 否 | 受理时最大音频时长（ffprobe 检测，见 §5），默认 3600 |
