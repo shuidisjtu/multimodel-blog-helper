@@ -22,7 +22,6 @@ const PROJECT_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), 
 export const STRUCTURE_MD = path.join(PROJECT_ROOT, 'docs', 'project-structure.md');
 
 const GENERATABLE_ROOTS = ['src', 'tests'];
-const COMMENT_COL = 44;
 export const PLACEHOLDER = '<<< 新文件,补注释';
 export const FILES_KEY = '__files__';
 
@@ -106,10 +105,6 @@ export function buildNewTree(relPaths: string[]): Tree {
   return tree;
 }
 
-function commentPad(level: number, token: string): number {
-  return Math.max(1, COMMENT_COL - level * 2 - token.length - 1);
-}
-
 /** 子树是否含 (planned) 条目(文件注释或目录自身注释): 磁盘不存在的目录若仍记录待建条目,需保留在文档中。 */
 function hasPlanned(tree: Tree | undefined, dirAnn: Record<string, string>, full: string): boolean {
   if (!tree) return false;
@@ -166,11 +161,17 @@ function mergeTree(
       if (ann.includes('(planned)')) out.push(`${'  '.repeat(level)}${name} ${ann}`);
       continue; // stale 条目由 generate() 报告
     }
-    out.push(`${'  '.repeat(level)}${name}${ann ? ` ${ann}` : ''}`);
+    if (ann === PLACEHOLDER) {
+      // 占位符不算真实注释:持续报 missing,直至补上真实注释
+      out.push(`${'  '.repeat(level)}${name} ${PLACEHOLDER}`);
+      missing.push(joinPath(pathStr, name));
+    } else {
+      out.push(`${'  '.repeat(level)}${name}${ann ? ` ${ann}` : ''}`);
+    }
     seenFiles.add(name);
   }
   for (const name of newFiles.filter((f) => !seenFiles.has(f)).sort()) {
-    out.push(`${'  '.repeat(level)}${name}${' '.repeat(commentPad(level, name))}${PLACEHOLDER}`);
+    out.push(`${'  '.repeat(level)}${name} ${PLACEHOLDER}`);
     missing.push(joinPath(pathStr, name));
   }
 }

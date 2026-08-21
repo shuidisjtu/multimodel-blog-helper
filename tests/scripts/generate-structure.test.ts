@@ -82,4 +82,36 @@ fixtures/
     expect(first.missing).toEqual([]);
     expect(generate(first.newText, disk).newText).toBe(first.newText);
   });
+
+  it('含 missing 文件时幂等:占位符行二次生成无变化且仍报 missing', () => {
+    const disk = ['src/application/process-job.ts', 'src/shared/logger.ts', 'src/shared/ids.ts'];
+    const first = generate(doc, disk);
+    expect(first.missing).toEqual(['src/shared/ids.ts']);
+    const second = generate(first.newText, disk);
+    expect(second.newText).toBe(first.newText);
+    expect(second.missing).toEqual(['src/shared/ids.ts']);
+  });
+
+  it('planned 目录:磁盘无该目录时保留行、stale 为空、二次生成稳定', () => {
+    const plannedDoc = `# 工程目录结构
+
+## 目录总览
+
+\`\`\`text
+src/
+  application/
+    process-job.ts # 用例编排
+  interfaces/http/ (planned) # B 系列待建
+  shared/
+    logger.ts      # 与领域无关的基础工具
+fixtures/
+  audio-sample.mp3        # E2E 测试音频 fixture
+\`\`\`
+`;
+    const disk = ['src/application/process-job.ts', 'src/shared/logger.ts'];
+    const first = generate(plannedDoc, disk);
+    expect(first.newText).toContain('interfaces/http/ (planned) # B 系列待建');
+    expect(first.stale).toEqual([]);
+    expect(generate(first.newText, disk).newText).toBe(first.newText);
+  });
 });

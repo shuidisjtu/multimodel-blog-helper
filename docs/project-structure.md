@@ -67,6 +67,8 @@ tests/
     file-store.test.ts
     recover-with-real-repo.test.ts
   e2e/ (planned) # 待 C6
+  scripts/ # 脚本测试
+    generate-structure.test.ts # 结构生成器测试
 fixtures/           audio-sample.mp3        # E2E 测试音频 fixture
 docs/               adr/, architecture/, project-division/, records/
                                             # 决策记录/架构设计/任务清单/过程证据
