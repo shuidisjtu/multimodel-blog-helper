@@ -17,6 +17,7 @@ src/
     job.ts # Job 状态机
     errors.ts # 领域错误
     ports.ts # 端口接口
+    audio-upload.ts # 上传校验器(MIME/大小/魔数白名单, 存储扩展名由 MIME 推断)
   application/
     submit-audio.ts # 受理上传并创建 queued 任务
     process-job.ts # 推进任务状态机直至完成
@@ -32,6 +33,7 @@ src/
       options.ts # 上游调用配置(超时/重试策略)
     common/
       retry.ts # 指数退避重试
+      music-metadata-duration-probe.ts # 时长探针(music-metadata 解析, 失败降级 null 不误杀)
     queue/
       memory-job-queue.ts # 有界 FIFO 内存队列
     repository/
@@ -61,6 +63,8 @@ tests/
     recover-jobs.test.ts
     retry.test.ts
     submit-audio.test.ts
+    audio-upload.test.ts # 上传校验器单测
+    music-metadata-duration-probe.test.ts # 时长探针单测(真实 mp3 + 损坏文件降级)
   integration/ # 跨模块集成测试
     cleanup-expired.test.ts
     file-job-repository.test.ts
