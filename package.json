@@ -29,6 +29,7 @@
   },
   "dependencies": {
     "dotenv": "^17.4.2",
+    "music-metadata": "^11.15.0",
     "openai": "^7.4.0"
   }
 }
