@@ -3,6 +3,7 @@ import { SubmitAudio, type SubmitAudioParams } from '../../src/application/submi
 import { DomainError } from '../../src/domain/errors.js';
 import type { BlogJob } from '../../src/domain/job.js';
 import type {
+  AudioDurationProbe,
   CreateJobParams,
   CreateOrGetOutcome,
   FileStore,
@@ -144,6 +145,16 @@ class FakeFileStore implements FileStore {
   }
 }
 
+/** 可控 fake 时长探头: result 为 null 表示降级(未校验)。 */
+class FakeProbe implements AudioDurationProbe {
+  result: number | null = 300;
+  readonly paths: string[] = [];
+  async probe(filePath: string): Promise<number | null> {
+    this.paths.push(filePath);
+    return this.result;
+  }
+}
+
 function buildJob(params: CreateJobParams, id: string): BlogJob {
   return {
     id,
@@ -162,16 +173,26 @@ function makeParams(overrides: Partial<SubmitAudioParams> = {}): SubmitAudioPara
     requestId: 'req-1',
     originalName: 'demo.mp3',
     mimeType: 'audio/mpeg',
+    extension: 'mp3',
     bytes: Buffer.from('fake audio bytes'),
     ...overrides,
   };
 }
 
-function setup(opts: { queue?: JobQueue; jobTtlHours?: number; queueMaxLength?: number } = {}) {
+function setup(
+  opts: {
+    queue?: JobQueue;
+    jobTtlHours?: number;
+    queueMaxLength?: number;
+    probeResult?: number | null;
+  } = {},
+) {
   const repo = new InMemoryJobRepo();
   const files = new FakeFileStore();
   const queue = opts.queue ?? new MemoryJobQueue(10, 1);
   const logger = new FakeLogger();
+  const probe = new FakeProbe();
+  probe.result = opts.probeResult ?? 300;
   const useCase = new SubmitAudio({
     jobs: repo,
     files,
@@ -181,8 +202,10 @@ function setup(opts: { queue?: JobQueue; jobTtlHours?: number; queueMaxLength?: 
     logger,
     jobTtlHours: opts.jobTtlHours ?? 24,
     queueMaxLength: opts.queueMaxLength ?? 10,
+    durationProbe: probe,
+    maxAudioDurationSeconds: 3600,
   });
-  return { repo, files, queue, logger, useCase };
+  return { repo, files, queue, logger, useCase, probe };
 }
 
 describe('SubmitAudio(架构文档 §5/§6.1-§6.2)', () => {
@@ -210,11 +233,64 @@ describe('SubmitAudio(架构文档 §5/§6.1-§6.2)', () => {
       mimeType: 'audio/mpeg',
     });
     expect(saved.bytes.equals(Buffer.from('fake audio bytes'))).toBe(true);
+    expect(saved).toHaveProperty('extension', 'mp3'); // extension 传递到 saveInput
 
     expect(queue.size()).toBe(1);
     expect(repo.createCalls).toHaveLength(1);
     expect(repo.createOrGetCalls).toHaveLength(0);
     expect(logger.calls.some((c) => c.event === 'job.enqueued' && c.jobId === 'job-1')).toBe(true);
+  });
+
+  it('时长超限: 回滚删除输入文件, 不创建任务不入队, 抛 AUDIO_TOO_LONG', async () => {
+    const { repo, files, queue, logger, useCase } = setup({ probeResult: 7200 });
+
+    let thrown: unknown;
+    try {
+      await useCase.run(makeParams());
+    } catch (e) {
+      thrown = e;
+    }
+    expect(thrown).toBeInstanceOf(DomainError);
+    expect((thrown as DomainError).code).toBe('AUDIO_TOO_LONG');
+    expect(files.savedInputs).toHaveLength(1); // 先落盘
+    expect(files.deletedJobIds).toEqual(['job-1']); // 回滚清理
+    expect(repo.createCalls).toHaveLength(0);
+    expect(repo.removeCalls).toHaveLength(0);
+    expect(queue.size()).toBe(0);
+    expect(logger.calls.some((c) => c.event === 'job.submit.rejected' && c.jobId === 'job-1')).toBe(
+      true,
+    );
+  });
+
+  it('probe 降级(null): 视为未校验, 正常受理', async () => {
+    const { repo, queue, useCase } = setup({ probeResult: null });
+    const outcome = await useCase.run(makeParams());
+    expect(outcome.outcome).toBe('created');
+    expect(repo.createCalls).toHaveLength(1);
+    expect(queue.size()).toBe(1);
+  });
+
+  it('时长正常(≤ 上限): 正常受理, probe 拿到落盘路径', async () => {
+    const { useCase, probe } = setup({ probeResult: 300 });
+    await useCase.run(makeParams());
+    expect(probe.paths).toHaveLength(1);
+    expect(probe.paths[0]).toBe('/tmp/uploads/job-1/input.bin');
+  });
+
+  it('时长超限且清理失败: 仍抛 AUDIO_TOO_LONG, 清理失败仅记录日志', async () => {
+    const { files, logger, useCase } = setup({ probeResult: 7200 });
+    files.deleteJobFilesError = new Error('disk on fire');
+
+    let thrown: unknown;
+    try {
+      await useCase.run(makeParams());
+    } catch (e) {
+      thrown = e;
+    }
+    expect((thrown as DomainError).code).toBe('AUDIO_TOO_LONG');
+    expect(
+      logger.calls.some((c) => c.event === 'job.submit.cleanup_failed' && c.jobId === 'job-1'),
+    ).toBe(true);
   });
 
   it('无幂等 key 走 create(不调用 createOrGet)', async () => {
