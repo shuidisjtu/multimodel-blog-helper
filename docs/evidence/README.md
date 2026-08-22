@@ -10,16 +10,20 @@
 | `2026-08-22-verify-output.txt` | 全量门禁 `npm run verify` 输出（lint/typecheck/check-docs/check-structure/测试/覆盖率），158 测试全通过 | 2026-08-22 本机 |
 | `2026-08-22-coverage-output.txt` | 覆盖率报告：Statements 95.13% / Branches 91.32% / Functions 98.95% / Lines 96.74%（阈 ≥80%） | 2026-08-22 本机 |
 
-## 线上证据（GitHub 链接，不随仓库分发）
+## 口述截图归档（release-9d94f90，2026-08-22 截取核实）
 
-| 证据 | 链接 |
+`release-9d94f90/`（对应 main 9d94f90）：
+
+| 文件 | 内容 |
 | --- | --- |
-| GitHub Actions CI 记录（quality + tests） | 仓库 Actions 页：https://github.com/shuidisjtu/multimodel-blog-helper/actions |
-| PR #1（B3 合并记录，10 提交） | https://github.com/shuidisjtu/multimodel-blog-helper/pull/1 |
-| 覆盖率可视化报告 | 本机 `coverage/index.html`（`npx vitest run --coverage` 生成，不入库） |
+| `2026-08-22-ci-actions.png` | GitHub Actions 页面：push 9d94f90，Static quality gates + Tests and coverage 双 job 绿（23s） |
+| `2026-08-22-coverage-report.png` | 覆盖率报告页：95.13% Statements / 91.32% Branches / 98.95% Functions / 96.74% Lines |
+| `2026-08-22-pr1-merged.png` | PR #1 页面：Merged 标签，10 commits 合并（+706/-41），含摘要 |
+
+对应线上页面：Actions https://github.com/shuidisjtu/multimodel-blog-helper/actions ｜ PR #1 https://github.com/shuidisjtu/multimodel-blog-helper/pull/1
 
 ## 补充与失效声明
 
-- 本目录**不保存**运行期 `temp/` 产物、`.env`、覆盖率 HTML（gitignore 规则）。
-- 截图等二进制证据未入库；若需留档，答辩前从以上链接/本机截图放入 `docs/evidence/release-<sha>/`（任务清单 §5 约定）。
+- 本目录**不保存**运行期 `temp/` 产物、`.env`、覆盖率 HTML（覆盖率为 gitignore，但截图已入 `release-9d94f90/`）。
 - 证据随时间可能过期：重新运行对应命令后同步更新本索引。
+- 后续里程碑（B1 等功能落地、release-<sha>）按任务清单 §5 约定继续归档截图。
