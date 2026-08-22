@@ -4,11 +4,18 @@
  * - 幂等: createOrGetByIdempotencyKey 三态, replayed/conflict 落败者清理本次上传文件(§5)
  * - 创建回滚: 输入落盘后 create/createOrGet 异常同样清理输入文件, 不留孤儿目录(§6.2)
  * - 入队回滚: 持久化后入队异常删除 Job 记录与输入文件(§6.2)
+ * - 时长校验: 落盘后探针解析时长, 超限回滚清理后抛 AUDIO_TOO_LONG; 探针降级(null)视为未校验放行(§5)
  * 纯编排: 文件系统/外部 API 全部经端口注入; 未知错误转换为 INTERNAL_ERROR 传播(§6.4/§8.1)。
  */
 import { DomainError } from '../domain/errors.js';
 import type { BlogJob } from '../domain/job.js';
-import type { CreateJobParams, FileStore, JobQueue, JobRepository } from '../domain/ports.js';
+import type {
+  AudioDurationProbe,
+  CreateJobParams,
+  FileStore,
+  JobQueue,
+  JobRepository,
+} from '../domain/ports.js';
 import type { Clock } from '../shared/clock.js';
 import type { IdGenerator } from '../shared/ids.js';
 import type { Logger } from '../shared/logger.js';
@@ -17,6 +24,8 @@ export interface SubmitAudioParams {
   requestId: string;
   originalName: string;
   mimeType: string;
+  /** 服务端受信扩展名: 由调用方在 validateAudioUpload 通过后传入, 存储名依据(§5)。 */
+  extension: string;
   bytes: Buffer;
   idempotencyKey?: string;
 }
@@ -35,6 +44,9 @@ export class SubmitAudio {
       jobTtlHours: number;
       /** 与队列实例的 maxLength 一致; 预检用 size 判断, 真满员由 enqueue 兜底(§6.2)。 */
       queueMaxLength: number;
+      durationProbe: AudioDurationProbe;
+      /** 受理时最大音频时长(秒, 架构文档 §5); 探针降级(null)时不拦截。 */
+      maxAudioDurationSeconds: number;
     },
   ) {}
 
@@ -68,8 +80,25 @@ export class SubmitAudio {
       jobId,
       originalName: params.originalName,
       mimeType: params.mimeType,
+      extension: params.extension,
       bytes: params.bytes,
     });
+    // 4.5 时长校验(§5): 落盘文件交给探针解析; 超长回滚清理后拒绝; 降级(null)视为未校验放行
+    const durationSec = await this.deps.durationProbe.probe(path);
+    if (durationSec !== null && durationSec > this.deps.maxAudioDurationSeconds) {
+      await this.deps.files.deleteJobFiles(jobId).catch((cleanupErr) => {
+        this.deps.logger.error({ event: 'job.submit.cleanup_failed', jobId, error: cleanupErr });
+      });
+      this.deps.logger.info({
+        event: 'job.submit.rejected',
+        jobId,
+        requestId: params.requestId,
+        reason: 'audio_too_long',
+        durationSec,
+        maxAudioDurationSeconds: this.deps.maxAudioDurationSeconds,
+      });
+      throw new DomainError('AUDIO_TOO_LONG', 'Audio duration exceeds limit');
+    }
     const createParams: CreateJobParams = {
       requestId: params.requestId,
       input: {
