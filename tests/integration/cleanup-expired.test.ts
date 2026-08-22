@@ -84,6 +84,7 @@ async function createJobWithFiles(opts: {
     jobId: id,
     originalName: 'demo.mp3',
     mimeType: 'audio/mpeg',
+    extension: 'mp3',
     bytes: Buffer.from('audio bytes'),
   });
   if (opts.status === 'transcribing') {
