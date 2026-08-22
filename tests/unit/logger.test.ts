@@ -105,4 +105,20 @@ describe('createLogger(架构文档 §8.2:JSON 一行一事件)', () => {
     expect(line.TEXT).toBe('[redacted]');
     expect(line.AudioPath).toBe('[redacted]');
   });
+
+  it('脱敏:filePath/filepath 键(音频绝对路径,MusicMetadataDurationProbe 所用键)替换为 [redacted]', () => {
+    const lines = capture();
+    const logger = createLogger('debug');
+    logger.info({
+      event: 'probe.duration',
+      filePath: 'C:/uploads/j1/input.mp3',
+      filepath: '/var/data/j2/audio.mp3',
+    });
+    const line = lines[0] as Record<string, unknown>;
+    expect(line.filePath).toBe('[redacted]');
+    expect(line.filepath).toBe('[redacted]');
+    // 原始路径不得出现在任何日志行中
+    expect(JSON.stringify(lines)).not.toContain('input.mp3');
+    expect(JSON.stringify(lines)).not.toContain('audio.mp3');
+  });
 });
