@@ -59,6 +59,7 @@ const LEVEL_RANK: Record<LogLevel, number> = {
 /** 敏感字段名(小写比较): 命中即脱敏。 */
 const SENSITIVE_KEYS = new Set([
   'path',
+  'filepath',
   'text',
   'content',
   'transcript',
