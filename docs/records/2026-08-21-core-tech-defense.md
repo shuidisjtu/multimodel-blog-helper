@@ -15,6 +15,48 @@
 - **存储与队列**：`JobRepository` 文件仓储（`temp/jobs/<jobId>.json` 原子写入，先写临时文件再 rename）+ 内存有界队列（`MAX_QUEUE_LENGTH` 默认 100，满则 `503 QUEUE_FULL`——`503` 响应映射属 B 系列设计，尚未实现）；不上数据库、不做分布式。
 - **多平台扩展**：未来接入 GLM 等其他 AI 平台时，通过 `Transcriber`/`Summarizer` 端口与模型名配置隔离，不引入新耦合（架构文档 §7.1）。
 
+**分层组件**：
+
+```mermaid
+flowchart LR
+    subgraph HTTP["HTTP 层（B1/B2 设计）"]
+        Router["路由 + DTO 校验"]
+    end
+    subgraph APP["application 用例编排"]
+        SA["SubmitAudio 受理"]
+        PJ["ProcessJob 处理"]
+        RJ["RecoverJobs 恢复"]
+        CE["CleanupExpired 清理"]
+    end
+    subgraph DOM["domain 纯领域"]
+        JS["Job 状态机"]
+        MS["上传校验器 audio-upload"]
+        Ports["ports 端口"]
+    end
+    subgraph INF["infrastructure 适配器"]
+        Repo["FileJobRepository"]
+        Store["LocalFileStore"]
+        Probe["MusicMetadataDurationProbe"]
+        AI["OpenAI 适配器"]
+        Queue["MemoryJobQueue"]
+    end
+    subgraph SH["shared 基础"]
+        Log["Logger(脱敏) / ids / clock"]
+    end
+    Router -->|受理| SA
+    SA -->|编排| Ports
+    PJ -->|编排| Ports
+    RJ -->|编排| Ports
+    CE -->|编排| Ports
+    Repo -->|实现| Ports
+    Store -->|实现| Ports
+    Probe -->|实现| Ports
+    AI -->|实现| Ports
+    Queue -->|实现| Ports
+    APP -.->|使用| Log
+    INF -.->|使用| Log
+```
+
 ## 3. Responses API 迁移专题（核心）
 
 ### 3.1 背景与弃用时间线
@@ -57,9 +99,70 @@
 
 上传接口只负责受理（**（设计）**，B1）：校验通过后创建 `queued` Job 并原子持久化，入队后立即返回 `202`，客户端轮询查询接口获取结果（ADR-0004）。内存队列为有界 FIFO，容量检查、Job 持久化、入队在同一同步临界区内完成。启动时执行任务恢复：`queued` 任务重新入队；`transcribing/summarizing` 进行中任务标记为 `failed: PROCESS_INTERRUPTED` 且**不自动重试**——避免不确定的重复转录计费，也不假装成功。恢复与 Worker 存在启动顺序契约：`RecoverJobs.run()` 必须先于 `ProcessJobWorker.start()` 执行，否则先启动的 worker 会消费恢复重入队的任务并迁移到进行中，随后被恢复阶段误标 `PROCESS_INTERRUPTED`。任务的最终真相始终是仓储记录（`temp/jobs/<jobId>.json`），不是日志或文件是否存在；进程收到 SIGTERM/SIGINT 时优雅关闭（服务组装属 B 系列，**（设计）**），未完成任务交给下次启动的恢复逻辑。
 
+**状态机**（合法迁移表见 `src/domain/job.ts`）：
+
+```mermaid
+stateDiagram-v2
+    [*] --> queued: 受理校验通过, 持久化入队
+    queued --> transcribing: Worker 取出, 转录开始
+    queued --> failed: 受理后、处理前失败
+    transcribing --> summarizing: 转录完成, 保存中间产物
+    transcribing --> failed: 转录失败(可预期错误)
+    summarizing --> succeeded: 摘要完成, 原子写入结果
+    summarizing --> failed: 摘要失败(可预期错误)
+    failed --> expired: 过期清理(保留最小 tombstone)
+    succeeded --> expired: 过期清理(保留最小 tombstone)
+    expired --> [*]: 二次清理期限后移除
+```
+
+**时序**（上半为 B1/B2 目标形态 **（设计）**，下半为已实现的处理链路）：
+
+```mermaid
+sequenceDiagram
+    participant U as 客户端
+    participant API as HTTP 接口(B1/B2 设计)
+    participant App as SubmitAudio 受理编排
+    participant Q as 内存队列
+    participant W as ProcessJobWorker
+    participant AI as OpenAI 适配器
+
+    U->>API: POST /api/v1/audio-jobs(文件 + Idempotency-Key)
+    API->>API: 校验(大小/空/MIME 白名单/魔数)
+    API->>App: 落盘 + 时长探测(music-metadata, 失败降级放行)
+    API->>App: 幂等 O_EXCL 占位 + sha256 比较
+    alt 重放(同 key 同内容)
+        API-->>U: 200 返回原 Job(不再次入队)
+    else 冲突(同 key 不同内容)
+        API-->>U: 409 IDEMPOTENCY_CONFLICT
+    else 正常创建
+        API->>Q: 同步入队
+        API-->>U: 202 + jobId
+    end
+    Q->>W: 取出任务
+    W->>AI: 转录(whisper-1, withRetry 重试/超时)
+    AI->>W: 转录产物, 保存中间产物
+    W->>AI: 摘要(gpt-4o, Responses API)
+    AI->>W: summary, 原子写入结果
+    U->>API: GET /api/v1/audio-jobs/{id}(B2 设计)
+    API-->>U: 状态/摘要/转录下载, 过期返回 410
+```
+
 ## 5. 幂等与文件安全
 
 > 本节分两层：机制层已实现（B3：白名单 MIME/魔数/时长校验、存储名由服务生成；A3：幂等互斥与过期清理/tombstone）；HTTP 响应映射（`200/409/410` 等）为 B1/B2 **（设计）**。
+
+**与教材 03-02 的上传链路对照**（教材原版 `book-examples/chapter-04/03-02-expressjs-upload/index.js`）：
+
+| 维度 | 教材 03-02（原版） | 重构主线（B1/B2 项为 **（设计）**） |
+| --- | --- | --- |
+| MIME 校验 | `startsWith('audio/')` 前缀匹配，任意 `audio/*` 伪造 MIME 可通过 | 白名单精确 4 种（`audio/mpeg/wav/mp4/x-m4a`），另加魔数一致性（mp3 ID3/MPEG 同步字、wav RIFF/WAVE、mp4/m4a `ftyp`） |
+| 大小限制 | 25 MB（multer `limits`） | 25 MB（可配置） |
+| 时长约束 | 无 | `MAX_AUDIO_DURATION_SECONDS` 默认 3600s；music-metadata 解析，失败降级记录不误杀 |
+| 存储名 | `${时间戳}-${随机}-${originalname}`，用户文件名进入路径 | `temp/uploads/<jobId>/input.<ext>`，扩展名由服务端按 MIME 推断，用户文件名仅作展示 |
+| 幂等 | 无（重复提交重复处理） | `Idempotency-Key`：O_EXCL 占位 + sha256 比较；同 key 同文件重放（`200`），不同文件 `409` |
+| 受理响应 | `200 OK`，无任务标识，无异步 | `202 + jobId`；队列满 `503`；失败 `413/415/400` |
+| 结果查询 | 无 | `GET /audio-jobs/{id}`（`200`/`404`/`410`）、转录下载（B2 **（设计）**） |
+| 过期清理 | 无（文件永久堆积） | 每小时清理 + 最小 tombstone + 二次清理（A3） |
 
 - **幂等**：通过 `Idempotency-Key` 支持 24 小时内重复提交——同一 key 且文件 `sha256` 一致时返回原 Job（`200`，重放不再次入队）；同一 key 但文件内容不同返回 `409 IDEMPOTENCY_CONFLICT`；无 key 的请求走普通创建。互斥由仓储 `createOrGetByIdempotencyKey` 原子保证：以 `fs.open(path, 'wx')`（O_EXCL）原子创建占位文件，收到 `EEXIST` 的请求回读既有记录比较 `sha256` 后返回 `replayed` 或 `conflict`；占位创建成功但后续失败时必须清除，防止幂等键永久卡死。占位文件以 `sha256(key)` 命名，防 key 中的路径分隔符注入（ADR-0002）。
 - **文件安全**：文件名仅作展示，存储名由服务随机生成（`temp/uploads/<jobId>/input.<ext>`），拒绝路径分隔符和 MIME/魔数不一致的文件（架构文档 §5）。
