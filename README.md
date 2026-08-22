@@ -106,5 +106,6 @@ node index.js
 - [`docs/project-division/task-list.md`](docs/project-division/task-list.md) — 任务清单（任务、验收标准、依赖链）
 - [`docs/adr/`](docs/adr/) — 决策记录（ADR-0001~0004）
 - [`docs/records/`](docs/records/) — 过程记录与答辩材料
+- [`docs/evidence/`](docs/evidence/) — 验收证据归档（运行命令输出、覆盖率记录）
 - [`CLAUDE.md`](CLAUDE.md) — 开发协作约定（SDK v2 差异、运行注意事项、中转站限制等），供 Claude Code 读取，该文件未上传到github中
 - 本书配套文档与示例细节见各 chapter 目录

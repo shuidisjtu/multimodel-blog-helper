@@ -1,0 +1,82 @@
+npm warn Unknown env config "python". This will stop working in the next major version of npm. See `npm help npmrc` for supported config options.
+
+> multimodel-blog-helper@0.1.0 verify
+> npm run lint && npm run typecheck && npm run check:docs && npm run check:structure && npm test && npx vitest run --coverage
+
+npm warn Unknown env config "python". This will stop working in the next major version of npm. See `npm help npmrc` for supported config options.
+
+> multimodel-blog-helper@0.1.0 lint
+> biome check src tests scripts
+
+Checked 48 files in 66ms. No fixes applied.
+npm warn Unknown env config "python". This will stop working in the next major version of npm. See `npm help npmrc` for supported config options.
+
+> multimodel-blog-helper@0.1.0 typecheck
+> tsc --noEmit
+
+npm warn Unknown env config "python". This will stop working in the next major version of npm. See `npm help npmrc` for supported config options.
+
+> multimodel-blog-helper@0.1.0 check:docs
+> tsx scripts/check-docs.ts
+
+-- rule-1 (0) --
+-- rule-2 (0) --
+-- rule-4 (0) --
+-- rule-5 (0) --
+All checks passed.
+npm warn Unknown env config "python". This will stop working in the next major version of npm. See `npm help npmrc` for supported config options.
+
+> multimodel-blog-helper@0.1.0 check:structure
+> tsx scripts/generate-structure.ts --check
+
+structure document is up to date
+npm warn Unknown env config "python". This will stop working in the next major version of npm. See `npm help npmrc` for supported config options.
+
+> multimodel-blog-helper@0.1.0 test
+> vitest run
+
+
+ RUN  v4.1.10 D:/ClaudeCodeProject/Multimodel_Blog_Helper
+
+
+ Test Files  23 passed (23)
+      Tests  158 passed (158)
+   Start at  21:52:39
+   Duration  2.09s (transform 2.99s, setup 0ms, import 4.95s, tests 3.51s, environment 6ms)
+
+npm warn Unknown env config "python". This will stop working in the next major version of npm. See `npm help npmrc` for supported config options.
+
+ RUN  v4.1.10 D:/ClaudeCodeProject/Multimodel_Blog_Helper
+      Coverage enabled with v8
+
+
+ Test Files  23 passed (23)
+      Tests  158 passed (158)
+   Start at  21:52:42
+   Duration  2.11s (transform 2.14s, setup 0ms, import 4.08s, tests 3.44s, environment 5ms)
+
+ % Coverage report from v8
+-------------------|---------|----------|---------|---------|-------------------
+File               | % Stmts | % Branch | % Funcs | % Lines | Uncovered Line #s 
+-------------------|---------|----------|---------|---------|-------------------
+All files          |   95.13 |    91.32 |   98.95 |   96.74 |                   
+ bootstrap         |     100 |    92.85 |     100 |     100 |                   
+  config.ts        |     100 |    92.85 |     100 |     100 | 72,76             
+ domain            |     100 |    96.87 |     100 |     100 |                   
+  audio-upload.ts  |     100 |    96.29 |     100 |     100 | 77                
+ ...ructure/common |     100 |     92.3 |     100 |     100 |                   
+  retry.ts         |     100 |    88.88 |     100 |     100 | 53                
+ ...tructure/queue |   96.15 |       90 |     100 |      96 |                   
+  ...-job-queue.ts |   96.15 |       90 |     100 |      96 | 50                
+ ...ure/repository |   85.98 |    82.14 |   95.83 |   90.07 |                   
+  ...repository.ts |   85.98 |    82.14 |   95.83 |   90.07 | ...47,274-275,327 
+ ...ucture/storage |   96.96 |    83.33 |     100 |     100 |                   
+  file-store.ts    |   96.96 |    83.33 |     100 |     100 | 57                
+-------------------|---------|----------|---------|---------|-------------------
+
+=============================== Coverage summary ===============================
+Statements   : 95.13% ( 469/493 )
+Branches     : 91.32% ( 221/242 )
+Functions    : 98.95% ( 95/96 )
+Lines        : 96.74% ( 446/461 )
+================================================================================

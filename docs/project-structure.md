@@ -75,8 +75,8 @@ tests/
     generate-structure.test.ts # 结构生成器测试
     check-docs.test.ts # 文档一致性检查
 fixtures/           audio-sample.mp3        # E2E 测试音频 fixture
-docs/               adr/, architecture/, project-division/, records/
-                                            # 决策记录/架构设计/任务清单/过程证据
+docs/               adr/, architecture/, project-division/, records/, evidence/
+                                            # 决策记录/架构设计/任务清单/过程证据/验收证据
 temp/               uploads/, outputs/      # 运行期文件(gitignored, 启动后生成)
 .github/workflows/  ci.yml                  # ✅ C1
 ```
@@ -93,7 +93,7 @@ temp/               uploads/, outputs/      # 运行期文件(gitignored, 启动
 | `src/shared/` | logger / ids / clock 基础工具 | ✅ |
 | `tests/` | 单元 + 集成测试(覆盖率门禁 80%) | ✅;e2e 待 C6 |
 | `fixtures/` | E2E 测试音频(随仓库分发) | ✅ |
-| `docs/` | ADR / 架构设计 / 任务清单 / 过程证据(records) | ✅;runbooks 待 C7 |
+| `docs/` | ADR / 架构设计 / 任务清单 / 过程证据(records) / 验收证据(evidence) | ✅;runbooks 待 C7 |
 | `temp/` | 上传文件与处理产物(gitignored) | 运行期生成 |
 | `.github/workflows/` | CI 流水线 | ✅ C1 |
 
