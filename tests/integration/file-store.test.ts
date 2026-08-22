@@ -29,6 +29,7 @@ describe('LocalFileStore(架构文档 §4.2/§7.1)', () => {
       jobId: 'j1',
       originalName: 'demo.mp3',
       mimeType: 'audio/mpeg',
+      extension: 'mp3',
       bytes,
     });
     expect(path).toBe(join(tempDir, 'uploads', 'j1', 'input.mp3'));
@@ -38,26 +39,29 @@ describe('LocalFileStore(架构文档 §4.2/§7.1)', () => {
     await expect(readFile(path)).resolves.toEqual(bytes);
   });
 
-  it('saveInput 扩展名: 白名单过滤,非法/缺失/大写回退 bin,原文件名不进路径', async () => {
-    const cases: Array<[string, string]> = [
-      ['a.mp3', 'mp3'],
-      ['NO.EXT', 'bin'],
-      ['a.mp3?x', 'bin'],
-      ['a', 'bin'],
-      ['a.tar.gz', 'gz'],
-      ['../evil.exe', 'exe'],
-      ['song.MP3', 'bin'],
-    ];
-    for (const [index, [name, expectedExt]] of cases.entries()) {
-      const { path } = await store.saveInput({
-        jobId: `ext-${index}`,
-        originalName: name,
-        mimeType: 'audio/mpeg',
-        bytes: Buffer.from('x'),
-      });
-      expect(path.endsWith(`input.${expectedExt}`)).toBe(true);
-      // 防路径注入: 原始文件名(含 ../ 等)绝不作为路径片段出现
-      expect(path.split(/[\\/]/)).not.toContain(name);
+  it('saveInput 扩展名: 由 extension 参数决定, 用户文件名不参与路径', async () => {
+    const { path } = await store.saveInput({
+      jobId: 'ext-1',
+      originalName: '../evil.MP3',
+      mimeType: 'audio/mpeg',
+      extension: 'mp3',
+      bytes: Buffer.from('x'),
+    });
+    expect(path).toBe(join(tempDir, 'uploads', 'ext-1', 'input.mp3'));
+    expect(path.split(/[\\/]/)).not.toContain('../evil.MP3');
+  });
+
+  it('saveInput 非法 extension(大写/含点/空): 拒绝', async () => {
+    for (const extension of ['MP3', 'a.mp3', '']) {
+      await expect(
+        store.saveInput({
+          jobId: 'bad-ext',
+          originalName: 'x.mp3',
+          mimeType: 'audio/mpeg',
+          extension,
+          bytes: Buffer.from('x'),
+        }),
+      ).rejects.toThrow();
     }
   });
 
@@ -81,6 +85,7 @@ describe('LocalFileStore(架构文档 §4.2/§7.1)', () => {
       jobId: 'j3',
       originalName: 'x.wav',
       mimeType: 'audio/wav',
+      extension: 'wav',
       bytes,
     });
     await expect(store.read(path)).resolves.toEqual(bytes);
@@ -91,12 +96,14 @@ describe('LocalFileStore(架构文档 §4.2/§7.1)', () => {
       jobId: 'j4',
       originalName: 'a.mp3',
       mimeType: 'audio/mpeg',
+      extension: 'mp3',
       bytes: Buffer.from('1'),
     });
     await store.saveInput({
       jobId: 'j4',
       originalName: 'b.wav',
       mimeType: 'audio/wav',
+      extension: 'wav',
       bytes: Buffer.from('2'),
     });
     await store.saveOutput({ jobId: 'j4', kind: 'transcript', content: 't' });

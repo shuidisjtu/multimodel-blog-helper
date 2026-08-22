@@ -80,8 +80,11 @@ export interface JobRepository {
 
 export interface SaveInputParams {
   jobId: string;
+  /** 仅存元数据(展示用); 存储名由 extension 决定, 用户文件名不参与路径。 */
   originalName: string;
   mimeType: string;
+  /** 服务端受信扩展名(由 domain 校验器按 MIME 推断, §5: 存储名由服务生成)。 */
+  extension: string;
   bytes: Buffer;
 }
 
