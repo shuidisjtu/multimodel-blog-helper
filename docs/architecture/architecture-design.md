@@ -106,7 +106,7 @@ type BlogJob = {
 
 上传默认限制：仅 `audio/mpeg`、`audio/wav`、`audio/mp4`、`audio/x-m4a`（相比教材示例 03-02 的 `audio/*` 前缀匹配，此处为有意收紧，防止伪造 MIME）；最大 25 MB（可配置，但不得超过转录提供方限制；上游官方明确限制为文件大小 25 MB，未规定时长）；文件名仅作展示，存储名由服务生成；拒绝路径分隔符和 MIME/魔数不一致的文件。
 
-时长约束：超长音频在受理阶段明确报错（`400 AUDIO_TOO_LONG`），避免转录阶段才失败。时长上限为本项目自定义配置 `MAX_AUDIO_DURATION_SECONDS`（默认 3600，兼容多平台），检测手段：签名校验通过后用 `ffprobe` 读取时长；环境无 ffprobe 时降级为仅大小校验并在日志记录降级原因，不得误杀合法音频。
+时长约束：超长音频在受理阶段明确报错（`400 AUDIO_TOO_LONG`），避免转录阶段才失败。时长上限为本项目自定义配置 `MAX_AUDIO_DURATION_SECONDS`（默认 3600，兼容多平台），检测手段：签名校验通过后用 `music-metadata`（纯 JS 解析，零系统依赖，锁版本）读取时长；解析失败（文件损坏/不可识别/无时长字段）时降级为仅大小校验并在日志记录降级原因，不得误杀合法音频。
 
 幂等：通过 `Idempotency-Key` 支持 24 小时内重复提交——同一 key 且文件 `sha256` 一致时返回原 Job（`200`，非 `202`）；同一 key 但文件内容不同返回 `409 IDEMPOTENCY_CONFLICT`；key 随任务元数据持久化，随任务过期/tombstone 清理；无幂等 key 的请求走普通创建。互斥与冲突判定由仓储 `createOrGetByIdempotencyKey` 原子保证（O_EXCL 占位机制与实现注意见 ADR-0002）。
 
@@ -154,7 +154,7 @@ type BlogJob = {
 | `OPENAI_MAX_RETRIES` | 否 | 可恢复错误（网络/429/5xx）最大重试次数，默认 2（共 3 次尝试），0 表示不重试 |
 | `MAX_QUEUE_LENGTH` | 否 | 内存队列上限，满则 `503 QUEUE_FULL`，默认 100 |
 | `WORKER_CONCURRENCY` | 否 | 任务处理并发度，默认 1 |
-| `MAX_AUDIO_DURATION_SECONDS` | 否 | 受理时最大音频时长（ffprobe 检测，见 §5），默认 3600 |
+| `MAX_AUDIO_DURATION_SECONDS` | 否 | 受理时最大音频时长（music-metadata 解析检测，见 §5），默认 3600 |
 | `RATE_LIMIT_UPLOAD_PER_MINUTE` | 否 | 上传接口每 IP 每分钟请求上限，默认 10（防积分滥用，比天气严格） |
 | `RATE_LIMIT_WEATHER_PER_MINUTE` | 否 | 天气接口每 IP 每分钟请求上限，默认 30 |
 | `METRICS_PORT` | 否 | 独立 metrics 服务端口（仅绑 127.0.0.1，见 §8.1），默认 9100 |
