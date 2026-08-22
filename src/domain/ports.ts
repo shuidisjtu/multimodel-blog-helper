@@ -99,6 +99,11 @@ export interface FileStore {
   deleteJobFiles(jobId: string): Promise<number>;
 }
 
+/** 时长探测端口(架构文档 §5): 落盘后解析音频时长; 解析失败返回 null(降级, 调用方视为"未校验"放行, 不得误杀)。 */
+export interface AudioDurationProbe {
+  probe(filePath: string): Promise<number | null>;
+}
+
 /** 内存任务队列(架构文档 §6.2): 有界; 同步入队使容量检查与入队原子(单线程下无异步插入点)。 */
 export interface JobQueue {
   /** 同步入队; 队列满(pending+processing >= maxLength)抛 DomainError('QUEUE_FULL', ...)。 */
