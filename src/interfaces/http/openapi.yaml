@@ -1,0 +1,738 @@
+openapi: 3.1.0
+info:
+  title: Multimodel Blog Helper API
+  version: 0.1.0
+  description: |
+    音频转录与摘要、天气工具调用服务的 HTTP API 契约。
+
+    所有 JSON 响应都包含 requestId，并通过 X-Request-Id 响应头返回同一个请求标识。
+    错误响应只返回稳定的业务错误码和安全消息，不返回堆栈、上游原始错误或密钥。
+servers:
+  - url: http://localhost:3000
+    description: 本地开发服务
+
+tags:
+  - name: Audio jobs
+    description: 音频上传、异步处理任务查询与转录下载
+  - name: Assistant
+    description: 助手工具调用
+  - name: Health
+    description: 进程存活与服务就绪检查
+  - name: Metrics
+    description: Prometheus 指标
+
+paths:
+  /api/v1/audio-jobs:
+    post:
+      tags: [Audio jobs]
+      operationId: submitAudioJob
+      summary: 受理音频并创建异步任务
+      description: |
+        接收音频文件并立即创建 queued 任务，转录与摘要在后台执行。
+        新任务返回 202；Idempotency-Key 重放且文件内容相同时返回原任务和 200，
+        不会再次入队。文件大小默认上限为 25 MiB，实际值由 MAX_UPLOAD_BYTES 配置。
+        音频时长默认上限为 3600 秒，实际值由 MAX_AUDIO_DURATION_SECONDS 配置。
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/AudioUploadRequest'
+            encoding:
+              file:
+                contentType: audio/mpeg, audio/wav, audio/mp4, audio/x-m4a
+      responses:
+        '202':
+          description: 已创建任务并加入处理队列
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/X-Request-Id'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessAudioJobSubmission'
+              example:
+                data:
+                  id: job_01J9Z0N7M5J5P2FJ5Q7Y2V3W4X
+                  status: queued
+                  queryUrl: /api/v1/audio-jobs/job_01J9Z0N7M5J5P2FJ5Q7Y2V3W4X
+                  replayed: false
+                requestId: req_01J9Z0N7M4
+        '200':
+          description: 幂等重放，返回已存在任务；不会再次入队
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/X-Request-Id'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessAudioJobSubmission'
+              example:
+                data:
+                  id: job_01J9Z0N7M5J5P2FJ5Q7Y2V3W4X
+                  status: transcribing
+                  queryUrl: /api/v1/audio-jobs/job_01J9Z0N7M5J5P2FJ5Q7Y2V3W4X
+                  replayed: true
+                requestId: req_01J9Z0N7M4
+        '400':
+          description: 文件内容无效或音频超过时长上限
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/X-Request-Id'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                invalidFile:
+                  $ref: '#/components/examples/InvalidFileError'
+                audioTooLong:
+                  $ref: '#/components/examples/AudioTooLongError'
+        '409':
+          description: 相同 Idempotency-Key 对应不同文件内容
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/X-Request-Id'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error:
+                  code: IDEMPOTENCY_CONFLICT
+                  message: Idempotency key was already used with different content
+                requestId: req_01J9Z0N4
+        '413':
+          description: 文件超过大小上限
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/X-Request-Id'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error:
+                  code: FILE_TOO_LARGE
+                  message: File is too large
+                requestId: req_01J9Z0N5
+        '415':
+          description: 不支持的音频媒体类型
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/X-Request-Id'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error:
+                  code: UNSUPPORTED_MEDIA_TYPE
+                  message: Unsupported media type
+                requestId: req_01J9Z0N6
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '503':
+          $ref: '#/components/responses/QueueFull'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /api/v1/audio-jobs/{id}:
+    parameters:
+      - $ref: '#/components/parameters/JobId'
+    get:
+      tags: [Audio jobs]
+      operationId: getAudioJob
+      summary: 查询音频任务
+      description: |
+        返回任务当前状态以及可用的摘要或安全失败信息。
+        内部文件路径、文件哈希和幂等 key 不对外暴露。expired tombstone 返回 410，
+        不作为正常任务查询结果返回。
+      responses:
+        '200':
+          description: 任务查询成功
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/X-Request-Id'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessJob'
+              example:
+                data:
+                  id: job_01J9Z0N7M5J5P2FJ5Q7Y2V3W4X
+                  requestId: req_01J9Z0N4
+                  status: succeeded
+                  createdAt: '2026-08-23T10:00:00Z'
+                  updatedAt: '2026-08-23T10:02:31Z'
+                  expiresAt: '2026-08-24T10:00:00Z'
+                  queryUrl: /api/v1/audio-jobs/job_01J9Z0N7M5J5P2FJ5Q7Y2V3W4X
+                  transcriptUrl: /api/v1/audio-jobs/job_01J9Z0N7M5J5P2FJ5Q7Y2V3W4X/transcript
+                  summary: '- 要点一\n- 要点二'
+                  model: gpt-4o
+                requestId: req_01J9Z0N4
+        '404':
+          $ref: '#/components/responses/JobNotFound'
+        '410':
+          $ref: '#/components/responses/JobExpired'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /api/v1/audio-jobs/{id}/transcript:
+    parameters:
+      - $ref: '#/components/parameters/JobId'
+    get:
+      tags: [Audio jobs]
+      operationId: downloadTranscript
+      summary: 下载纯文本转录
+      description: |
+        成功响应是纯 text/plain 文本，是统一 JSON 成功 envelope 的明确例外。
+        X-Request-Id 仍通过响应头返回。任务未成功或转录产物尚不可读时返回 JOB_NOT_READY。
+      responses:
+        '200':
+          description: 转录文本
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/X-Request-Id'
+          content:
+            text/plain:
+              schema:
+                type: string
+              example: |
+                这是音频转录文本。
+                转录结果按纯文本返回。
+        '409':
+          $ref: '#/components/responses/JobNotReady'
+        '404':
+          $ref: '#/components/responses/JobNotFound'
+        '410':
+          $ref: '#/components/responses/JobExpired'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /api/v1/assistant/weather:
+    post:
+      tags: [Assistant]
+      operationId: getWeather
+      summary: 查询地点天气
+      description: |
+        调用天气工具查询当前天气。天气数据来自 wttr.in；上游超时、限流或不可用
+        时返回稳定业务错误，不向客户端泄漏上游响应细节。
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/WeatherRequest'
+            example:
+              location: Shanghai
+      responses:
+        '200':
+          description: 天气查询成功
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/X-Request-Id'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessWeather'
+              example:
+                data:
+                  location: Shanghai
+                  tempC: 27.5
+                  description: Partly cloudy
+                requestId: req_01J9Z0W1
+        '422':
+          $ref: '#/components/responses/InvalidLocation'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '503':
+          $ref: '#/components/responses/WeatherUnavailable'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /health/live:
+    get:
+      tags: [Health]
+      operationId: healthLive
+      summary: 进程存活检查
+      description: 只检查进程本身，不探测 OpenAI、wttr.in 或其他外部依赖。
+      responses:
+        '200':
+          description: 进程正在运行
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/X-Request-Id'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessHealth'
+              example:
+                data:
+                  status: ok
+                requestId: req_01J9Z0L1
+
+  /health/ready:
+    get:
+      tags: [Health]
+      operationId: healthReady
+      summary: 服务就绪检查
+      description: |
+        检查启动配置、temp 可写性、任务仓储读写、worker 是否启动以及队列是否可接收任务。
+        任一检查失败返回 503；该响应使用统一错误 envelope，避免新增领域错误码。
+      responses:
+        '200':
+          description: 服务已就绪
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/X-Request-Id'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessHealth'
+              example:
+                data:
+                  status: ready
+                requestId: req_01J9Z0R1
+        '503':
+          description: 服务尚未就绪
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/X-Request-Id'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error:
+                  code: INTERNAL_ERROR
+                  message: Service is not ready
+                requestId: req_01J9Z0R2
+
+  /metrics:
+    get:
+      tags: [Metrics]
+      operationId: getMetrics
+      summary: 获取 Prometheus 指标
+      description: |
+        返回 Prometheus exposition format。生产环境必须通过独立 metrics 服务、反向代理
+        或网络策略限制为内网访问；不应将该端点直接暴露到公网。
+      responses:
+        '200':
+          description: Prometheus 指标文本
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/X-Request-Id'
+          content:
+            text/plain:
+              schema:
+                type: string
+              example: |
+                # HELP blog_jobs_total Total number of jobs.
+                # TYPE blog_jobs_total counter
+                blog_jobs_total 0
+
+components:
+  headers:
+    X-Request-Id:
+      description: 服务生成的请求关联标识。
+      required: true
+      schema:
+        type: string
+        minLength: 1
+    Retry-After:
+      description: 客户端在重试前应等待的秒数。
+      required: true
+      schema:
+        type: integer
+        minimum: 0
+
+  parameters:
+    JobId:
+      name: id
+      in: path
+      required: true
+      description: 服务生成的音频任务标识。
+      schema:
+        type: string
+        minLength: 1
+    IdempotencyKey:
+      name: Idempotency-Key
+      in: header
+      required: false
+      description: |
+        24 小时内用于幂等提交的客户端标识。同一 key 且文件 sha256 相同时重放原任务；
+        同一 key 对应不同有效文件时返回 IDEMPOTENCY_CONFLICT。
+      schema:
+        type: string
+        minLength: 1
+        maxLength: 255
+
+  schemas:
+    AudioUploadRequest:
+      type: object
+      additionalProperties: false
+      required: [file]
+      properties:
+        file:
+          type: string
+          format: binary
+          description: |
+            必填音频文件。允许 audio/mpeg、audio/wav、audio/mp4、audio/x-m4a；
+            默认最大 25 MiB，服务端还会校验文件签名和最大音频时长。
+
+    JobStatus:
+      type: string
+      enum: [queued, transcribing, summarizing, succeeded, failed, expired]
+
+    AudioJobSubmission:
+      type: object
+      additionalProperties: false
+      required: [id, status, queryUrl, replayed]
+      properties:
+        id:
+          type: string
+          minLength: 1
+          description: 音频任务标识。
+        status:
+          $ref: '#/components/schemas/JobStatus'
+        queryUrl:
+          type: string
+          format: uri-reference
+          description: 查询任务状态的相对 URL。
+        replayed:
+          type: boolean
+          description: true 表示本次请求是幂等重放，未再次入队。
+
+    PublicJobFailure:
+      type: object
+      additionalProperties: false
+      required: [code, message]
+      properties:
+        code:
+          $ref: '#/components/schemas/ErrorCode'
+        message:
+          type: string
+          description: 安全的客户端可见失败消息。
+
+    JobView:
+      type: object
+      additionalProperties: false
+      required: [id, requestId, status, createdAt, updatedAt, expiresAt, queryUrl]
+      properties:
+        id:
+          type: string
+          minLength: 1
+        requestId:
+          type: string
+          minLength: 1
+          description: 创建该任务时的请求标识。
+        status:
+          $ref: '#/components/schemas/JobStatus'
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+        expiresAt:
+          type: string
+          format: date-time
+        queryUrl:
+          type: string
+          format: uri-reference
+        transcriptUrl:
+          type: string
+          format: uri-reference
+          description: 仅在转录结果可下载时返回。
+        summary:
+          type: string
+          description: 任务成功后可用的中文摘要。
+        model:
+          type: string
+          description: 生成结果所使用的模型标识。
+        failure:
+          $ref: '#/components/schemas/PublicJobFailure'
+
+    WeatherRequest:
+      type: object
+      additionalProperties: false
+      required: [location]
+      properties:
+        location:
+          type: string
+          minLength: 1
+          maxLength: 200
+          description: 要查询的地点名称。
+
+    Weather:
+      type: object
+      additionalProperties: false
+      required: [location, tempC, description]
+      properties:
+        location:
+          type: string
+        tempC:
+          type: number
+          description: 当前温度，摄氏度。
+        description:
+          type: string
+
+    ErrorCode:
+      type: string
+      enum:
+        - INVALID_FILE
+        - AUDIO_TOO_LONG
+        - FILE_TOO_LARGE
+        - UNSUPPORTED_MEDIA_TYPE
+        - IDEMPOTENCY_CONFLICT
+        - QUEUE_FULL
+        - RATE_LIMITED
+        - JOB_NOT_FOUND
+        - JOB_EXPIRED
+        - JOB_NOT_READY
+        - INVALID_LOCATION
+        - WEATHER_UNAVAILABLE
+        - PROCESS_INTERRUPTED
+        - INTERNAL_ERROR
+
+    Error:
+      type: object
+      additionalProperties: false
+      required: [code, message]
+      properties:
+        code:
+          $ref: '#/components/schemas/ErrorCode'
+        message:
+          type: string
+          description: 安全的客户端可见错误消息。
+        details:
+          description: 可选的、已脱敏的结构化错误细节；不得包含密钥、堆栈或上游原始响应。
+
+    ErrorResponse:
+      type: object
+      additionalProperties: false
+      required: [error, requestId]
+      properties:
+        error:
+          $ref: '#/components/schemas/Error'
+        requestId:
+          type: string
+          minLength: 1
+
+    SuccessAudioJobSubmission:
+      type: object
+      additionalProperties: false
+      required: [data, requestId]
+      properties:
+        data:
+          $ref: '#/components/schemas/AudioJobSubmission'
+        requestId:
+          type: string
+          minLength: 1
+
+    SuccessJob:
+      type: object
+      additionalProperties: false
+      required: [data, requestId]
+      properties:
+        data:
+          $ref: '#/components/schemas/JobView'
+        requestId:
+          type: string
+          minLength: 1
+
+    SuccessWeather:
+      type: object
+      additionalProperties: false
+      required: [data, requestId]
+      properties:
+        data:
+          $ref: '#/components/schemas/Weather'
+        requestId:
+          type: string
+          minLength: 1
+
+    HealthStatus:
+      type: object
+      additionalProperties: false
+      required: [status]
+      properties:
+        status:
+          type: string
+          enum: [ok, ready]
+
+    SuccessHealth:
+      type: object
+      additionalProperties: false
+      required: [data, requestId]
+      properties:
+        data:
+          $ref: '#/components/schemas/HealthStatus'
+        requestId:
+          type: string
+          minLength: 1
+
+  responses:
+    InvalidFile:
+      description: 文件内容无效
+      headers:
+        X-Request-Id:
+          $ref: '#/components/headers/X-Request-Id'
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            error:
+              code: INVALID_FILE
+              message: Invalid audio file
+            requestId: req_01J9Z0E1
+    AudioTooLong:
+      description: 音频超过最大时长
+      headers:
+        X-Request-Id:
+          $ref: '#/components/headers/X-Request-Id'
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            error:
+              code: AUDIO_TOO_LONG
+              message: Audio duration exceeds limit
+            requestId: req_01J9Z0E2
+    RateLimited:
+      description: 请求超过接口限流
+      headers:
+        X-Request-Id:
+          $ref: '#/components/headers/X-Request-Id'
+        Retry-After:
+          $ref: '#/components/headers/Retry-After'
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            error:
+              code: RATE_LIMITED
+              message: Too many requests
+            requestId: req_01J9Z0E3
+    QueueFull:
+      description: 任务队列已满
+      headers:
+        X-Request-Id:
+          $ref: '#/components/headers/X-Request-Id'
+        Retry-After:
+          $ref: '#/components/headers/Retry-After'
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            error:
+              code: QUEUE_FULL
+              message: Queue is full, retry later
+            requestId: req_01J9Z0E4
+    JobNotFound:
+      description: 任务不存在
+      headers:
+        X-Request-Id:
+          $ref: '#/components/headers/X-Request-Id'
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            error:
+              code: JOB_NOT_FOUND
+              message: Job not found
+            requestId: req_01J9Z0E5
+    JobExpired:
+      description: 任务已过期
+      headers:
+        X-Request-Id:
+          $ref: '#/components/headers/X-Request-Id'
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            error:
+              code: JOB_EXPIRED
+              message: Job has expired
+            requestId: req_01J9Z0E6
+    JobNotReady:
+      description: 任务尚未产生可下载的转录
+      headers:
+        X-Request-Id:
+          $ref: '#/components/headers/X-Request-Id'
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            error:
+              code: JOB_NOT_READY
+              message: Transcript is not ready
+            requestId: req_01J9Z0E7
+    InvalidLocation:
+      description: 地点参数无效
+      headers:
+        X-Request-Id:
+          $ref: '#/components/headers/X-Request-Id'
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            error:
+              code: INVALID_LOCATION
+              message: Invalid location
+            requestId: req_01J9Z0E8
+    WeatherUnavailable:
+      description: 天气服务不可用
+      headers:
+        X-Request-Id:
+          $ref: '#/components/headers/X-Request-Id'
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            error:
+              code: WEATHER_UNAVAILABLE
+              message: Weather service is unavailable
+            requestId: req_01J9Z0E9
+    InternalError:
+      description: 未分类内部错误
+      headers:
+        X-Request-Id:
+          $ref: '#/components/headers/X-Request-Id'
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            error:
+              code: INTERNAL_ERROR
+              message: Internal error
+            requestId: req_01J9Z0EA
+
+  examples:
+    InvalidFileError:
+      summary: 文件内容无效
+      value:
+        error:
+          code: INVALID_FILE
+          message: Invalid audio file
+        requestId: req_01J9Z0E1
+    AudioTooLongError:
+      summary: 音频超长
+      value:
+        error:
+          code: AUDIO_TOO_LONG
+          message: Audio duration exceeds limit
+        requestId: req_01J9Z0E2

@@ -41,7 +41,8 @@ src/
     storage/
       file-store.ts # 临时目录文件存储
     weather/ (planned) # 待 B4
-  interfaces/http/ (planned) # B 系列待建: routes/ middleware/ schemas/ openapi.yaml
+  interfaces/http/
+    routes/ middleware/ schemas/ (planned) # B1/B2/B4/B6：路由、DTO 与中间件
   shared/
     logger.ts # 结构化 JSON 日志
     ids.ts # jobId/requestId 生成
@@ -89,7 +90,7 @@ temp/               uploads/, outputs/      # 运行期文件(gitignored, 启动
 | `src/domain/` | Job 状态机、领域错误、端口接口;不导入 SDK | ✅ A1–A2 |
 | `src/application/` | 用例编排(只依赖 domain + shared) | ✅ A3–A4 |
 | `src/infrastructure/` | OpenAI/队列/仓储/文件系统实现(适配器) | ✅ A2–A4;weather 待 B4 |
-| `src/interfaces/http/` | 路由、DTO 校验、OpenAPI | 🚧 B 系列 |
+| `src/interfaces/http/` | 路由、DTO 校验、中间件与 OpenAPI 契约 | 🚧 B1/B2/B4/B6 实现待建；B5 `openapi.yaml` ✅ |
 | `src/shared/` | logger / ids / clock 基础工具 | ✅ |
 | `tests/` | 单元 + 集成测试(覆盖率门禁 80%) | ✅;e2e 待 C6 |
 | `fixtures/` | E2E 测试音频(随仓库分发) | ✅ |

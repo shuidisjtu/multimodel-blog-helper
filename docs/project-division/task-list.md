@@ -1,6 +1,6 @@
 # OpenAI 多模态博客助手：任务清单
 
-> 版本：v1.4 ｜ 用途：展示项目需要完成的工作与验收标准 ｜ 更新：2026-08-22
+> 版本：v1.5 ｜ 用途：展示项目需要完成的工作与验收标准 ｜ 更新：2026-08-23
 >
 > 分工说明：A 系列与 C1、C2 的 CI 部分已完成（shuidisjtu）。B 系列与 C 系列剩余任务已分配至三名成员（shuidisjtu / ym-hello / dorotheaqxq-code），分工与时序见 §2。
 
@@ -24,7 +24,7 @@
 | B2 | 任务查询与转录下载（`GET /audio-jobs/{id}`、`/transcript`） | B1 | 可查询状态、摘要并下载转录文本；过期返回 `410 JOB_EXPIRED`（tombstone） | 待办/shuidisjtu |
 | B3 | 上传校验与临时文件策略 | A1、A3 | 仅允许约定音频类型；≤25 MB；时长上限（解析失败时降级并记录）；随机存储名；`temp/` Git 忽略；tombstone 二次清理 | ✅ 已完成 |
 | B4 | `WeatherProvider` 与天气接口 | — | wttr.in 超时、异常或无效地点返回稳定业务错误，不泄漏上游细节 | 待办/ym-hello |
-| B5 | OpenAPI 与 DTO 校验 | B1、B2、B4 | 全部 v1 路由有契约；成功和主要 4xx/5xx 响应一致 | 待办/ym-hello |
+| B5 | OpenAPI 与 DTO 校验 | B1、B2、B4 | 全部 v1 路由有契约；成功和主要 4xx/5xx 响应一致 | ✅ OpenAPI 契约已落地；DTO 校验/契约测试待 B1–B4 实现后补齐 / ym-hello |
 | B6 | 错误中间件、结构化日志与滥用防护 | B1、B4、B5 | async 路由进入统一错误边界；响应有 `X-Request-Id`；上传/天气 IP 限流（`429`，带 `Retry-After`）；CORS 同源策略；metrics 访问边界（仅内网可访问，实现见 C5） | 待办/shuidisjtu |
 | B7 | 集成测试 | B1–B6 | 覆盖文件无效、过大、超时、幂等冲突、限流、队列满、天气不可用与成功路径 | 待办/dorotheaqxq-code |
 
@@ -49,11 +49,11 @@
 | ym-hello | B4 → B5 → C2(契约测试) → C7 | 能力侧（天气）+ OpenAPI 契约 + 运行手册 |
 | dorotheaqxq-code | C3 → C4 → B7 → C6 → C8 | 质量与交付（安全 CI→制品→集成测试→E2E→归档） |
 
-**交叉验证**：B5 契约（ym）↔ B1/B2/B6 实现（shuidisjtu）——契约先行，实现对齐契约；C2 契约测试（ym）验证实际响应符合契约；B7 集成测试（dorothea）独立于实现者；C7 手册（ym）反向验证 B6/C5 可观测性。
+- **OpenAPI 契约已先行**：`src/interfaces/http/openapi.yaml` 已定义 7 个路由、统一 JSON envelope、`X-Request-Id`/`Retry-After`、上传限制、幂等语义及主要错误码；B1/B2/B4 实现与 C2 契约测试必须以该文件为准。
 
 **协作约定**：独立分支 `feature/b*-*` + PR；CI 门禁（C1）为必过项，失败不放行；B5 契约（OpenAPI yaml）先于接口实现评审；任务完成附验收证据（测试/运行记录，见 §3）。
 
-**推进时序**：T0 三人同时开工（B3 / B4 / C3）；T1 B3+B4 完成，B5 契约草案提交，B1 开工；T2 B1/B2 完成并契约互审；T3 B6 完成、B7 集成测试跑通；T4 C5/C6/C7/C8 收口。
+**推进时序**：T0 三人同时开工（B3 / B4 / C3）；T1 B3+B4 完成，B5 契约草案提交，B1 开工；当前已完成 B3 与 B5 契约文件，B1/B2/B4/B6 等 HTTP 实现仍待推进；T2 B1/B2 完成并契约互审；T3 B6 完成、B7 集成测试跑通；T4 C5/C6/C7/C8 收口。
 
 ## 3. 执行原则（通用协作底线）
 
