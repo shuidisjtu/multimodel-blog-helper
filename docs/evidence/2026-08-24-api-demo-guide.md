@@ -27,6 +27,10 @@ npm run dev
 
 ## 3. 演示序列(终端 B,每步替换 <jobId>)
 
+> ☑️ **一键检验**:`pwsh -NoProfile -ExecutionPolicy Bypass -File docs\evidence\2026-08-24-api-demo-check.ps1`
+> (需 `pwsh` 而非 `powershell`——后者为 5.1,GBK 显示会乱码;脚本覆盖 ③-⑦ 与 ⑨ 快检,
+> 每个场景独立 PASS/FAIL 判定,2026-08-24 实测全部通过)
+
 ### ① 上传受理 → 202(核心)
 
 ```powershell
@@ -58,11 +62,13 @@ curl.exe -s -X POST http://localhost:3000/api/v1/audio-jobs `
 ### ④ 幂等冲突(同 key 不同文件)→ 409 IDEMPOTENCY_CONFLICT
 
 ```powershell
-Copy-Item fixtures\audio-sample.mp3 $env:TEMP\diff.mp3
-Add-Content $env:TEMP\diff.mp3 "x"      # 尾部加 1 字节,sha256 变化
+# 与 ①/③ 同 key;用 node 生成一个最小合法 WAV 作"不同文件"
+# (注: 书例/仓库内 audio-sample.mp3 sha256 全部相同, 不能用; Add-Content/追加写在某些环境被拒, 故用整文件生成)
+$wav = "$PWD\temp\demo-diff.wav"
+node -e "const b=Buffer.alloc(48);b.write('RIFF',0);b.writeUInt32LE(40,4);b.write('WAVE',8);b.write('fmt ',12);b.writeUInt32LE(16,16);b.writeUInt16LE(1,20);b.writeUInt16LE(1,22);b.writeUInt32LE(8000,24);b.writeUInt32LE(16000,28);b.writeUInt16LE(2,32);b.writeUInt16LE(16,34);b.write('data',36);b.writeUInt32LE(4,40);require('fs').writeFileSync(process.argv[1],b)" $wav
 curl.exe -s -X POST http://localhost:3000/api/v1/audio-jobs `
-  -H "Idempotency-Key: demo-001" `
-  -F "file=@$env:TEMP\diff.mp3;type=audio/mpeg"
+  -H "Idempotency-Key: <同 ① 的 key>" `
+  -F "file=@$wav;type=audio/wav"
 ```
 
 ### ⑤ 非法媒体类型 → 415 UNSUPPORTED_MEDIA_TYPE
