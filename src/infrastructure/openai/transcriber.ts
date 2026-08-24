@@ -4,6 +4,7 @@
  * SDK 内置重试关闭(maxRetries: 0)避免双重叠加。
  */
 import { openAsBlob } from 'node:fs';
+import { basename } from 'node:path';
 import type OpenAI from 'openai';
 import type { Transcriber, Transcript } from '../../domain/ports.js';
 import type { Logger } from '../../shared/logger.js';
@@ -20,8 +21,10 @@ export class OpenAITranscriber implements Transcriber {
   ) {}
 
   async transcribe(params: { jobId: string; path: string; mimeType: string }): Promise<Transcript> {
-    // openAsBlob 流式读取,避免整文件进内存(与 25MB 上限配合)
-    const file = await openAsBlob(params.path, { type: params.mimeType });
+    // openAsBlob 流式读取,避免整文件进内存(与 25MB 上限配合);
+    // File 包装携带文件名: SDK v7 表单只接受 File(裸 Blob 会被拒), 且识别接口按扩展名检测格式
+    const blob = await openAsBlob(params.path, { type: params.mimeType });
+    const file = new File([blob], basename(params.path), { type: params.mimeType });
     const started = Date.now();
     const { value, retryCount } = await withRetry(
       () =>

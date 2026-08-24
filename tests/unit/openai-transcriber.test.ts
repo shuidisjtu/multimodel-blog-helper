@@ -52,7 +52,10 @@ describe('OpenAITranscriber', () => {
       (typeof client.create.mock.calls)[0]
     >;
     expect(args).toMatchObject({ model: 'whisper-1' });
+    // SDK v7 表单只接受 File(裸 openAsBlob Blob 会被拒); File 仍是 Blob 子类
+    expect(args.file).toBeInstanceOf(File);
     expect(args.file).toBeInstanceOf(Blob);
+    expect((args.file as File).name).toBe('audio-sample.mp3');
     expect(opts).toMatchObject({ timeout: 60000, maxRetries: 0 });
   });
 
