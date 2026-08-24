@@ -174,6 +174,37 @@ describe('POST /api/v1/audio-jobs: 幂等与错误场景(openapi.yaml)', () => {
     });
   });
 
+  it('空白 Idempotency-Key 视同无 key: 202 新建任务(服务端归一化 trim)', async () => {
+    const res = await fetch(`${ctx.baseUrl}/api/v1/audio-jobs`, {
+      method: 'POST',
+      headers: { 'Idempotency-Key': '   ' },
+      body: formWith(mp3Bytes(), 'audio/mpeg'),
+    });
+    expect(res.status).toBe(202);
+    const body = (await res.json()) as { data: { replayed: boolean } };
+    expect(body.data.replayed).toBe(false);
+  });
+
+  it('key 前后空白被 trim: 先带空白后同 key 重试 → 200 replayed(同一任务)', async () => {
+    const first = await fetch(`${ctx.baseUrl}/api/v1/audio-jobs`, {
+      method: 'POST',
+      headers: { 'Idempotency-Key': 'idem-trim-key ' },
+      body: formWith(mp3Bytes(), 'audio/mpeg'),
+    });
+    expect(first.status).toBe(202);
+    const firstBody = (await first.json()) as { data: { id: string } };
+
+    const second = await fetch(`${ctx.baseUrl}/api/v1/audio-jobs`, {
+      method: 'POST',
+      headers: { 'Idempotency-Key': 'idem-trim-key' },
+      body: formWith(mp3Bytes(), 'audio/mpeg'),
+    });
+    expect(second.status).toBe(200);
+    const secondBody = (await second.json()) as { data: { id: string; replayed: boolean } };
+    expect(secondBody.data.id).toBe(firstBody.data.id); // trim 后同 key → 同一任务
+    expect(secondBody.data.replayed).toBe(true);
+  });
+
   it('时长超上限 → 400 AUDIO_TOO_LONG', async () => {
     const blocked = await buildTestApp({ probe: { probe: async () => 9999 } });
     try {

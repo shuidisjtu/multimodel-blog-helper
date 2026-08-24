@@ -104,7 +104,12 @@ describe('errorHandler(架构文档 §8.1 错误边界, openapi.yaml 错误码�
     }) as never);
     expect((res as { statusCode: number }).statusCode).toBe(500);
     expect((res as { body: unknown }).body).toMatchObject({ error: { code: 'INTERNAL_ERROR' } });
-    expect(logger.calls.some((c) => c.level === 'error')).toBe(true);
+    // 日志须携带实际错误消息(固定"已记录具体错误", 而非空对象/占位)
+    expect(
+      logger.calls.some(
+        (c) => c.level === 'error' && c.error === 'boom' && c.errorCode === 'INTERNAL_ERROR',
+      ),
+    ).toBe(true);
   });
 
   it('所有契约错误码都有稳定的 message 映射', () => {
