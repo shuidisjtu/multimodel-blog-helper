@@ -47,6 +47,15 @@ src/
     logger.ts # 结构化 JSON 日志
     ids.ts # jobId/requestId 生成
     clock.ts # 时钟端口(ISO 8601)
+  interfaces/
+    http/
+      middleware/
+        error-handler.ts <<< 新文件,补注释
+        request-id.ts <<< 新文件,补注释
+      routes/
+        audio-jobs.ts <<< 新文件,补注释
+      envelope.ts <<< 新文件,补注释
+      app.ts <<< 新文件,补注释
 tests/
   unit/ # 模块级单测
     cleanup-expired.test.ts
@@ -66,11 +75,14 @@ tests/
     submit-audio.test.ts
     audio-upload.test.ts # 上传校验器单测
     music-metadata-duration-probe.test.ts # 时长探针单测(真实 mp3 + 损坏文件降级)
+    envelope.test.ts <<< 新文件,补注释
+    error-handler.test.ts <<< 新文件,补注释
   integration/ # 跨模块集成测试
     cleanup-expired.test.ts
     file-job-repository.test.ts
     file-store.test.ts
     recover-with-real-repo.test.ts
+    audio-jobs-route.test.ts <<< 新文件,补注释
   e2e/ (planned) # 待 C6
   scripts/ # 脚本测试
     generate-structure.test.ts # 结构生成器测试
