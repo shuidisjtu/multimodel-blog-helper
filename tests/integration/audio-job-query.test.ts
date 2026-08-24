@@ -91,14 +91,16 @@ async function buildTestApp(): Promise<TestContext> {
   };
 }
 
-/** 走真实 POST 上传受理, 返回任务 id。 */
-async function submitJob(baseUrl: string): Promise<string> {
+/** 走真实 POST 上传受理, 返回任务 id 与创建请求的 requestId(x-request-id 响应头)。 */
+async function submitJob(baseUrl: string): Promise<{ id: string; createRequestId: string }> {
   const form = new FormData();
   form.set('file', new Blob([mp3Bytes()], { type: 'audio/mpeg' }), 'demo.mp3');
   const res = await fetch(`${baseUrl}/api/v1/audio-jobs`, { method: 'POST', body: form });
   expect(res.status).toBe(202);
   const body = (await res.json()) as { data: { id: string } };
-  return body.data.id;
+  const createRequestId = res.headers.get('x-request-id');
+  expect(createRequestId).toBeTruthy();
+  return { id: body.data.id, createRequestId: createRequestId as string };
 }
 
 /** 落盘转录产物并把任务推进到 succeeded。 */
@@ -140,7 +142,7 @@ afterAll(async () => {
 
 describe('GET /api/v1/audio-jobs/{id}(openapi.yaml getAudioJob)', () => {
   it('queued → 200, data 含必填字段且无成功可选字段, data.requestId=创建时请求标识, 外层 requestId=当前请求', async () => {
-    const id = await submitJob(ctx.baseUrl);
+    const { id, createRequestId } = await submitJob(ctx.baseUrl);
 
     const res = await fetch(`${ctx.baseUrl}/api/v1/audio-jobs/${id}`);
     expect(res.status).toBe(200);
@@ -150,12 +152,15 @@ describe('GET /api/v1/audio-jobs/{id}(openapi.yaml getAudioJob)', () => {
     expect((body.data as { queryUrl: string }).queryUrl).toBe(`/api/v1/audio-jobs/${id}`);
     expect(body.data).not.toHaveProperty('transcriptUrl');
     expect(body.data).not.toHaveProperty('summary');
-    expect(body.data).not.toHaveProperty('failed');
+    expect(body.data).not.toHaveProperty('failure');
+    // 契约区分: data.requestId 是创建请求的标识, 与当前 GET 请求自身的 x-request-id 不同
+    expect(body.data.requestId).toBe(createRequestId);
+    expect(body.data.requestId).not.toBe(res.headers.get('x-request-id'));
     expect(body.requestId).toBe(res.headers.get('x-request-id'));
   });
 
   it('succeeded → 200, 含 transcriptUrl/summary/model, 且不暴露 input/路径/哈希', async () => {
-    const id = await submitJob(ctx.baseUrl);
+    const { id } = await submitJob(ctx.baseUrl);
     await advanceToSucceeded(ctx, id, '你好世界。');
 
     const res = await fetch(`${ctx.baseUrl}/api/v1/audio-jobs/${id}`);
@@ -172,7 +177,7 @@ describe('GET /api/v1/audio-jobs/{id}(openapi.yaml getAudioJob)', () => {
   });
 
   it('failed → 200, failure { code, message }(失败可查询)', async () => {
-    const id = await submitJob(ctx.baseUrl);
+    const { id } = await submitJob(ctx.baseUrl);
     await ctx.jobs.update(id, (j) => ({
       ...j,
       status: 'failed',
@@ -206,7 +211,7 @@ describe('GET /api/v1/audio-jobs/{id}(openapi.yaml getAudioJob)', () => {
   });
 
   it('expired tombstone → 410 JOB_EXPIRED', async () => {
-    const id = await submitJob(ctx.baseUrl);
+    const { id } = await submitJob(ctx.baseUrl);
     await tombstone(ctx, id);
 
     const res = await fetch(`${ctx.baseUrl}/api/v1/audio-jobs/${id}`);
@@ -218,7 +223,7 @@ describe('GET /api/v1/audio-jobs/{id}(openapi.yaml getAudioJob)', () => {
 
 describe('GET /api/v1/audio-jobs/{id}/transcript(openapi.yaml downloadTranscript)', () => {
   it('succeeded → 200 text/plain 纯文本(非 JSON 信封), 带 X-Request-Id 头', async () => {
-    const id = await submitJob(ctx.baseUrl);
+    const { id } = await submitJob(ctx.baseUrl);
     await advanceToSucceeded(ctx, id, '这是转录文本。\n第二行。');
 
     const res = await fetch(`${ctx.baseUrl}/api/v1/audio-jobs/${id}/transcript`);
@@ -229,7 +234,7 @@ describe('GET /api/v1/audio-jobs/{id}/transcript(openapi.yaml downloadTranscript
   });
 
   it('queued → 409 JOB_NOT_READY', async () => {
-    const id = await submitJob(ctx.baseUrl);
+    const { id } = await submitJob(ctx.baseUrl);
     const res = await fetch(`${ctx.baseUrl}/api/v1/audio-jobs/${id}/transcript`);
     expect(res.status).toBe(409);
     const body = (await res.json()) as { error: { code: string } };
@@ -237,7 +242,7 @@ describe('GET /api/v1/audio-jobs/{id}/transcript(openapi.yaml downloadTranscript
   });
 
   it('failed → 409 JOB_NOT_READY', async () => {
-    const id = await submitJob(ctx.baseUrl);
+    const { id } = await submitJob(ctx.baseUrl);
     await ctx.jobs.update(id, (j) => ({
       ...j,
       status: 'failed',
@@ -250,7 +255,7 @@ describe('GET /api/v1/audio-jobs/{id}/transcript(openapi.yaml downloadTranscript
   });
 
   it('succeeded 但产物文件缺失(清理窗口)→ 409 JOB_NOT_READY', async () => {
-    const id = await submitJob(ctx.baseUrl);
+    const { id } = await submitJob(ctx.baseUrl);
     // 直接把状态置为 succeeded 但不落盘产物文件(read 时 ENOENT)
     await ctx.jobs.update(id, (j) => ({
       ...j,
@@ -276,8 +281,17 @@ describe('GET /api/v1/audio-jobs/{id}/transcript(openapi.yaml downloadTranscript
     expect(body.error.code).toBe('JOB_NOT_FOUND');
   });
 
+  it('非法 id(路径注入尝试)→ 404, 不泄路径/不 500', async () => {
+    const res = await fetch(
+      `${ctx.baseUrl}/api/v1/audio-jobs/${encodeURIComponent('../../etc/passwd')}/transcript`,
+    );
+    expect(res.status).toBe(404);
+    const body = (await res.json()) as { error: { code: string } };
+    expect(body.error.code).toBe('JOB_NOT_FOUND');
+  });
+
   it('expired tombstone → 410', async () => {
-    const id = await submitJob(ctx.baseUrl);
+    const { id } = await submitJob(ctx.baseUrl);
     await tombstone(ctx, id);
     const res = await fetch(`${ctx.baseUrl}/api/v1/audio-jobs/${id}/transcript`);
     expect(res.status).toBe(410);
