@@ -9,6 +9,7 @@
 | --- | --- | --- |
 | `2026-08-22-verify-output.txt` | 全量门禁 `npm run verify` 输出（lint/typecheck/check-docs/check-structure/测试/覆盖率），158 测试全通过 | 2026-08-22 本机 |
 | `2026-08-22-coverage-output.txt` | 覆盖率报告：Statements 95.13% / Branches 91.32% / Functions 98.95% / Lines 96.74%（阈 ≥80%） | 2026-08-22 本机 |
+| `2026-08-23-api-contract-and-verify.md` | B5 OpenAPI 契约落地及本机验证结果：质量门禁、158 测试、覆盖率与 HTTP 启动入口阻塞 | 2026-08-23 本机 |
 
 ## 口述截图归档（release-9d94f90，2026-08-22 截取核实）
 
