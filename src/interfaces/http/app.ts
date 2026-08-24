@@ -1,13 +1,18 @@
 import express, { type Express } from 'express';
+import type { GetTranscript } from '../../application/get-transcript.js';
+import type { QueryJob } from '../../application/query-job.js';
 import type { SubmitAudio } from '../../application/submit-audio.js';
 import type { IdGenerator } from '../../shared/ids.js';
 import type { Logger } from '../../shared/logger.js';
 import { errorHandler } from './middleware/error-handler.js';
 import { requestIdMiddleware } from './middleware/request-id.js';
+import { createAudioJobQueryRouter } from './routes/audio-job-query.js';
 import { createAudioJobsRouter } from './routes/audio-jobs.js';
 
 export interface AppDeps {
   submitAudio: SubmitAudio;
+  queryJob: QueryJob;
+  getTranscript: GetTranscript;
   ids: IdGenerator;
   logger: Logger;
   maxUploadBytes: number;
@@ -23,6 +28,9 @@ export function createApp(deps: AppDeps): Express {
   app.use(requestIdMiddleware(deps.ids));
   app.use(
     createAudioJobsRouter({ submitAudio: deps.submitAudio, maxUploadBytes: deps.maxUploadBytes }),
+  );
+  app.use(
+    createAudioJobQueryRouter({ queryJob: deps.queryJob, getTranscript: deps.getTranscript }),
   );
   app.use(errorHandler(deps.logger));
   return app;
