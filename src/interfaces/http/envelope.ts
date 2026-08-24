@@ -29,3 +29,52 @@ export function submissionData(
     replayed,
   };
 }
+
+/** 任务查询响应 data(契约 JobView): 必填 id/requestId(创建时)/时间/queryUrl; 可选字段按状态包含。
+ * 内部字段(input/路径/哈希/幂等 key)绝不进入响应(架构文档 §8.1)。 */
+export interface JobView {
+  id: string;
+  requestId: string;
+  status: string;
+  createdAt: string;
+  updatedAt: string;
+  expiresAt: string;
+  queryUrl: string;
+  transcriptUrl?: string;
+  summary?: string;
+  model?: string;
+  failure?: { code: string; message: string };
+}
+
+export function jobView(job: {
+  id: string;
+  requestId: string;
+  status: string;
+  createdAt: string;
+  updatedAt: string;
+  expiresAt: string;
+  result?: { summary: string; model: string; transcriptPath?: string };
+  failure?: { code: string; safeMessage: string };
+}): JobView {
+  const view: JobView = {
+    id: job.id,
+    requestId: job.requestId,
+    status: job.status,
+    createdAt: job.createdAt,
+    updatedAt: job.updatedAt,
+    expiresAt: job.expiresAt,
+    queryUrl: `/api/v1/audio-jobs/${job.id}`,
+  };
+  if (job.status === 'succeeded' && job.result !== undefined) {
+    return {
+      ...view,
+      transcriptUrl: `/api/v1/audio-jobs/${job.id}/transcript`,
+      summary: job.result.summary,
+      model: job.result.model,
+    };
+  }
+  if (job.status === 'failed' && job.failure !== undefined) {
+    return { ...view, failure: { code: job.failure.code, message: job.failure.safeMessage } };
+  }
+  return view;
+}
