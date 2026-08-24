@@ -21,12 +21,15 @@
 | --- | --- |
 | B2 唯一新增安全面：URL jobId 路径注入（如 `../../etc/passwd` 落入文件读取） | 路由层 UUID 格式校验（`JOB_ID_PATTERN`），非法一律按不存在处理返回 404，不暴露格式、不 500（提交 e9133f2；集成测试含注入用例） |
 | 转录下载日志不得带路径（架构文档 §8.2） | GetTranscript 日志只记稳定错误码（`errorCode`/`ioError`），不记 `err.message` 与文件路径；产物缺失（ENOENT）归 `409 JOB_NOT_READY` 由客户端重试 |
+| **演示暴露**：`OpenAITranscriber` 用 `openAsBlob` 裸 Blob 上传，被 openai SDK v7 表单构造拒绝 → 48ms 即 `INTERNAL_ERROR`（`job.failed` 日志 `error:{}` 吞掉错因，可观测性缺口） | 改用 `File([blob], basename(path))` 包装（保留流式读取），回归单测断言 `File` 类型与文件名（1ff7665） |
+| **演示暴露**：Windows 上 `rename` 瞬态 `EPERM`（杀毒/索引器短锁，当天两次复发） | `writeJobFile` 的 rename 加短退避重试（仅 EPERM，5 次 ×30ms 递增）（0d9eca2）；与 b642178 一并合并为 cbafff1 |
 
 ## 证据链接
 
 - 门禁：`npm run verify` 全绿——207 测试（29 文件）、覆盖率 Statements 92% / Branches 89.74% / Functions 92.8% / Lines 93.83%，lint/typecheck/check:docs/check:structure 通过；输出见 [2026-08-24-verify-output.txt](../evidence/2026-08-24-verify-output.txt)
 - 转录下载实跑：集成测试 `tests/integration/audio-job-query.test.ts` 用真实 HTTP 服务 + 真实仓储/文件落盘，断言 text/plain 内容与 404/409/410 全场景
-- 提交：`feature/b2-query-transcript` 6 个代码提交（GetTranscript 用例 → jobView 序列化 → 查询/下载路由 → 测试与格式 → 容器接线）
+- **实跑演示（2026-08-24）**：上传 → 查询（succeeded + 摘要 + transcriptUrl）→ 转录下载截图 [1](../evidence/2026-08-24-api-demo-1-submit-query-download.png)；服务端状态机日志（queued→transcribing→summarizing→succeeded，whisper-1 9009ms / gpt-4o 3276ms，retryCount 0）截图 [2](../evidence/2026-08-24-api-demo-2-server-log.png)；演示指引 [2026-08-24-api-demo-guide.md](../evidence/2026-08-24-api-demo-guide.md)
+- 提交：`feature/b2-query-transcript` 6 个代码提交（GetTranscript 用例 → jobView 序列化 → 查询/下载路由 → 测试与格式 → 容器接线）；演示修复 2 个提交合并为 cbafff1
 
 ## 下一步
 
