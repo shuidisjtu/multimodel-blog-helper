@@ -81,7 +81,7 @@ export function errorHandler(logger: Logger): ErrorRequestHandler {
       event: 'http.unhandled_error',
       requestId,
       errorCode: 'INTERNAL_ERROR',
-      error: err,
+      error: err instanceof Error ? err.message : err,
     });
     sendError(res, 'INTERNAL_ERROR', requestId);
   };

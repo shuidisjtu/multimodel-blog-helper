@@ -6,7 +6,7 @@ import type { IdGenerator } from '../../../shared/ids.js';
  * 写入 res.locals.requestId 供路由与错误中间件使用, 并设置 X-Request-Id 响应头。
  */
 export function requestIdMiddleware(ids: IdGenerator) {
-  return (req: Request, res: Response, next: NextFunction): void => {
+  return (_req: Request, res: Response, next: NextFunction): void => {
     const requestId = ids.nextId();
     res.locals.requestId = requestId;
     res.setHeader('X-Request-Id', requestId);
