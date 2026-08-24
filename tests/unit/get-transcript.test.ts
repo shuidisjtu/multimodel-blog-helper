@@ -9,10 +9,18 @@ const FIXED_NOW = '2026-08-24T08:00:00.000Z';
 
 class FakeLogger implements Logger {
   readonly calls: LogFields[] = [];
-  debug(f: LogFields): void { this.calls.push({ ...f, level: 'debug' }); }
-  info(f: LogFields): void { this.calls.push({ ...f, level: 'info' }); }
-  warn(f: LogFields): void { this.calls.push({ ...f, level: 'warn' }); }
-  error(f: LogFields): void { this.calls.push({ ...f, level: 'error' }); }
+  debug(f: LogFields): void {
+    this.calls.push({ ...f, level: 'debug' });
+  }
+  info(f: LogFields): void {
+    this.calls.push({ ...f, level: 'info' });
+  }
+  warn(f: LogFields): void {
+    this.calls.push({ ...f, level: 'warn' });
+  }
+  error(f: LogFields): void {
+    this.calls.push({ ...f, level: 'error' });
+  }
 }
 
 class InMemoryJobRepo implements JobRepository {
@@ -22,13 +30,27 @@ class InMemoryJobRepo implements JobRepository {
     if (this.getError !== undefined) throw this.getError;
     return this.jobs.get(id) ?? null;
   }
-  async create(): Promise<BlogJob> { throw new Error('not used in GetTranscript tests'); }
-  async createOrGetByIdempotencyKey(): Promise<never> { throw new Error('not used'); }
-  async update(): Promise<BlogJob> { throw new Error('not used'); }
-  async listRecoverable(): Promise<BlogJob[]> { return []; }
-  async listInProgress(): Promise<BlogJob[]> { return []; }
-  async listExpired(): Promise<BlogJob[]> { return []; }
-  async remove(): Promise<void> { throw new Error('not used'); }
+  async create(): Promise<BlogJob> {
+    throw new Error('not used in GetTranscript tests');
+  }
+  async createOrGetByIdempotencyKey(): Promise<never> {
+    throw new Error('not used');
+  }
+  async update(): Promise<BlogJob> {
+    throw new Error('not used');
+  }
+  async listRecoverable(): Promise<BlogJob[]> {
+    return [];
+  }
+  async listInProgress(): Promise<BlogJob[]> {
+    return [];
+  }
+  async listExpired(): Promise<BlogJob[]> {
+    return [];
+  }
+  async remove(): Promise<void> {
+    throw new Error('not used');
+  }
 }
 
 class StubFiles implements FileStore {
@@ -37,9 +59,15 @@ class StubFiles implements FileStore {
     if (this.readError !== undefined) throw this.readError;
     return Buffer.from('transcript text', 'utf8');
   }
-  async saveInput(): Promise<{ path: string; sha256: string }> { throw new Error('not used'); }
-  async saveOutput(): Promise<{ path: string }> { throw new Error('not used'); }
-  async deleteJobFiles(): Promise<number> { throw new Error('not used'); }
+  async saveInput(): Promise<{ path: string; sha256: string }> {
+    throw new Error('not used');
+  }
+  async saveOutput(): Promise<{ path: string }> {
+    throw new Error('not used');
+  }
+  async deleteJobFiles(): Promise<number> {
+    throw new Error('not used');
+  }
 }
 
 function makeJob(overrides: Partial<BlogJob> = {}): BlogJob {
@@ -47,7 +75,13 @@ function makeJob(overrides: Partial<BlogJob> = {}): BlogJob {
     id: 'job-1',
     requestId: 'req-1',
     status: 'queued',
-    input: { path: '/tmp/uploads/job-1/input.mp3', originalName: 'demo.mp3', mimeType: 'audio/mpeg', bytes: 1024, sha256: 'abc' },
+    input: {
+      path: '/tmp/uploads/job-1/input.mp3',
+      originalName: 'demo.mp3',
+      mimeType: 'audio/mpeg',
+      bytes: 1024,
+      sha256: 'abc',
+    },
     createdAt: FIXED_NOW,
     updatedAt: FIXED_NOW,
     expiresAt: '2026-08-25T08:00:00.000Z',
@@ -72,7 +106,14 @@ async function expectCode(p: Promise<unknown>, code: string): Promise<void> {
 describe('GetTranscript(架构文档 §5 + openapi downloadTranscript)', () => {
   it('succeeded 任务 → 返回 UTF-8 转录文本', async () => {
     const { repo, useCase } = setup();
-    repo.jobs.set('s1', makeJob({ id: 's1', status: 'succeeded', result: { transcriptPath: '/tmp/outputs/s1/transcript.txt', summary: 's', model: 'm' } }));
+    repo.jobs.set(
+      's1',
+      makeJob({
+        id: 's1',
+        status: 'succeeded',
+        result: { transcriptPath: '/tmp/outputs/s1/transcript.txt', summary: 's', model: 'm' },
+      }),
+    );
     await expect(useCase.run('s1')).resolves.toBe('transcript text');
   });
 
@@ -94,7 +135,14 @@ describe('GetTranscript(架构文档 §5 + openapi downloadTranscript)', () => {
       repo.jobs.set(`j-${status}`, makeJob({ id: `j-${status}`, status }));
       await expectCode(useCase.run(`j-${status}`), 'JOB_NOT_READY');
     }
-    repo.jobs.set('f1', makeJob({ id: 'f1', status: 'failed', failure: { code: 'INTERNAL_ERROR', safeMessage: 'Processing failed' } }));
+    repo.jobs.set(
+      'f1',
+      makeJob({
+        id: 'f1',
+        status: 'failed',
+        failure: { code: 'INTERNAL_ERROR', safeMessage: 'Processing failed' },
+      }),
+    );
     await expectCode(useCase.run('f1'), 'JOB_NOT_READY');
   });
 
@@ -106,7 +154,14 @@ describe('GetTranscript(架构文档 §5 + openapi downloadTranscript)', () => {
 
   it('产物文件缺失(ENOENT)→ JOB_NOT_READY, 日志只记 ioError 不含路径', async () => {
     const { repo, files, logger, useCase } = setup();
-    repo.jobs.set('s1', makeJob({ id: 's1', status: 'succeeded', result: { transcriptPath: '/tmp/out/s1/transcript.txt', summary: 's', model: 'm' } }));
+    repo.jobs.set(
+      's1',
+      makeJob({
+        id: 's1',
+        status: 'succeeded',
+        result: { transcriptPath: '/tmp/out/s1/transcript.txt', summary: 's', model: 'm' },
+      }),
+    );
     const err = new Error('ENOENT: no such file or directory, open');
     (err as NodeJS.ErrnoException).code = 'ENOENT';
     files.readError = err;
@@ -121,7 +176,14 @@ describe('GetTranscript(架构文档 §5 + openapi downloadTranscript)', () => {
 
   it('其他读错误(EACCES)→ INTERNAL_ERROR 且日志只记 ioError', async () => {
     const { repo, files, logger, useCase } = setup();
-    repo.jobs.set('s1', makeJob({ id: 's1', status: 'succeeded', result: { transcriptPath: '/tmp/out/s1/transcript.txt', summary: 's', model: 'm' } }));
+    repo.jobs.set(
+      's1',
+      makeJob({
+        id: 's1',
+        status: 'succeeded',
+        result: { transcriptPath: '/tmp/out/s1/transcript.txt', summary: 's', model: 'm' },
+      }),
+    );
     const err = new Error('EACCES: permission denied, open');
     (err as NodeJS.ErrnoException).code = 'EACCES';
     files.readError = err;

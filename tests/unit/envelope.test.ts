@@ -67,7 +67,10 @@ describe('HTTP 信封(openapi.yaml §components.schemas)', () => {
       expiresAt: '2026-08-25T08:00:00.000Z',
       failure: { code: 'WEATHER_UNAVAILABLE', safeMessage: 'Weather service is unavailable' },
     });
-    expect(view.failure).toEqual({ code: 'WEATHER_UNAVAILABLE', message: 'Weather service is unavailable' });
+    expect(view.failure).toEqual({
+      code: 'WEATHER_UNAVAILABLE',
+      message: 'Weather service is unavailable',
+    });
     expect(view).not.toHaveProperty('transcriptUrl');
     expect(view).not.toHaveProperty('summary');
   });
