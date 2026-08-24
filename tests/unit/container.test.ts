@@ -48,6 +48,8 @@ describe('buildContainer(架构文档 §3.1 bootstrap 职责)', () => {
     expect(deps.processJob).toBeDefined();
     expect(deps.worker).toBeDefined();
     expect(deps.recover).toBeDefined();
+    expect(deps.queryJob).toBeDefined();
+    expect(deps.getTranscript).toBeDefined();
     expect(deps.logger).toBeDefined();
     expect(deps.ids).toBeDefined();
     expect(deps.clock).toBeDefined();
