@@ -117,3 +117,145 @@ describe('POST /api/v1/audio-jobs(openapi.yaml submitAudioJob)', () => {
     expect(ctx.queue.size()).toBe(1);
   });
 });
+
+describe('POST /api/v1/audio-jobs: 幂等与错误场景(openapi.yaml)', () => {
+  function formWith(bytes: Uint8Array<ArrayBufferLike>, mime: string): FormData {
+    const form = new FormData();
+    // BlobPart 要求 ArrayBuffer 背衬视图; Buffer/Uint8Array<ArrayBufferLike> 不直接可赋, 复制一份(字节不变)
+    form.set('file', new Blob([new Uint8Array(bytes)], { type: mime }), 'demo.mp3');
+    return form;
+  }
+
+  it('同 Idempotency-Key 同文件重放 → 200 replayed=true, 返回原 Job 且不再次入队', async () => {
+    const key = 'idem-same-file';
+    const first = await fetch(`${ctx.baseUrl}/api/v1/audio-jobs`, {
+      method: 'POST',
+      headers: { 'Idempotency-Key': key },
+      body: formWith(mp3Bytes(), 'audio/mpeg'),
+    });
+    expect(first.status).toBe(202);
+    const firstBody = (await first.json()) as { data: { id: string; replayed: boolean } };
+    const queueAfterFirst = ctx.queue.size();
+
+    const second = await fetch(`${ctx.baseUrl}/api/v1/audio-jobs`, {
+      method: 'POST',
+      headers: { 'Idempotency-Key': key },
+      body: formWith(mp3Bytes(), 'audio/mpeg'),
+    });
+    expect(second.status).toBe(200);
+    const secondBody = (await second.json()) as {
+      data: { id: string; replayed: boolean };
+      requestId: string;
+    };
+    expect(secondBody.data.id).toBe(firstBody.data.id);
+    expect(secondBody.data.replayed).toBe(true);
+    expect(secondBody.requestId).toBe(second.headers.get('x-request-id'));
+    expect(ctx.queue.size()).toBe(queueAfterFirst);
+  });
+
+  it('同 Idempotency-Key 不同文件 → 409 IDEMPOTENCY_CONFLICT', async () => {
+    const key = 'idem-conflict-key';
+    const bytesA = Buffer.concat([mp3Bytes(), Buffer.from([0x00])]);
+    const bytesB = Buffer.concat([mp3Bytes(), Buffer.from([0xff])]);
+    const first = await fetch(`${ctx.baseUrl}/api/v1/audio-jobs`, {
+      method: 'POST',
+      headers: { 'Idempotency-Key': key },
+      body: formWith(bytesA, 'audio/mpeg'),
+    });
+    expect(first.status).toBe(202);
+    const second = await fetch(`${ctx.baseUrl}/api/v1/audio-jobs`, {
+      method: 'POST',
+      headers: { 'Idempotency-Key': key },
+      body: formWith(bytesB, 'audio/mpeg'),
+    });
+    expect(second.status).toBe(409);
+    expect(await second.json()).toMatchObject({
+      error: { code: 'IDEMPOTENCY_CONFLICT', message: 'Idempotency key conflict' },
+    });
+  });
+
+  it('时长超上限 → 400 AUDIO_TOO_LONG', async () => {
+    const blocked = await buildTestApp({ probe: { probe: async () => 9999 } });
+    try {
+      const res = await fetch(`${blocked.baseUrl}/api/v1/audio-jobs`, {
+        method: 'POST',
+        body: formWith(mp3Bytes(), 'audio/mpeg'),
+      });
+      expect(res.status).toBe(400);
+      expect(await res.json()).toMatchObject({ error: { code: 'AUDIO_TOO_LONG' } });
+    } finally {
+      await blocked.close();
+      await rm(blocked.tempDir, { recursive: true, force: true });
+    }
+  });
+
+  it('超过大小上限; multer LIMIT_FILE_SIZE → 413', async () => {
+    const small = await buildTestApp({ maxUploadBytes: 8 });
+    try {
+      const res = await fetch(`${small.baseUrl}/api/v1/audio-jobs`, {
+        method: 'POST',
+        body: formWith(mp3Bytes(), 'audio/mpeg'),
+      });
+      expect(res.status).toBe(413);
+      expect(await res.json()).toMatchObject({ error: { code: 'FILE_TOO_LARGE' } });
+    } finally {
+      await small.close();
+      await rm(small.tempDir, { recursive: true, force: true });
+    }
+  });
+
+  it('MIME 不在白名单 → 415 UNSUPPORTED_MEDIA_TYPE', async () => {
+    const res = await fetch(`${ctx.baseUrl}/api/v1/audio-jobs`, {
+      method: 'POST',
+      body: formWith(mp3Bytes(), 'text/plain'),
+    });
+    expect(res.status).toBe(415);
+    expect(await res.json()).toMatchObject({ error: { code: 'UNSUPPORTED_MEDIA_TYPE' } });
+  });
+
+  it('音频 MIME 但魔数不匹配 → 415', async () => {
+    const res = await fetch(`${ctx.baseUrl}/api/v1/audio-jobs`, {
+      method: 'POST',
+      body: formWith(Buffer.from('not an audio file at all!!'), 'audio/mpeg'),
+    });
+    expect(res.status).toBe(415);
+  });
+
+  it('空文件 → 400 INVALID_FILE', async () => {
+    const res = await fetch(`${ctx.baseUrl}/api/v1/audio-jobs`, {
+      method: 'POST',
+      body: formWith(Buffer.alloc(0), 'audio/mpeg'),
+    });
+    expect(res.status).toBe(400);
+    expect(await res.json()).toMatchObject({ error: { code: 'INVALID_FILE' } });
+  });
+
+  it('缺少 file 字段 → 400 INVALID_FILE', async () => {
+    const form = new FormData();
+    form.set('note', 'no file here');
+    const res = await fetch(`${ctx.baseUrl}/api/v1/audio-jobs`, { method: 'POST', body: form });
+    expect(res.status).toBe(400);
+    expect(await res.json()).toMatchObject({ error: { code: 'INVALID_FILE' } });
+  });
+
+  it('队列满 → 503 QUEUE_FULL 且携带 Retry-After', async () => {
+    const full = await buildTestApp({ queueMaxLength: 1 });
+    try {
+      const first = await fetch(`${full.baseUrl}/api/v1/audio-jobs`, {
+        method: 'POST',
+        body: formWith(mp3Bytes(), 'audio/mpeg'),
+      });
+      expect(first.status).toBe(202);
+      const second = await fetch(`${full.baseUrl}/api/v1/audio-jobs`, {
+        method: 'POST',
+        body: formWith(mp3Bytes(), 'audio/mpeg'),
+      });
+      expect(second.status).toBe(503);
+      expect(second.headers.get('retry-after')).toBe('1');
+      expect(await second.json()).toMatchObject({ error: { code: 'QUEUE_FULL' } });
+    } finally {
+      await full.close();
+      await rm(full.tempDir, { recursive: true, force: true });
+    }
+  });
+});
