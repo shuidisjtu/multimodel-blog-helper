@@ -372,7 +372,92 @@ describe('SubmitAudio(架构文档 §5/§6.1-§6.2)', () => {
     expect(files.deletedJobIds).toEqual(['job-1']);
   });
 
-  it('队列预检满(queueMaxLength=0): 抛 QUEUE_FULL 且不落盘(saveInput/create 均未调用)', async () => {
+  it('队列满时同 key 同文件重放: 仍返回 replayed, 不受队列满影响(§6.2)', async () => {
+    const queue = new MemoryJobQueue(1, 1);
+    queue.enqueue('filler-1'); // 队列占满(无订阅, 仅占容量)
+    const { repo, files, useCase } = setup({ queue, queueMaxLength: 1 });
+    const existing: BlogJob = {
+      id: 'existing-1',
+      requestId: 'req-1',
+      status: 'queued',
+      input: {
+        path: '/tmp/uploads/existing-1/input.bin',
+        originalName: 'demo.mp3',
+        mimeType: 'audio/mpeg',
+        bytes: 15,
+        sha256: 'abc123',
+      },
+      idempotencyKey: 'key-1',
+      createdAt: FIXED_NOW,
+      updatedAt: FIXED_NOW,
+      expiresAt: '2026-08-13T00:00:00.000Z',
+    };
+    repo.jobs.set('existing-1', existing);
+    repo.createOrGetResult = { outcome: 'replayed', job: existing };
+
+    const outcome = await useCase.run(makeParams({ idempotencyKey: 'key-1' }));
+
+    expect(outcome.outcome).toBe('replayed'); // 不是 QUEUE_FULL
+    expect(outcome.job.id).toBe('existing-1');
+    expect(queue.size()).toBe(1); // 未再入队
+    expect(files.deletedJobIds).toEqual(['job-1']); // 落败者清理本次上传
+    expect(repo.removeCalls).toHaveLength(0); // 既有 job 不被删除
+  });
+
+  it('队列满时同 key 不同文件: 仍返回 conflict, 不受队列满影响(§6.2)', async () => {
+    const queue = new MemoryJobQueue(1, 1);
+    queue.enqueue('filler-1'); // 队列占满
+    const { repo, files, useCase } = setup({ queue, queueMaxLength: 1 });
+    const existing: BlogJob = {
+      id: 'existing-1',
+      requestId: 'req-1',
+      status: 'queued',
+      input: {
+        path: '/tmp/uploads/existing-1/input.bin',
+        originalName: 'demo.mp3',
+        mimeType: 'audio/mpeg',
+        bytes: 15,
+        sha256: 'different-sha',
+      },
+      idempotencyKey: 'key-1',
+      createdAt: FIXED_NOW,
+      updatedAt: FIXED_NOW,
+      expiresAt: '2026-08-13T00:00:00.000Z',
+    };
+    repo.jobs.set('existing-1', existing);
+    repo.createOrGetResult = { outcome: 'conflict', job: existing };
+
+    const outcome = await useCase.run(makeParams({ idempotencyKey: 'key-1' }));
+
+    expect(outcome.outcome).toBe('conflict'); // 不是 QUEUE_FULL
+    expect(outcome.job.id).toBe('existing-1');
+    expect(files.deletedJobIds).toEqual(['job-1']);
+    expect(repo.removeCalls).toHaveLength(0);
+  });
+
+  it('队列满时新建任务(有 key 走 createOrGet created): 回滚删除 Job 与文件后抛 QUEUE_FULL', async () => {
+    const queue = new MemoryJobQueue(1, 1);
+    queue.enqueue('filler-1'); // 队列占满
+    const { repo, files, useCase } = setup({ queue, queueMaxLength: 1 });
+
+    let thrown: unknown;
+    try {
+      await useCase.run(makeParams({ idempotencyKey: 'fresh-key' }));
+    } catch (e) {
+      thrown = e;
+    }
+    expect(thrown).toBeInstanceOf(DomainError);
+    expect((thrown as DomainError).code).toBe('QUEUE_FULL');
+    expect((thrown as DomainError).message).toBe('Queue is full, retry later');
+    expect(repo.jobs.has('job-1')).toBe(false); // 不留 Job 记录
+    expect(repo.removeCalls).toEqual(['job-1']); // 回滚: 删除新建 Job 记录
+    expect(files.deletedJobIds).toEqual(['job-1']); // 回滚: 删除输入文件
+    expect(queue.size()).toBe(1); // 占位任务未被波及
+  });
+
+  it('队列预检满(queueMaxLength=0): 新建任务落盘建库后预检回滚(remove + deleteJobFiles), 抛 QUEUE_FULL', async () => {
+    // 预检位置为"创建成功之后、入队之前"(§6.2): 新建任务先落盘建库, 再被预检回滚;
+    // 幂等重放/冲突不占队列, 不受队列满影响(见上文两个"队列满时"用例)
     const { repo, files, useCase } = setup({
       queue: new MemoryJobQueue(0, 1),
       queueMaxLength: 0,
@@ -387,9 +472,11 @@ describe('SubmitAudio(架构文档 §5/§6.1-§6.2)', () => {
     expect(thrown).toBeInstanceOf(DomainError);
     expect((thrown as DomainError).code).toBe('QUEUE_FULL');
     expect((thrown as DomainError).message).toBe('Queue is full, retry later');
-    expect(files.savedInputs).toHaveLength(0);
-    expect(repo.createCalls).toHaveLength(0);
-    expect(repo.removeCalls).toHaveLength(0);
+    expect(files.savedInputs).toHaveLength(1); // 先落盘
+    expect(repo.createCalls).toHaveLength(1); // 后建任务
+    expect(repo.jobs.has('job-1')).toBe(false); // 不留 Job 记录
+    expect(repo.removeCalls).toEqual(['job-1']); // 预检回滚: 删除 Job 记录
+    expect(files.deletedJobIds).toEqual(['job-1']); // 预检回滚: 删除输入文件
   });
 
   it('入队时 QUEUE_FULL: 回滚 remove + deleteJobFiles, 错误向上传播', async () => {

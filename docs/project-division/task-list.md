@@ -20,7 +20,7 @@
 
 | 编号 | 任务 | 前置 | 验收标准 | 状态/认领人 |
 | --- | --- | --- | --- | --- |
-| B1 | 上传受理接口（`POST /api/v1/audio-jobs`） | A3、B3 | 上传返回 `202`；`Idempotency-Key` 幂等（同 key 同文件返回原 Job，同 key 不同文件 `409`）；队列满返回 `503` | 待办/shuidisjtu |
+| B1 | 上传受理接口（`POST /api/v1/audio-jobs`） | A3、B3 | 上传返回 `202`；`Idempotency-Key` 幂等（同 key 同文件返回原 Job，同 key 不同文件 `409`）；队列满返回 `503` | ✅ 已完成 2026-08-24（`npm run verify` 全绿：lint/typecheck/check:docs/check:structure/184 测试/覆盖率 ≥89.7%；幂等重放不受队列满抑制，见提交 e422626） |
 | B2 | 任务查询与转录下载（`GET /audio-jobs/{id}`、`/transcript`） | B1 | 可查询状态、摘要并下载转录文本；过期返回 `410 JOB_EXPIRED`（tombstone） | 待办/shuidisjtu |
 | B3 | 上传校验与临时文件策略 | A1、A3 | 仅允许约定音频类型；≤25 MB；时长上限（解析失败时降级并记录）；随机存储名；`temp/` Git 忽略；tombstone 二次清理 | ✅ 已完成 |
 | B4 | `WeatherProvider` 与天气接口 | — | wttr.in 超时、异常或无效地点返回稳定业务错误，不泄漏上游细节 | 待办/ym-hello |
@@ -53,7 +53,7 @@
 
 **协作约定**：独立分支 `feature/b*-*` + PR；CI 门禁（C1）为必过项，失败不放行；B5 契约（OpenAPI yaml）先于接口实现评审；任务完成附验收证据（测试/运行记录，见 §3）。
 
-**推进时序**：T0 三人同时开工（B3 / B4 / C3）；T1 B3+B4 完成，B5 契约草案提交，B1 开工；当前已完成 B3 与 B5 契约文件，B1/B2/B4/B6 等 HTTP 实现仍待推进；T2 B1/B2 完成并契约互审；T3 B6 完成、B7 集成测试跑通；T4 C5/C6/C7/C8 收口。
+**推进时序**：T0 三人同时开工（B3 / B4 / C3）；T1 B3+B4 完成，B5 契约草案提交，B1 开工；当前已完成 B3、B5 契约文件 与 **B1（2026-08-24 完成，`feature/b1-upload-job` 共 9 提交）**，B2/B4/B6 等 HTTP 实现仍待推进；T2 B1/B2 完成并契约互审；T3 B6 完成、B7 集成测试跑通；T4 C5/C6/C7/C8 收口。
 
 ## 3. 执行原则（通用协作底线）
 

@@ -1,6 +1,7 @@
 /**
  * SubmitAudio 用例(架构文档 §5/§6.1-§6.2):受理上传并创建 queued 任务。
- * - 队列预检: 容量满直接 QUEUE_FULL, 不落盘任何数据(§6.2)
+ * - 队列预检: 仅对新建任务——创建成功、入队前检查容量, 满则回滚删除 Job 与文件后抛 QUEUE_FULL(§6.2);
+ *   幂等重放/冲突不占队列, 不受队列满影响(§6.2)
  * - 幂等: createOrGetByIdempotencyKey 三态, replayed/conflict 落败者清理本次上传文件(§5)
  * - 创建回滚: 输入落盘后 create/createOrGet 异常同样清理输入文件, 不留孤儿目录(§6.2)
  * - 入队回滚: 持久化后入队异常删除 Job 记录与输入文件(§6.2)
@@ -66,16 +67,12 @@ export class SubmitAudio {
   }
 
   private async createJob(params: SubmitAudioParams): Promise<SubmitAudioOutcome> {
-    // 1. 队列预检(同步): 容量满根本不写 Job, 磁盘不残留可恢复任务(§6.2)
-    if (this.deps.queue.size() >= this.deps.queueMaxLength) {
-      throw new DomainError('QUEUE_FULL', 'Queue is full, retry later');
-    }
-    // 2. jobId 唯一生成点: 任务 id 与文件目录一致
+    // 1. jobId 唯一生成点: 任务 id 与文件目录一致
     const jobId = this.deps.ids.nextId();
-    // 3. 过期时间 = now + jobTtlHours 小时(ISO 8601)
+    // 2. 过期时间 = now + jobTtlHours 小时(ISO 8601)
     const nowMs = Date.parse(this.deps.clock.now());
     const expiresAt = new Date(nowMs + this.deps.jobTtlHours * 3_600_000).toISOString();
-    // 4. 输入落盘
+    // 3. 输入落盘
     const { path, sha256 } = await this.deps.files.saveInput({
       jobId,
       originalName: params.originalName,
@@ -83,7 +80,7 @@ export class SubmitAudio {
       extension: params.extension,
       bytes: params.bytes,
     });
-    // 4.5 时长校验(§5): 落盘文件交给探针解析; 超长回滚清理后拒绝; 降级(null)视为未校验放行
+    // 3.5 时长校验(§5): 落盘文件交给探针解析; 超长回滚清理后拒绝; 降级(null)视为未校验放行
     const durationSec = await this.deps.durationProbe.probe(path);
     if (durationSec !== null && durationSec > this.deps.maxAudioDurationSeconds) {
       await this.deps.files.deleteJobFiles(jobId).catch((cleanupErr) => {
@@ -111,7 +108,7 @@ export class SubmitAudio {
       expiresAt,
       id: jobId,
     };
-    // 5. 创建任务: 有幂等 key 走三态创建, 无 key 走普通创建
+    // 4. 创建任务: 有幂等 key 走三态创建, 无 key 走普通创建
     let job: BlogJob;
     try {
       if (params.idempotencyKey !== undefined) {
@@ -134,6 +131,12 @@ export class SubmitAudio {
         this.deps.logger.error({ event: 'job.submit.cleanup_failed', jobId, error: cleanupErr });
       });
       throw err;
+    }
+    // 5. 入队预检(同步); 只对新建任务预检——幂等重放/冲突不占队列, 不受队列满影响(§6.2)
+    if (this.deps.queue.size() >= this.deps.queueMaxLength) {
+      await this.deps.jobs.remove(job.id);
+      await this.deps.files.deleteJobFiles(jobId);
+      throw new DomainError('QUEUE_FULL', 'Queue is full, retry later');
     }
     // 6. 入队(同步临界区); 异常回滚刚创建的 Job 记录与输入文件(§6.2)
     try {
