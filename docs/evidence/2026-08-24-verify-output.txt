@@ -1,0 +1,111 @@
+npm warn Unknown env config "python". This will stop working in the next major version of npm. See `npm help npmrc` for supported config options.
+
+> multimodel-blog-helper@0.1.0 verify
+> npm run lint && npm run typecheck && npm run check:docs && npm run check:structure && npm test && npx vitest run --coverage
+
+npm warn Unknown env config "python". This will stop working in the next major version of npm. See `npm help npmrc` for supported config options.
+
+> multimodel-blog-helper@0.1.0 lint
+> biome check src tests scripts
+
+Checked 63 files in 79ms. No fixes applied.
+npm warn Unknown env config "python". This will stop working in the next major version of npm. See `npm help npmrc` for supported config options.
+
+> multimodel-blog-helper@0.1.0 typecheck
+> tsc --noEmit
+
+npm warn Unknown env config "python". This will stop working in the next major version of npm. See `npm help npmrc` for supported config options.
+
+> multimodel-blog-helper@0.1.0 check:docs
+> tsx scripts/check-docs.ts
+
+-- rule-1 (0) --
+-- rule-2 (0) --
+-- rule-4 (0) --
+-- rule-5 (0) --
+All checks passed.
+npm warn Unknown env config "python". This will stop working in the next major version of npm. See `npm help npmrc` for supported config options.
+
+> multimodel-blog-helper@0.1.0 check:structure
+> tsx scripts/generate-structure.ts --check
+
+structure document is up to date
+npm warn Unknown env config "python". This will stop working in the next major version of npm. See `npm help npmrc` for supported config options.
+
+> multimodel-blog-helper@0.1.0 test
+> vitest run
+
+
+ RUN  v4.1.10 D:/ClaudeCodeProject/Multimodel_Blog_Helper
+
+
+ Test Files  29 passed (29)
+      Tests  207 passed (207)
+   Start at  18:04:35
+   Duration  2.01s (transform 3.19s, setup 0ms, import 6.50s, tests 4.11s, environment 8ms)
+
+npm warn Unknown env config "python". This will stop working in the next major version of npm. See `npm help npmrc` for supported config options.
+
+ RUN  v4.1.10 D:/ClaudeCodeProject/Multimodel_Blog_Helper
+      Coverage enabled with v8
+
+Failed to parse file:///D:/ClaudeCodeProject/Multimodel_Blog_Helper/src/interfaces/http/openapi.yaml. Excluding it from coverage.
+ Error [RolldownError]: Parse failed with 1 error:
+Expected a semicolon or an implicit semicolon after a statement, but found none
+1: openapi: 3.1.0
+               ^
+2: info:
+3:   title: Multimodel Blog Helper API
+    at error (file:///D:/ClaudeCodeProject/Multimodel_Blog_Helper/node_modules/rolldown/dist/shared/logs-DmYCAKcW.mjs:159:24)
+    at normalizeParseError (file:///D:/ClaudeCodeProject/Multimodel_Blog_Helper/node_modules/rolldown/dist/parse-ast-index.mjs:25:9)
+    at wrap (file:///D:/ClaudeCodeProject/Multimodel_Blog_Helper/node_modules/rolldown/dist/parse-ast-index.mjs:5:39)
+    at parseAstAsync (file:///D:/ClaudeCodeProject/Multimodel_Blog_Helper/node_modules/rolldown/dist/parse-ast-index.mjs:54:9)
+    at V8CoverageProvider.remapCoverage (file:///D:/ClaudeCodeProject/Multimodel_Blog_Helper/node_modules/@vitest/coverage-v8/dist/provider.js:133:10)
+    at file:///D:/ClaudeCodeProject/Multimodel_Blog_Helper/node_modules/@vitest/coverage-v8/dist/provider.js:119:23
+    at async Promise.all (index 3)
+    at V8CoverageProvider.getCoverageMapForUncoveredFiles (file:///D:/ClaudeCodeProject/Multimodel_Blog_Helper/node_modules/@vitest/coverage-v8/dist/provider.js:109:4)
+    at V8CoverageProvider.generateCoverage (file:///D:/ClaudeCodeProject/Multimodel_Blog_Helper/node_modules/@vitest/coverage-v8/dist/provider.js:56:29)
+    at file:///D:/ClaudeCodeProject/Multimodel_Blog_Helper/node_modules/vitest/dist/chunks/cli-api.BK8pd4xc.js:13604:23 {
+  code: 'PARSE_ERROR',
+  id: undefined,
+  pos: 12
+}
+
+ Test Files  29 passed (29)
+      Tests  207 passed (207)
+   Start at  18:04:38
+   Duration  2.20s (transform 3.02s, setup 0ms, import 6.46s, tests 5.22s, environment 7ms)
+
+ % Coverage report from v8
+-------------------|---------|----------|---------|---------|-------------------
+File               | % Stmts | % Branch | % Funcs | % Lines | Uncovered Line #s 
+-------------------|---------|----------|---------|---------|-------------------
+All files          |      92 |    89.74 |    92.8 |   93.83 |                   
+ application       |   99.43 |    98.71 |     100 |     100 |                   
+  ...transcript.ts |   95.65 |    95.45 |     100 |     100 | 13                
+ bootstrap         |   61.76 |    82.35 |   42.85 |   65.07 |                   
+  config.ts        |     100 |    93.33 |     100 |     100 | 73,77             
+  server.ts        |       0 |        0 |       0 |       0 | 11-51             
+ domain            |     100 |    96.87 |     100 |     100 |                   
+  audio-upload.ts  |     100 |    96.29 |     100 |     100 | 77                
+ ...ructure/common |     100 |     92.3 |     100 |     100 |                   
+  retry.ts         |     100 |    88.88 |     100 |     100 | 53                
+ ...tructure/queue |   96.15 |       90 |     100 |      96 |                   
+  ...-job-queue.ts |   96.15 |       90 |     100 |      96 | 50                
+ ...ure/repository |   85.98 |    82.14 |   95.83 |   90.07 |                   
+  ...repository.ts |   85.98 |    82.14 |   95.83 |   90.07 | ...47,274-275,327 
+ ...ucture/storage |   96.96 |    83.33 |     100 |     100 |                   
+  file-store.ts    |   96.96 |    83.33 |     100 |     100 | 57                
+ ...ttp/middleware |     100 |    83.33 |     100 |     100 |                   
+  error-handler.ts |     100 |    83.33 |     100 |     100 | 63,84             
+ ...es/http/routes |     100 |    81.81 |     100 |     100 |                   
+  ...-job-query.ts |     100 |     62.5 |     100 |     100 | 29-36             
+  audio-jobs.ts    |     100 |    92.85 |     100 |     100 | 25                
+-------------------|---------|----------|---------|---------|-------------------
+
+=============================== Coverage summary ===============================
+Statements   : 92% ( 587/638 )
+Branches     : 89.74% ( 280/312 )
+Functions    : 92.8% ( 116/125 )
+Lines        : 93.83% ( 563/600 )
+================================================================================

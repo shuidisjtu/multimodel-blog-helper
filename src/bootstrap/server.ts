@@ -9,7 +9,8 @@ import { buildContainer } from './container.js';
 
 async function main(): Promise<void> {
   const config = loadConfig();
-  const { logger, ids, submitAudio, worker, recover } = buildContainer(config);
+  const { logger, ids, submitAudio, queryJob, getTranscript, worker, recover } =
+    buildContainer(config);
   // 1. 恢复未完成任务(queued 重入队, 进行中标记中断)
   await recover.run();
   // 2. 启动 worker(消费队列)
@@ -17,6 +18,8 @@ async function main(): Promise<void> {
   // 3. 启动 HTTP 服务
   const app = createApp({
     submitAudio,
+    queryJob,
+    getTranscript,
     ids,
     logger,
     maxUploadBytes: config.storage.maxUploadBytes,

@@ -3,6 +3,8 @@ import type { AddressInfo } from 'node:net';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { GetTranscript } from '../../src/application/get-transcript.js';
+import { QueryJob } from '../../src/application/query-job.js';
 import { SubmitAudio } from '../../src/application/submit-audio.js';
 import type { AudioDurationProbe } from '../../src/domain/ports.js';
 import { MemoryJobQueue } from '../../src/infrastructure/queue/memory-job-queue.js';
@@ -69,8 +71,12 @@ async function buildTestApp(opts?: {
     durationProbe: probe,
     maxAudioDurationSeconds: 3600,
   });
+  const queryJob = new QueryJob({ jobs, clock, logger });
+  const getTranscript = new GetTranscript({ jobs, files, logger });
   const app = createApp({
     submitAudio,
+    queryJob,
+    getTranscript,
     ids,
     logger,
     maxUploadBytes: opts?.maxUploadBytes ?? 25 * 1024 * 1024,

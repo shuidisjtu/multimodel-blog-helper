@@ -3,8 +3,10 @@
  * 业务依赖全部经此单点注入, 禁止在其他文件 new 基础设施实例。
  */
 import OpenAI from 'openai';
+import { GetTranscript } from '../application/get-transcript.js';
 import { ProcessJob } from '../application/process-job.js';
 import { ProcessJobWorker } from '../application/process-job-worker.js';
+import { QueryJob } from '../application/query-job.js';
 import { RecoverJobs } from '../application/recover-jobs.js';
 import { SubmitAudio } from '../application/submit-audio.js';
 import { MusicMetadataDurationProbe } from '../infrastructure/common/music-metadata-duration-probe.js';
@@ -27,6 +29,8 @@ export interface AppDependencies {
   clock: Clock;
   ids: IdGenerator;
   submitAudio: SubmitAudio;
+  queryJob: QueryJob;
+  getTranscript: GetTranscript;
   processJob: ProcessJob;
   worker: ProcessJobWorker;
   recover: RecoverJobs;
@@ -52,6 +56,8 @@ export function buildContainer(config: AppConfig): AppDependencies {
     durationProbe,
     maxAudioDurationSeconds: config.limits.maxAudioDurationSeconds,
   });
+  const queryJob = new QueryJob({ jobs, clock, logger });
+  const getTranscript = new GetTranscript({ jobs, files, logger });
   const client = new OpenAI({ apiKey: config.openai.apiKey, baseURL: config.openai.baseUrl });
   const transcriber = new OpenAITranscriber(
     client,
@@ -82,5 +88,16 @@ export function buildContainer(config: AppConfig): AppDependencies {
   });
   const worker = new ProcessJobWorker({ queue, process: processJob, logger });
   const recover = new RecoverJobs({ jobs, queue, clock, logger });
-  return { config, logger, clock, ids, submitAudio, processJob, worker, recover };
+  return {
+    config,
+    logger,
+    clock,
+    ids,
+    submitAudio,
+    queryJob,
+    getTranscript,
+    processJob,
+    worker,
+    recover,
+  };
 }
