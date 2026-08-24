@@ -1,7 +1,7 @@
 # One-shot API demo verification (2026-08-24)
-# Covers steps 3-7 of docs/evidence/2026-08-24-api-demo-guide.md (plus a quick check on step 9).
+# Covers steps 3-7 of docs/evidence/demo/2026-08-24-api-demo-guide.md (plus a quick check on step 9).
 # Prereqs: service running at http://localhost:3000 (npm run dev); PowerShell 7 (pwsh); no system proxy.
-# Usage:  pwsh -NoProfile -ExecutionPolicy Bypass -File docs\evidence\2026-08-24-api-demo-check.ps1
+# Usage:  pwsh -NoProfile -ExecutionPolicy Bypass -File docs\evidence\demo\2026-08-24-api-demo-check.ps1
 
 $ErrorActionPreference = 'Stop'
 $base  = 'http://localhost:3000'

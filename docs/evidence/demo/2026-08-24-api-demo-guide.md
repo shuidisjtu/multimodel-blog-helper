@@ -27,7 +27,7 @@ npm run dev
 
 ## 3. 演示序列(终端 B,每步替换 <jobId>)
 
-> ☑️ **一键检验**:`pwsh -NoProfile -ExecutionPolicy Bypass -File docs\evidence\2026-08-24-api-demo-check.ps1`
+> ☑️ **一键检验**:`pwsh -NoProfile -ExecutionPolicy Bypass -File docs\evidence\demo\2026-08-24-api-demo-check.ps1`
 > (需 `pwsh` 而非 `powershell`——后者为 5.1,GBK 显示会乱码;脚本覆盖 ③-⑦ 与 ⑨ 快检,
 > 每个场景独立 PASS/FAIL 判定,2026-08-24 实测全部通过)
 

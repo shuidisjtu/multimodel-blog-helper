@@ -30,7 +30,7 @@
 - `npm run verify` 退出码为 0。
 - 23 个测试文件、158 个测试用例通过。
 - 覆盖率 Statements 95.13%、Branches 91.32%、Functions 98.95%、Lines 96.74%。
-- 详细终端和阻塞记录见 [`docs/evidence/2026-08-23-api-contract-and-verify.md`](../evidence/2026-08-23-api-contract-and-verify.md)。
+- 详细终端和阻塞记录见 [`docs/evidence/api-contract/2026-08-23-api-contract-and-verify.md`](../evidence/api-contract/2026-08-23-api-contract-and-verify.md)。
 
 ## 未完成与风险
 

@@ -1,7 +1,7 @@
 # API 演示检验记录(2026-08-24)
 
 > 日期:2026-08-24 ｜ 检验对象:B1 上传受理 + B2 查询/转录下载(契约见 `src/interfaces/http/openapi.yaml`)
-> 方法:一键脚本 `docs/evidence/2026-08-24-api-demo-check.ps1`(`pwsh`)+ 手动 curl,服务 `npm run dev`(Node 24.15,PowerShell 7.6.3,openai-hk 直连)
+> 方法:一键脚本 `docs/evidence/demo/2026-08-24-api-demo-check.ps1`(`pwsh`)+ 手动 curl,服务 `npm run dev`(Node 24.15,PowerShell 7.6.3,openai-hk 直连)
 > 结果:**6/6 场景通过**;①/②/⑧ 主链路实跑见 [demo-1 截图](2026-08-24-api-demo-1-submit-query-download.png)与 [demo-2 状态机日志截图](2026-08-24-api-demo-2-server-log.png)
 
 ## 检验结果
@@ -30,7 +30,7 @@
 ## 附:如何复检
 
 ```powershell
-pwsh -NoProfile -ExecutionPolicy Bypass -File docs\evidence\2026-08-24-api-demo-check.ps1
+pwsh -NoProfile -ExecutionPolicy Bypass -File docs\evidence\demo\2026-08-24-api-demo-check.ps1
 ```
 
 (需服务已启动;脚本自建幂等 key 和 WAV,每次运行独立;所有场景输出 `PASS/FAIL` 与汇总退出码。)

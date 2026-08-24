@@ -26,9 +26,9 @@
 
 ## 证据链接
 
-- 门禁：`npm run verify` 全绿——207 测试（29 文件）、覆盖率 Statements 92% / Branches 89.74% / Functions 92.8% / Lines 93.83%，lint/typecheck/check:docs/check:structure 通过；输出见 [2026-08-24-verify-output.txt](../evidence/2026-08-24-verify-output.txt)
+- 门禁：`npm run verify` 全绿——207 测试（29 文件）、覆盖率 Statements 92% / Branches 89.74% / Functions 92.8% / Lines 93.83%，lint/typecheck/check:docs/check:structure 通过；输出见 [2026-08-24-verify-output.txt](../evidence/verify/2026-08-24-verify-output.txt)
 - 转录下载实跑：集成测试 `tests/integration/audio-job-query.test.ts` 用真实 HTTP 服务 + 真实仓储/文件落盘，断言 text/plain 内容与 404/409/410 全场景
-- **实跑演示（2026-08-24）**：上传 → 查询（succeeded + 摘要 + transcriptUrl）→ 转录下载截图 [1](../evidence/2026-08-24-api-demo-1-submit-query-download.png)；服务端状态机日志（queued→transcribing→summarizing→succeeded，whisper-1 9009ms / gpt-4o 3276ms，retryCount 0）截图 [2](../evidence/2026-08-24-api-demo-2-server-log.png)；演示指引 [2026-08-24-api-demo-guide.md](../evidence/2026-08-24-api-demo-guide.md)
+- **实跑演示（2026-08-24）**：上传 → 查询（succeeded + 摘要 + transcriptUrl）→ 转录下载截图 [1](../evidence/demo/2026-08-24-api-demo-1-submit-query-download.png)；服务端状态机日志（queued→transcribing→summarizing→succeeded，whisper-1 9009ms / gpt-4o 3276ms，retryCount 0）截图 [2](../evidence/demo/2026-08-24-api-demo-2-server-log.png)；演示指引 [2026-08-24-api-demo-guide.md](../evidence/demo/2026-08-24-api-demo-guide.md)
 - 提交：`feature/b2-query-transcript` 6 个代码提交（GetTranscript 用例 → jobView 序列化 → 查询/下载路由 → 测试与格式 → 容器接线）；演示修复 2 个提交合并为 cbafff1
 
 ## 下一步
