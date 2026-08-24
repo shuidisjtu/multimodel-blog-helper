@@ -194,12 +194,13 @@ export class FileJobRepository implements JobRepository {
     };
   }
 
-  /** 原子写: 先写 <目标>.tmp 再 rename(§4.2), pretty-print 2 空格便于排障。 */
+  /** 原子写: 先写 <目标>.tmp 再 rename(§4.2), pretty-print 2 空格便于排障。
+   * Windows 上目标文件可能被杀毒/索引器瞬态短锁致 rename 报 EPERM(实测), 短退避重试。 */
   private async writeJobFile(job: BlogJob): Promise<void> {
     const filePath = this.jobFilePath(job.id);
     const tmpPath = `${filePath}.tmp`;
     await writeFile(tmpPath, JSON.stringify(job, null, 2), 'utf8');
-    await rename(tmpPath, filePath);
+    await renameWithEpermRetry(tmpPath, filePath);
   }
 
   /** 占位覆盖写(供 create 路径使用, 幂等创建互斥仍走 createOrGet 的 O_EXCL)。 */
@@ -295,6 +296,22 @@ export class FileJobRepository implements JobRepository {
   private placeholderPath(key: string): string {
     const digest = createHash('sha256').update(key).digest('hex');
     return join(this.keysDir, `${digest}.json`);
+  }
+}
+
+/** rename 的 EPERM 瞬态重试: 只重试 EPERM(平台锁, 常 2 次内消失); 其他错误立即抛。 */
+const RENAME_EPERM_ATTEMPTS = 5;
+
+async function renameWithEpermRetry(from: string, to: string): Promise<void> {
+  for (let attempt = 1; ; attempt++) {
+    try {
+      await rename(from, to);
+      return;
+    } catch (err) {
+      const code = (err as NodeJS.ErrnoException).code;
+      if (code !== 'EPERM' || attempt >= RENAME_EPERM_ATTEMPTS) throw err;
+      await new Promise((resolve) => setTimeout(resolve, 30 * attempt));
+    }
   }
 }
 
