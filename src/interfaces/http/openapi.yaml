@@ -102,7 +102,7 @@ paths:
               example:
                 error:
                   code: IDEMPOTENCY_CONFLICT
-                  message: Idempotency key was already used with different content
+                  message: Idempotency key conflict
                 requestId: req_01J9Z0N4
         '413':
           description: 文件超过大小上限
@@ -172,7 +172,7 @@ paths:
                   transcriptUrl: /api/v1/audio-jobs/job_01J9Z0N7M5J5P2FJ5Q7Y2V3W4X/transcript
                   summary: '- 要点一\n- 要点二'
                   model: gpt-4o
-                requestId: req_01J9Z0N4
+                requestId: req_01J9Z0N9
         '404':
           $ref: '#/components/responses/JobNotFound'
         '410':
@@ -509,6 +509,8 @@ components:
           type: string
           description: 安全的客户端可见错误消息。
         details:
+          type: object
+          additionalProperties: true
           description: 可选的、已脱敏的结构化错误细节；不得包含密钥、堆栈或上游原始响应。
 
     ErrorResponse:
@@ -576,34 +578,6 @@ components:
           minLength: 1
 
   responses:
-    InvalidFile:
-      description: 文件内容无效
-      headers:
-        X-Request-Id:
-          $ref: '#/components/headers/X-Request-Id'
-      content:
-        application/json:
-          schema:
-            $ref: '#/components/schemas/ErrorResponse'
-          example:
-            error:
-              code: INVALID_FILE
-              message: Invalid audio file
-            requestId: req_01J9Z0E1
-    AudioTooLong:
-      description: 音频超过最大时长
-      headers:
-        X-Request-Id:
-          $ref: '#/components/headers/X-Request-Id'
-      content:
-        application/json:
-          schema:
-            $ref: '#/components/schemas/ErrorResponse'
-          example:
-            error:
-              code: AUDIO_TOO_LONG
-              message: Audio duration exceeds limit
-            requestId: req_01J9Z0E2
     RateLimited:
       description: 请求超过接口限流
       headers:
