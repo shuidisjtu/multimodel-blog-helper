@@ -7,9 +7,9 @@ import { GetTranscript } from '../../src/application/get-transcript.js';
 import { QueryJob } from '../../src/application/query-job.js';
 import { SubmitAudio } from '../../src/application/submit-audio.js';
 import type { AudioDurationProbe } from '../../src/domain/ports.js';
-import { LocalFileStore } from '../../src/infrastructure/storage/file-store.js';
-import { FileJobRepository } from '../../src/infrastructure/repository/file-job-repository.js';
 import { MemoryJobQueue } from '../../src/infrastructure/queue/memory-job-queue.js';
+import { FileJobRepository } from '../../src/infrastructure/repository/file-job-repository.js';
+import { LocalFileStore } from '../../src/infrastructure/storage/file-store.js';
 import { createApp } from '../../src/interfaces/http/app.js';
 import type { Clock } from '../../src/shared/clock.js';
 import { systemIdGenerator } from '../../src/shared/ids.js';
@@ -17,10 +17,18 @@ import type { LogFields, Logger } from '../../src/shared/logger.js';
 
 class FakeLogger implements Logger {
   readonly calls: LogFields[] = [];
-  debug(f: LogFields): void { this.calls.push({ ...f, level: 'debug' }); }
-  info(f: LogFields): void { this.calls.push({ ...f, level: 'info' }); }
-  warn(f: LogFields): void { this.calls.push({ ...f, level: 'warn' }); }
-  error(f: LogFields): void { this.calls.push({ ...f, level: 'error' }); }
+  debug(f: LogFields): void {
+    this.calls.push({ ...f, level: 'debug' });
+  }
+  info(f: LogFields): void {
+    this.calls.push({ ...f, level: 'info' });
+  }
+  warn(f: LogFields): void {
+    this.calls.push({ ...f, level: 'warn' });
+  }
+  error(f: LogFields): void {
+    this.calls.push({ ...f, level: 'error' });
+  }
 }
 
 /** 最小合法 mp3(ID3v2 头)。 */
@@ -61,12 +69,22 @@ async function buildTestApp(): Promise<TestContext> {
   });
   const queryJob = new QueryJob({ jobs, clock, logger });
   const getTranscript = new GetTranscript({ jobs, files, logger });
-  const app = createApp({ submitAudio, queryJob, getTranscript, ids, logger, maxUploadBytes: 25 * 1024 * 1024 });
+  const app = createApp({
+    submitAudio,
+    queryJob,
+    getTranscript,
+    ids,
+    logger,
+    maxUploadBytes: 25 * 1024 * 1024,
+  });
   const server = app.listen(0);
   const { port } = server.address() as AddressInfo;
   return {
     baseUrl: `http://127.0.0.1:${port}`,
-    close: () => new Promise<void>((resolve, reject) => server.close((err) => (err ? reject(err) : resolve()))),
+    close: () =>
+      new Promise<void>((resolve, reject) =>
+        server.close((err) => (err ? reject(err) : resolve())),
+      ),
     tempDir,
     jobs,
     files,
@@ -84,7 +102,11 @@ async function submitJob(baseUrl: string): Promise<string> {
 }
 
 /** 落盘转录产物并把任务推进到 succeeded。 */
-async function advanceToSucceeded(ctx: TestContext, id: string, content = '转录文本。'): Promise<void> {
+async function advanceToSucceeded(
+  ctx: TestContext,
+  id: string,
+  content = '转录文本。',
+): Promise<void> {
   const saved = await ctx.files.saveOutput({ jobId: id, kind: 'transcript', content });
   await ctx.jobs.update(id, (j) => ({
     ...j,
@@ -139,7 +161,9 @@ describe('GET /api/v1/audio-jobs/{id}(openapi.yaml getAudioJob)', () => {
     const res = await fetch(`${ctx.baseUrl}/api/v1/audio-jobs/${id}`);
     expect(res.status).toBe(200);
     const body = (await res.json()) as { data: Record<string, unknown> };
-    expect((body.data as { transcriptUrl: string }).transcriptUrl).toBe(`/api/v1/audio-jobs/${id}/transcript`);
+    expect((body.data as { transcriptUrl: string }).transcriptUrl).toBe(
+      `/api/v1/audio-jobs/${id}/transcript`,
+    );
     expect((body.data as { summary: string }).summary).toBe('摘要。');
     expect((body.data as { model: string }).model).toBe('gpt-4o');
     expect(Object.keys(body.data)).not.toContain('input');
@@ -149,7 +173,11 @@ describe('GET /api/v1/audio-jobs/{id}(openapi.yaml getAudioJob)', () => {
 
   it('failed → 200, failure { code, message }(失败可查询)', async () => {
     const id = await submitJob(ctx.baseUrl);
-    await ctx.jobs.update(id, (j) => ({ ...j, status: 'failed', failure: { code: 'INTERNAL_ERROR', safeMessage: 'Processing failed' } }));
+    await ctx.jobs.update(id, (j) => ({
+      ...j,
+      status: 'failed',
+      failure: { code: 'INTERNAL_ERROR', safeMessage: 'Processing failed' },
+    }));
 
     const res = await fetch(`${ctx.baseUrl}/api/v1/audio-jobs/${id}`);
     expect(res.status).toBe(200);
@@ -158,7 +186,9 @@ describe('GET /api/v1/audio-jobs/{id}(openapi.yaml getAudioJob)', () => {
   });
 
   it('不存在的任务 → 404 JOB_NOT_FOUND(错误信封)', async () => {
-    const res = await fetch(`${ctx.baseUrl}/api/v1/audio-jobs/01234567-89ab-cdef-0123-456789abcdef`);
+    const res = await fetch(
+      `${ctx.baseUrl}/api/v1/audio-jobs/01234567-89ab-cdef-0123-456789abcdef`,
+    );
     expect(res.status).toBe(404);
     const body = (await res.json()) as { error: { code: string; message: string } };
     expect(body.error.code).toBe('JOB_NOT_FOUND');
@@ -167,7 +197,9 @@ describe('GET /api/v1/audio-jobs/{id}(openapi.yaml getAudioJob)', () => {
   });
 
   it('非法 id(路径注入尝试)→ 404, 不泄路径/不 500', async () => {
-    const res = await fetch(`${ctx.baseUrl}/api/v1/audio-jobs/${encodeURIComponent('../../etc/passwd')}`);
+    const res = await fetch(
+      `${ctx.baseUrl}/api/v1/audio-jobs/${encodeURIComponent('../../etc/passwd')}`,
+    );
     expect(res.status).toBe(404);
     const body = (await res.json()) as { error: { code: string } };
     expect(body.error.code).toBe('JOB_NOT_FOUND');
@@ -206,7 +238,11 @@ describe('GET /api/v1/audio-jobs/{id}/transcript(openapi.yaml downloadTranscript
 
   it('failed → 409 JOB_NOT_READY', async () => {
     const id = await submitJob(ctx.baseUrl);
-    await ctx.jobs.update(id, (j) => ({ ...j, status: 'failed', failure: { code: 'INTERNAL_ERROR', safeMessage: 'Processing failed' } }));
+    await ctx.jobs.update(id, (j) => ({
+      ...j,
+      status: 'failed',
+      failure: { code: 'INTERNAL_ERROR', safeMessage: 'Processing failed' },
+    }));
     const res = await fetch(`${ctx.baseUrl}/api/v1/audio-jobs/${id}/transcript`);
     expect(res.status).toBe(409);
     const body = (await res.json()) as { error: { code: string } };
@@ -216,7 +252,15 @@ describe('GET /api/v1/audio-jobs/{id}/transcript(openapi.yaml downloadTranscript
   it('succeeded 但产物文件缺失(清理窗口)→ 409 JOB_NOT_READY', async () => {
     const id = await submitJob(ctx.baseUrl);
     // 直接把状态置为 succeeded 但不落盘产物文件(read 时 ENOENT)
-    await ctx.jobs.update(id, (j) => ({ ...j, status: 'succeeded', result: { transcriptPath: join(ctx.tempDir, 'outputs', id, 'transcript.txt'), summary: '摘要。', model: 'gpt-4o' } }));
+    await ctx.jobs.update(id, (j) => ({
+      ...j,
+      status: 'succeeded',
+      result: {
+        transcriptPath: join(ctx.tempDir, 'outputs', id, 'transcript.txt'),
+        summary: '摘要。',
+        model: 'gpt-4o',
+      },
+    }));
     const res = await fetch(`${ctx.baseUrl}/api/v1/audio-jobs/${id}/transcript`);
     expect(res.status).toBe(409);
     const body = (await res.json()) as { error: { code: string } };
@@ -224,7 +268,9 @@ describe('GET /api/v1/audio-jobs/{id}/transcript(openapi.yaml downloadTranscript
   });
 
   it('不存在的任务 → 404', async () => {
-    const res = await fetch(`${ctx.baseUrl}/api/v1/audio-jobs/01234567-89ab-cdef-0123-456789abcdef/transcript`);
+    const res = await fetch(
+      `${ctx.baseUrl}/api/v1/audio-jobs/01234567-89ab-cdef-0123-456789abcdef/transcript`,
+    );
     expect(res.status).toBe(404);
     const body = (await res.json()) as { error: { code: string } };
     expect(body.error.code).toBe('JOB_NOT_FOUND');
