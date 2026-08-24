@@ -49,6 +49,10 @@ describe('loadConfig(架构文档 §7.2)', () => {
     expect(config.logLevel).toBe('debug');
   });
 
+  it('非法 LOG_LEVEL 报错而非静默接受', () => {
+    expect(() => loadConfig({ ...BASE_ENV, LOG_LEVEL: 'verbose' })).toThrow(/LOG_LEVEL/);
+  });
+
   it('A4 新增配置: 摘要超时与重试次数默认值生效', () => {
     const config = loadConfig(BASE_ENV);
     expect(config.openai.summaryTimeoutMs).toBe(60000);

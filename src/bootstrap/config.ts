@@ -3,6 +3,7 @@
  * 所有 process.env 读取集中在此,禁止散落读取(架构文档 §11.2)。
  */
 import 'dotenv/config';
+import type { LogLevel } from '../shared/logger.js';
 
 export interface AppConfig {
   nodeEnv: string;
@@ -39,7 +40,7 @@ export interface AppConfig {
   metrics: {
     port: number;
   };
-  logLevel: string;
+  logLevel: LogLevel;
 }
 
 export class ConfigError extends Error {
@@ -110,6 +111,17 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
     metrics: {
       port: intEnv(env, 'METRICS_PORT', 9100, 1),
     },
-    logLevel: env.LOG_LEVEL ?? 'info',
+    logLevel: parseLogLevel(env.LOG_LEVEL),
   };
+}
+
+const LOG_LEVELS: readonly LogLevel[] = ['debug', 'info', 'warn', 'error'];
+
+/** LOG_LEVEL 白名单校验: 非法值启动即失败, 不静默降级(与数值配置同策略)。 */
+function parseLogLevel(raw: string | undefined): LogLevel {
+  const value = raw ?? 'info';
+  if (!LOG_LEVELS.includes(value as LogLevel)) {
+    throw new ConfigError(`Invalid LOG_LEVEL: ${value}`);
+  }
+  return value as LogLevel;
 }

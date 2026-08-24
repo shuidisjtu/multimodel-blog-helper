@@ -52,7 +52,7 @@ src/
       middleware/
         error-handler.ts <<< 新文件,补注释
         request-id.ts <<< 新文件,补注释
-      routes/
+      routes/ middleware/ schemas/ (planned) # B1/B2/B4/B6：路由、DTO 与中间件
         audio-jobs.ts <<< 新文件,补注释
       envelope.ts <<< 新文件,补注释
       app.ts <<< 新文件,补注释
@@ -77,6 +77,7 @@ tests/
     music-metadata-duration-probe.test.ts # 时长探针单测(真实 mp3 + 损坏文件降级)
     envelope.test.ts <<< 新文件,补注释
     error-handler.test.ts <<< 新文件,补注释
+    container.test.ts <<< 新文件,补注释
   integration/ # 跨模块集成测试
     cleanup-expired.test.ts
     file-job-repository.test.ts
