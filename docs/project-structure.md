@@ -26,6 +26,7 @@ src/
     process-job-worker.ts # 订阅队列消费的 worker
     cleanup-expired.ts # 过期任务清理编排
     get-transcript.ts # 转录文本下载用例(FileStore 经端口访问; 404/409/410/500 语义与 QueryJob 一致)
+    ask-weather.ts # 天气查询用例(WeatherProvider 编排与 requestId 日志)
   infrastructure/
     openai/
       transcriber.ts # whisper-1 转录适配器
@@ -41,7 +42,8 @@ src/
       file-job-repository.ts # jobs/ JSON 文件仓储
     storage/
       file-store.ts # 临时目录文件存储
-    weather/ (planned) # 待 B4
+    weather/
+      wttr-weather-provider.ts # wttr.in j1 适配器(超时/错误映射/Weather DTO)
   shared/
     logger.ts # 结构化 JSON 日志
     ids.ts # jobId/requestId 生成
@@ -54,6 +56,7 @@ src/
       routes/
         audio-jobs.ts # POST /api/v1/audio-jobs 上传受理(multer 内存暂存→校验→SubmitAudio→202/200/409)
         audio-job-query.ts # GET /api/v1/audio-jobs/{id} 查询与 /transcript 转录下载(UUID 校验, 非法一律 404)
+        weather.ts # POST /api/v1/assistant/weather 天气查询(DTO 校验→AskWeather→统一 JSON 信封)
       schemas/ (planned) # 待 B5(DTO 校验)
       envelope.ts # HTTP 响应信封(成功 data/requestId; 失败 error/requestId, 契约 §5)
       app.ts # Express 应用组装(requestId→路由→错误边界, async rejection 自动转发)
@@ -80,6 +83,8 @@ tests/
     error-handler.test.ts # 错误中间件单测(领域/multer/未知错误 → 状态码+信封+Retry-After)
     container.test.ts # buildContainer 组装单测(依赖注入完整性, §3.1)
     get-transcript.test.ts # GetTranscript 用例单测(成功/不存在/过期/未就绪/IO 错误)
+    ask-weather.test.ts # AskWeather 用例单测(委派、日志与未知错误归一)
+    wttr-weather-provider.test.ts # wttr.in 适配器单测(映射、超时与错误脱敏)
   integration/ # 跨模块集成测试
     cleanup-expired.test.ts
     file-job-repository.test.ts
@@ -87,6 +92,7 @@ tests/
     recover-with-real-repo.test.ts
     audio-jobs-route.test.ts # 上传受理集成测试(真实仓储/队列: 202/200/409/400/413/415/503 全场景)
     audio-job-query.test.ts # 查询与转录下载集成测试(真实仓储+真实文件: 200 全状态/404/409/410/路径注入)
+    weather-route.test.ts # 天气路由集成测试(200 envelope、DTO 校验、422/503 脱敏)
   e2e/ (planned) # 待 C6
   scripts/ # 脚本测试
     generate-structure.test.ts # 结构生成器测试
@@ -102,11 +108,11 @@ temp/               uploads/, outputs/      # 运行期文件(gitignored, 启动
 
 | 路径 | 内容 | 状态 |
 | --- | --- | --- |
-| `src/bootstrap/` | 环境配置集中加载与校验 + 容器组装 + 服务启停(架构文档 §3.1) | ✅ A2/B1;weather 待 B4 |
+| `src/bootstrap/` | 环境配置集中加载与校验 + 容器组装 + 服务启停(架构文档 §3.1) | ✅ A2/B1/B4 |
 | `src/domain/` | Job 状态机、领域错误、端口接口;不导入 SDK | ✅ A1–A2 |
 | `src/application/` | 用例编排(只依赖 domain + shared) | ✅ A3–A4 |
-| `src/infrastructure/` | OpenAI/队列/仓储/文件系统实现(适配器) | ✅ A2–A4;weather 待 B4 |
-| `src/interfaces/http/` | 路由、DTO 校验、中间件与 OpenAPI 契约 | ✅ B1 上传受理 + B2 查询/下载;B4/B6 待建;B5 `openapi.yaml` ✅ |
+| `src/infrastructure/` | OpenAI/队列/仓储/文件系统/天气实现(适配器) | ✅ A2–A4/B4 |
+| `src/interfaces/http/` | 路由、DTO 校验、中间件与 OpenAPI 契约 | ✅ B1/B2/B4;B5 `openapi.yaml` ✅ |
 | `src/shared/` | logger / ids / clock 基础工具 | ✅ |
 | `tests/` | 单元 + 集成测试(覆盖率门禁 80%) | ✅;e2e 待 C6 |
 | `fixtures/` | E2E 测试音频(随仓库分发) | ✅ |

@@ -3,6 +3,7 @@
  * 业务依赖全部经此单点注入, 禁止在其他文件 new 基础设施实例。
  */
 import OpenAI from 'openai';
+import { AskWeather } from '../application/ask-weather.js';
 import { GetTranscript } from '../application/get-transcript.js';
 import { ProcessJob } from '../application/process-job.js';
 import { ProcessJobWorker } from '../application/process-job-worker.js';
@@ -15,6 +16,7 @@ import { OpenAITranscriber } from '../infrastructure/openai/transcriber.js';
 import { MemoryJobQueue } from '../infrastructure/queue/memory-job-queue.js';
 import { FileJobRepository } from '../infrastructure/repository/file-job-repository.js';
 import { LocalFileStore } from '../infrastructure/storage/file-store.js';
+import { WttrWeatherProvider } from '../infrastructure/weather/wttr-weather-provider.js';
 import type { Clock } from '../shared/clock.js';
 import { systemClock } from '../shared/clock.js';
 import type { IdGenerator } from '../shared/ids.js';
@@ -31,6 +33,7 @@ export interface AppDependencies {
   submitAudio: SubmitAudio;
   queryJob: QueryJob;
   getTranscript: GetTranscript;
+  askWeather: AskWeather;
   processJob: ProcessJob;
   worker: ProcessJobWorker;
   recover: RecoverJobs;
@@ -58,6 +61,8 @@ export function buildContainer(config: AppConfig): AppDependencies {
   });
   const queryJob = new QueryJob({ jobs, clock, logger });
   const getTranscript = new GetTranscript({ jobs, files, logger });
+  const weather = new WttrWeatherProvider(config.weather.baseUrl, config.weather.timeoutMs);
+  const askWeather = new AskWeather({ weather, logger });
   const client = new OpenAI({ apiKey: config.openai.apiKey, baseURL: config.openai.baseUrl });
   const transcriber = new OpenAITranscriber(
     client,
@@ -96,6 +101,7 @@ export function buildContainer(config: AppConfig): AppDependencies {
     submitAudio,
     queryJob,
     getTranscript,
+    askWeather,
     processJob,
     worker,
     recover,

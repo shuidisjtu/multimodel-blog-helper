@@ -46,6 +46,12 @@ const RETRY_AFTER_BY_CODE: Partial<Record<ErrorCode, number>> = {
   RATE_LIMITED: 1,
 };
 
+function isInvalidJsonBody(err: unknown): boolean {
+  if (typeof err !== 'object' || err === null) return false;
+  const value = err as { status?: unknown; type?: unknown };
+  return value.status === 400 && value.type === 'entity.parse.failed';
+}
+
 function sendError(res: Response, code: ErrorCode, requestId: string): void {
   if (RETRY_AFTER_BY_CODE[code] !== undefined) {
     res.setHeader('Retry-After', String(RETRY_AFTER_BY_CODE[code]));
@@ -61,6 +67,11 @@ function sendError(res: Response, code: ErrorCode, requestId: string): void {
 export function errorHandler(logger: Logger): ErrorRequestHandler {
   return (err, _req, res, _next) => {
     const requestId = String(res.locals.requestId ?? '');
+    if (isInvalidJsonBody(err)) {
+      logger.warn({ event: 'http.invalid_json', requestId, errorCode: 'INVALID_LOCATION' });
+      sendError(res, 'INVALID_LOCATION', requestId);
+      return;
+    }
     if (err instanceof multer.MulterError) {
       const code: ErrorCode = err.code === 'LIMIT_FILE_SIZE' ? 'FILE_TOO_LARGE' : 'INVALID_FILE';
       logger.warn({ event: 'http.multer_error', requestId, errorCode: code, multerCode: err.code });

@@ -3,6 +3,7 @@ import type { AddressInfo } from 'node:net';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { AskWeather } from '../../src/application/ask-weather.js';
 import { GetTranscript } from '../../src/application/get-transcript.js';
 import { QueryJob } from '../../src/application/query-job.js';
 import { SubmitAudio } from '../../src/application/submit-audio.js';
@@ -69,10 +70,15 @@ async function buildTestApp(): Promise<TestContext> {
   });
   const queryJob = new QueryJob({ jobs, clock, logger });
   const getTranscript = new GetTranscript({ jobs, files, logger });
+  const askWeather = new AskWeather({
+    weather: { current: async (location) => ({ location, tempC: 20, description: 'Clear' }) },
+    logger,
+  });
   const app = createApp({
     submitAudio,
     queryJob,
     getTranscript,
+    askWeather,
     ids,
     logger,
     maxUploadBytes: 25 * 1024 * 1024,
