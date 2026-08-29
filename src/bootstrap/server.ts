@@ -9,7 +9,7 @@ import { buildContainer } from './container.js';
 
 async function main(): Promise<void> {
   const config = loadConfig();
-  const { logger, ids, submitAudio, queryJob, getTranscript, worker, recover } =
+  const { logger, ids, submitAudio, queryJob, getTranscript, askWeather, worker, recover } =
     buildContainer(config);
   // 1. 恢复未完成任务(queued 重入队, 进行中标记中断)
   await recover.run();
@@ -20,6 +20,7 @@ async function main(): Promise<void> {
     submitAudio,
     queryJob,
     getTranscript,
+    askWeather,
     ids,
     logger,
     maxUploadBytes: config.storage.maxUploadBytes,

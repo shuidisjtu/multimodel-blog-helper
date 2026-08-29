@@ -27,6 +27,8 @@ describe('loadConfig(架构文档 §7.2)', () => {
     expect(config.openai.apiKey).toBe('hk-test');
     expect(config.port).toBe(3000);
     expect(config.openai.transcribeTimeoutMs).toBe(600000);
+    expect(config.weather.baseUrl).toBe('https://wttr.in');
+    expect(config.weather.timeoutMs).toBe(15000);
     expect(config.limits.rateLimitUploadPerMinute).toBe(10);
     expect(config.metrics.port).toBe(9100);
     expect(config.nodeEnv).toBe('development');
@@ -53,6 +55,19 @@ describe('loadConfig(架构文档 §7.2)', () => {
     expect(() => loadConfig({ ...BASE_ENV, LOG_LEVEL: 'verbose' })).toThrow(/LOG_LEVEL/);
   });
 
+  it('天气配置: 显式覆盖、缺失与非法值校验', () => {
+    const config = loadConfig({
+      ...BASE_ENV,
+      WEATHER_BASE_URL: 'http://localhost:8080',
+      WEATHER_TIMEOUT_MS: '2500',
+    });
+    expect(config.weather).toEqual({ baseUrl: 'http://localhost:8080', timeoutMs: 2500 });
+    expect(() => loadConfig({ ...BASE_ENV, WEATHER_TIMEOUT_MS: 'abc' })).toThrow(ConfigError);
+    expect(() => loadConfig({ ...BASE_ENV, WEATHER_TIMEOUT_MS: '0' })).toThrow(ConfigError);
+    const missing = { ...BASE_ENV };
+    delete missing.WEATHER_BASE_URL;
+    expect(() => loadConfig(missing)).toThrow(/WEATHER_BASE_URL/);
+  });
   it('A4 新增配置: 摘要超时与重试次数默认值生效', () => {
     const config = loadConfig(BASE_ENV);
     expect(config.openai.summaryTimeoutMs).toBe(60000);

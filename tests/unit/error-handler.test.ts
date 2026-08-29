@@ -112,6 +112,42 @@ describe('errorHandler(架构文档 §8.1 错误边界, openapi.yaml 错误码�
     ).toBe(true);
   });
 
+  it('B4 天气错误: INVALID_LOCATION/WEATHER_UNAVAILABLE 使用稳定业务响应', () => {
+    const handler = errorHandler(new FakeLogger());
+    for (const [code, status, message] of [
+      ['INVALID_LOCATION', 422, 'Invalid location'],
+      ['WEATHER_UNAVAILABLE', 503, 'Weather service is unavailable'],
+    ] as const) {
+      const res = makeRes() as never;
+      handler(new DomainError(code, 'wttr raw body: secret'), {} as never, res, (() => {
+        throw new Error('next must not be called');
+      }) as never);
+      expect((res as { statusCode: number }).statusCode).toBe(status);
+      expect((res as { body: unknown }).body).toEqual({
+        error: { code, message },
+        requestId: 'req-abc',
+      });
+      expect(JSON.stringify((res as { body: unknown }).body)).not.toContain('secret');
+    }
+  });
+
+  it('畸形 JSON body → 422 INVALID_LOCATION 且不泄漏解析细节', () => {
+    const handler = errorHandler(new FakeLogger());
+    const res = makeRes() as never;
+    handler(
+      { status: 400, type: 'entity.parse.failed', message: 'private parser detail' },
+      {} as never,
+      res,
+      (() => {
+        throw new Error('next must not be called');
+      }) as never,
+    );
+    expect((res as { statusCode: number }).statusCode).toBe(422);
+    expect((res as { body: unknown }).body).toEqual({
+      error: { code: 'INVALID_LOCATION', message: 'Invalid location' },
+      requestId: 'req-abc',
+    });
+  });
   it('所有契约错误码都有稳定的 message 映射', () => {
     const handler = errorHandler(new FakeLogger());
     for (const code of [

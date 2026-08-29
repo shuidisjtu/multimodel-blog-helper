@@ -38,7 +38,7 @@
 
 ###  重构主线进度（本仓库的任务,以 task-list.md 为唯一权威参考）
 
-将第 3、4 章示例整合为可部署的学习研究型 HTTP 服务：上传音频 → 异步转录 + 摘要 → 查询/下载；另含天气工具调用、健康监测与 CI。方案与计划已冻结，按任务清单驱动。当前进度：**A1–A5、B3、B5 与 B1、B2 已完成**(架构 ADR / OpenAI 适配器 / 任务用例 / 重试超时策略 / 答辩材料 / 上传校验与临时文件策略 / OpenAPI 接口契约 / 上传受理与幂等 / 任务查询与转录下载,207 测试,覆盖率全维度 ≥89.7%)；下一步 B4(天气工具接口)。
+将第 3、4 章示例整合为可部署的学习研究型 HTTP 服务：上传音频 → 异步转录 + 摘要 → 查询/下载；另含天气工具调用、健康监测与 CI。方案与计划已冻结，按任务清单驱动。当前进度：**A1–A5、B3、B4、B5 与 B1、B2 已完成**(架构 ADR / OpenAI 适配器 / 任务用例 / 重试超时策略 / 答辩材料 / 上传校验与临时文件策略 / OpenAPI 接口契约 / 上传受理与幂等 / 任务查询与转录下载 / wttr.in 天气接口,237 测试)；B4 天气接口实跑证据见 [`docs/evidence/release-b4-20260829/`](docs/evidence/release-b4-20260829/2026-08-29-weather-demo-guide.md)，下一步为 B5 DTO/契约测试完善与 B6 防护。
 
 - **工程架构**：[`docs/architecture/architecture-design.md`](docs/architecture/architecture-design.md)(v1.3)
 - **任务计划**：[`docs/project-division/task-list.md`](docs/project-division/task-list.md)(20 项，含验收标准与依赖)
@@ -62,7 +62,7 @@ cp .env.example .env      # Windows: copy .env.example .env
 npm run verify
 ```
 
-> **当前阶段说明**：重构主线开发中（A1–A5、B3、B5、B1、B2 已完成：上传受理/查询/转录下载已可用，OpenAPI 契约已落地，服务功能演示见 [`docs/evidence/release-cbafff1/`](docs/evidence/release-cbafff1/2026-08-24-api-demo-guide.md)）。上面的快速开始验证的是**代码质量与测试环境**（依赖/类型/Lint/文档/结构/测试全绿）；`npm run dev` 可启动服务（需 .env 配置 key，见下）。可直接运行的教材示例见下方“快速开始(教材示例)” 。
+> **当前阶段说明**：重构主线开发中（A1–A5、B3、B4、B5、B1、B2 已完成：上传受理/查询/转录下载/天气查询已可用，OpenAPI 契约已落地，B4 实时天气演示见 [`docs/evidence/release-b4-20260829/`](docs/evidence/release-b4-20260829/2026-08-29-weather-demo-guide.md)，B1/B2 演示见 [`docs/evidence/release-cbafff1/`](docs/evidence/release-cbafff1/2026-08-24-api-demo-guide.md)）。上面的快速开始验证的是**代码质量与测试环境**（依赖/类型/Lint/文档/结构/测试全绿）；`npm run dev` 可启动服务（需 .env 配置 key，见下）。可直接运行的教材示例见下方“快速开始(教材示例)” 。
 
 **环境要求与已知坑**：
 

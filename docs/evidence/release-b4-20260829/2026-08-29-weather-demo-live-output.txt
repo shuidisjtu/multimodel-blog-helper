@@ -1,0 +1,48 @@
+B4 real wttr.in verification — 2026-08-29
+Repository: multimodel-blog-helper
+Endpoint: POST /api/v1/assistant/weather
+
+=== success: Shanghai (WEATHER_TIMEOUT_MS=15000, port 3000) ===
+$ curl.exe -sS -i -X POST http://127.0.0.1:3000/api/v1/assistant/weather -H "Content-Type: application/json" --data "{\"location\":\"Shanghai\"}"
+HTTP/1.1 200 OK
+X-Request-Id: 18e1f21e-d0d7-4b2a-b5f2-f7cfcaed5d94
+Content-Type: application/json; charset=utf-8
+Content-Length: 128
+ETag: W/"80-HN8vbFOJQJin+2G7NZpx7j41mFA"
+Date: Sat, 29 Aug 2026 02:53:40 GMT
+Connection: keep-alive
+Keep-Alive: timeout=5
+
+{"data":{"location":"Pootung","tempC":30,"description":"Patchy rain nearby"},"requestId":"18e1f21e-d0d7-4b2a-b5f2-f7cfcaed5d94"}
+
+=== invalid location: wttr.in unknown location (WEATHER_TIMEOUT_MS=15000, port 3000) ===
+$ curl.exe -sS -i -X POST http://127.0.0.1:3000/api/v1/assistant/weather -H "Content-Type: application/json" --data "{\"location\":\"this-location-does-not-exist-zzzz-987654\"}"
+HTTP/1.1 422 Unprocessable Entity
+X-Request-Id: 3d5d2946-7d3d-4813-9166-85c2eb3c40fc
+Content-Type: application/json; charset=utf-8
+Content-Length: 117
+ETag: W/"75-Q5GV+6LIl+uSrGJ/zAWTxin8VWg"
+Date: Sat, 29 Aug 2026 02:53:56 GMT
+Connection: keep-alive
+Keep-Alive: timeout=5
+
+{"error":{"code":"INVALID_LOCATION","message":"Invalid location"},"requestId":"3d5d2946-7d3d-4813-9166-85c2eb3c40fc"}
+
+=== timeout: real wttr.in (WEATHER_TIMEOUT_MS=1, isolated port 3001) ===
+$ curl.exe -sS -i -X POST http://127.0.0.1:3001/api/v1/assistant/weather -H "Content-Type: application/json" --data "{\"location\":\"Shanghai\"}"
+HTTP/1.1 503 Service Unavailable
+X-Request-Id: 10e6e055-9f4a-4dd4-afc8-ab6546afacd9
+Content-Type: application/json; charset=utf-8
+Content-Length: 134
+ETag: W/"86-BpWyH7iXBHYylbHaUd4PvEAAo+w"
+Date: Sat, 29 Aug 2026 02:57:26 GMT
+Connection: keep-alive
+Keep-Alive: timeout=5
+
+{"error":{"code":"WEATHER_UNAVAILABLE","message":"Weather service is unavailable"},"requestId":"10e6e055-9f4a-4dd4-afc8-ab6546afacd9"}
+
+=== verification ===
+- All three requests reached the running project service.
+- Success and error JSON requestId values match their X-Request-Id headers.
+- Error responses contain only stable public code/message values; no wttr.in URL, upstream body, Abort/timeout detail, stack, or secret.
+- Shanghai success returned live wttr.in data (location Pootung, 30 C, Patchy rain nearby).

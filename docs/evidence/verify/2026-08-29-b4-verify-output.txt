@@ -1,0 +1,109 @@
+
+> multimodel-blog-helper@0.1.0 verify
+> npm run lint && npm run typecheck && npm run check:docs && npm run check:structure && npm test && npx vitest run --coverage
+
+
+> multimodel-blog-helper@0.1.0 lint
+> biome check src tests scripts
+
+Checked 69 files in 40ms. No fixes applied.
+
+> multimodel-blog-helper@0.1.0 typecheck
+> tsc --noEmit
+
+
+> multimodel-blog-helper@0.1.0 check:docs
+> tsx scripts/check-docs.ts
+
+-- rule-1 (0) --
+-- rule-2 (0) --
+-- rule-4 (0) --
+-- rule-5 (0) --
+All checks passed.
+
+> multimodel-blog-helper@0.1.0 check:structure
+> tsx scripts/generate-structure.ts --check
+
+structure document is up to date
+
+> multimodel-blog-helper@0.1.0 test
+> vitest run
+
+
+ RUN  v4.1.10 G:/code/MultimodalBlogAssistant/multimodel-blog-helper
+
+
+ Test Files  32 passed (32)
+      Tests  237 passed (237)
+   Start at  10:59:32
+   Duration  1.69s (transform 2.09s, setup 0ms, import 5.33s, tests 3.78s, environment 4ms)
+
+
+ RUN  v4.1.10 G:/code/MultimodalBlogAssistant/multimodel-blog-helper
+      Coverage enabled with v8
+
+Failed to parse file:///G:/code/MultimodalBlogAssistant/multimodel-blog-helper/src/interfaces/http/openapi.yaml. Excluding it from coverage.
+ Error [RolldownError]: Parse failed with 1 error:
+Expected a semicolon or an implicit semicolon after a statement, but found none
+1: openapi: 3.1.0
+               ^
+2: info:
+3:   title: Multimodel Blog Helper API
+    at error (file:///G:/code/MultimodalBlogAssistant/multimodel-blog-helper/node_modules/rolldown/dist/shared/logs-DmYCAKcW.mjs:159:24)
+    at normalizeParseError (file:///G:/code/MultimodalBlogAssistant/multimodel-blog-helper/node_modules/rolldown/dist/parse-ast-index.mjs:25:9)
+    at wrap (file:///G:/code/MultimodalBlogAssistant/multimodel-blog-helper/node_modules/rolldown/dist/parse-ast-index.mjs:5:39)
+    at parseAstAsync (file:///G:/code/MultimodalBlogAssistant/multimodel-blog-helper/node_modules/rolldown/dist/parse-ast-index.mjs:54:9)
+    at V8CoverageProvider.remapCoverage (file:///G:/code/MultimodalBlogAssistant/multimodel-blog-helper/node_modules/@vitest/coverage-v8/dist/provider.js:133:10)
+    at file:///G:/code/MultimodalBlogAssistant/multimodel-blog-helper/node_modules/@vitest/coverage-v8/dist/provider.js:119:23
+    at async Promise.all (index 3)
+    at V8CoverageProvider.getCoverageMapForUncoveredFiles (file:///G:/code/MultimodalBlogAssistant/multimodel-blog-helper/node_modules/@vitest/coverage-v8/dist/provider.js:109:4)
+    at V8CoverageProvider.generateCoverage (file:///G:/code/MultimodalBlogAssistant/multimodel-blog-helper/node_modules/@vitest/coverage-v8/dist/provider.js:56:29)
+    at file:///G:/code/MultimodalBlogAssistant/multimodel-blog-helper/node_modules/vitest/dist/chunks/cli-api.BK8pd4xc.js:13604:23 {
+  code: 'PARSE_ERROR',
+  id: undefined,
+  pos: 12
+}
+
+ Test Files  32 passed (32)
+      Tests  237 passed (237)
+   Start at  10:59:35
+   Duration  1.85s (transform 2.06s, setup 0ms, import 5.65s, tests 4.09s, environment 4ms)
+
+ % Coverage report from v8
+-------------------|---------|----------|---------|---------|-------------------
+File               | % Stmts | % Branch | % Funcs | % Lines | Uncovered Line #s 
+-------------------|---------|----------|---------|---------|-------------------
+All files          |   92.01 |    88.86 |      93 |   94.06 |                   
+ application       |   99.46 |    98.78 |     100 |     100 |                   
+  ...transcript.ts |   95.65 |    95.45 |     100 |     100 | 13                
+ bootstrap         |   62.85 |    82.35 |   42.85 |   66.15 |                   
+  config.ts        |     100 |    93.33 |     100 |     100 | 73,77             
+  server.ts        |       0 |        0 |       0 |       0 | 11-52             
+ domain            |     100 |    96.87 |     100 |     100 |                   
+  audio-upload.ts  |     100 |    96.29 |     100 |     100 | 77                
+ ...ructure/common |     100 |     92.3 |     100 |     100 |                   
+  retry.ts         |     100 |    88.88 |     100 |     100 | 53                
+ ...tructure/queue |   96.15 |       90 |     100 |      96 |                   
+  ...-job-queue.ts |   96.15 |       90 |     100 |      96 | 50                
+ ...ure/repository |   83.92 |     78.4 |    92.3 |   88.59 |                   
+  ...repository.ts |   83.92 |     78.4 |    92.3 |   88.59 | ...76,311-313,344 
+ ...ucture/storage |   96.96 |    83.33 |     100 |     100 |                   
+  file-store.ts    |   96.96 |    83.33 |     100 |     100 | 57                
+ ...ucture/weather |   95.91 |    88.37 |     100 |   97.72 |                   
+  ...r-provider.ts |   95.91 |    88.37 |     100 |   97.72 | 47                
+ ...ttp/middleware |   96.87 |       85 |     100 |     100 |                   
+  error-handler.ts |   96.29 |       85 |     100 |     100 | 50,69,95          
+ ...es/http/routes |     100 |    86.48 |     100 |     100 |                   
+  ...-job-query.ts |     100 |     62.5 |     100 |     100 | 29-36             
+  audio-jobs.ts    |     100 |    92.85 |     100 |     100 | 25                
+  weather.ts       |     100 |    93.33 |     100 |     100 | 33                
+-------------------|---------|----------|---------|---------|-------------------
+
+=============================== Coverage summary ===============================
+Statements   : 92.01% ( 680/739 )
+Branches     : 88.86% ( 343/386 )
+Functions    : 93% ( 133/143 )
+Lines        : 94.06% ( 650/691 )
+================================================================================
+
+[exit 0]

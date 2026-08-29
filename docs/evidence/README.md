@@ -11,6 +11,7 @@
 | `2026-08-22-verify-output.txt` | 全量门禁 `npm run verify` 输出（lint/typecheck/check-docs/check-structure/测试/覆盖率），158 测试全通过 | 2026-08-22 本机 |
 | `2026-08-22-coverage-output.txt` | 覆盖率报告：Statements 95.13% / Branches 91.32% / Functions 98.95% / Lines 96.74%（阈 ≥80%） | 2026-08-22 本机 |
 | `2026-08-24-verify-output.txt` | B2 完成态门禁输出：208 测试 / 覆盖率 Statements 92% / Branches 89.74% / Functions 92.8% / Lines 93.83% | 2026-08-24 本机 |
+| `2026-08-29-b4-verify-output.txt` | B4 完成态门禁输出：237 测试 / 覆盖率 Statements 92.01% / Branches 88.86% / Functions 93.00% / Lines 94.06% | 2026-08-29 本机 |
 
 ## api-contract/(OpenAPI 契约验证)
 
@@ -30,7 +31,19 @@
 | `2026-08-24-api-demo-check.ps1` | 一键检验脚本:③-⑦ + ⑨ 快检,每场景 PASS/FAIL 判定 | 2026-08-24 |
 | `2026-08-24-api-demo-check-results.md` | 检验结果记录:9 场景 预期→实测对照表 + 发现并修复的 2 个问题 | 2026-08-24 |
 
-## 口述截图归档(release-9d94f90,2026-08-22 截取核实)
+## release-b4-20260829/(功能演示：B4 天气接口，2026-08-29 实跑)
+
+> 对应尚未提交的 B4 工作树验证：真实 wttr.in 成功、未知地点与超时；自动化测试注入 fake fetch/provider，不访问公网。
+
+| 文件 | 内容 | 来源 |
+| --- | --- | --- |
+| `2026-08-29-weather-demo-guide.md` | 答辩演示指引：真实成功/无效地点/超时、启动、清理与排障；使用临时 UTF-8 JSON 文件避免 PowerShell 参数改写请求体 | 2026-08-29 |
+| `2026-08-29-weather-demo-check.ps1` | 一键检查脚本：按 `-Mode normal/timeout` 验证状态码、envelope、requestId 与脱敏；请求体通过临时文件传递 | 2026-08-29 |
+| `2026-08-29-weather-demo-check-results.md` | 实测结果记录：原始终端实跑、后续截图实跑与质量门禁摘要 | 2026-08-29 |
+| `2026-08-29-weather-demo-live-output.txt` | 首轮真实接口原始响应头/体：200、422、503 | 2026-08-29 实跑 |
+| `2026-08-29-weather-demo-1-success.png` | 后续终端截图：真实 wttr.in 成功查询返回 200 和一致的 requestId | 2026-08-29 实跑 |
+| `2026-08-29-weather-demo-2-invalid-location.png` | 后续终端截图：真实未知地点返回 422 `INVALID_LOCATION`，无上游原文 | 2026-08-29 实跑 |
+| `2026-08-29-weather-demo-3-timeout.png` | 后续终端截图：`WEATHER_TIMEOUT_MS=1` 下真实上游请求返回 503 `WEATHER_UNAVAILABLE` | 2026-08-29 实跑 |
 
 `release-9d94f90/`(对应 main 9d94f90):
 
