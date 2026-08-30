@@ -1,7 +1,7 @@
 # B4 天气接口真实验收记录（2026-08-29）
 
 > 验收对象：`POST /api/v1/assistant/weather`
-> 版本基线：`main` 工作树（实时验证时间：2026-08-29；B4 变更尚未创建提交）
+> 版本基线：远程 `main` 提交 `f7b79c8`（实时验证时间：2026-08-29；B4 已合并）
 > 上游：真实 `https://wttr.in`（未使用 mock）
 > 证据指南：[`2026-08-29-weather-demo-guide.md`](2026-08-29-weather-demo-guide.md)
 > 自动化脚本：[`2026-08-29-weather-demo-check.ps1`](2026-08-29-weather-demo-check.ps1)

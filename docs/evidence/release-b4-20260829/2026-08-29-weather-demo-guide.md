@@ -1,6 +1,6 @@
 # B4 天气接口真实演示指引
 
-> 日期：2026-08-29 ｜ 版本基线：`main` 工作树（B4 变更尚未创建提交）
+> 日期：2026-08-29 ｜ 版本基线：远程 `main` 提交 `f7b79c8`（B4 已合并）
 > 接口：`POST /api/v1/assistant/weather`
 > 上游：真实 `https://wttr.in`，不使用 mock；自动化单元/集成测试仍注入 fake fetch/provider，不访问公网。
 
