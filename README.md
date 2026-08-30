@@ -38,10 +38,10 @@
 
 ###  重构主线进度（本仓库的任务,以 task-list.md 为唯一权威参考）
 
-将第 3、4 章示例整合为可部署的学习研究型 HTTP 服务：上传音频 → 异步转录 + 摘要 → 查询/下载；另含天气工具调用、健康监测与 CI。方案与计划已冻结，按任务清单驱动。当前进度：**A1–A5、B3、B4、B5 与 B1、B2 已完成**(架构 ADR / OpenAI 适配器 / 任务用例 / 重试超时策略 / 答辩材料 / 上传校验与临时文件策略 / OpenAPI 接口契约 / 上传受理与幂等 / 任务查询与转录下载 / wttr.in 天气接口,237 测试)；B4 天气接口实跑证据见 [`docs/evidence/release-b4-20260829/`](docs/evidence/release-b4-20260829/2026-08-29-weather-demo-guide.md)，下一步为 B5 DTO/契约测试完善与 B6 防护。
+将第 3、4 章示例整合为单机可演示的学习研究型 HTTP 服务：上传音频 → 异步转录 + 摘要 → 查询/下载；另含天气工具调用与 CI。当前已完成 A1–A5、B1–B4、C1，以及 B5/B6 的基础部分；现有 237 项测试通过，覆盖率门禁达标。下一步为 B5 契约测试、B6 防护、B7 核心闭环验证和最小 Web 工作台；health/metrics 与完整运维治理属于后续按需增强，详见 [`task-list.md`](docs/project-division/task-list.md)。
 
-- **工程架构**：[`docs/architecture/architecture-design.md`](docs/architecture/architecture-design.md)(v1.3)
-- **任务计划**：[`docs/project-division/task-list.md`](docs/project-division/task-list.md)(20 项，含验收标准与依赖)
+- **工程架构**：[`docs/architecture/architecture-design.md`](docs/architecture/architecture-design.md)(v1.4)
+- **任务计划**：[`docs/project-division/task-list.md`](docs/project-division/task-list.md)(22 项，含验收标准与依赖)
 
 ## 重构项目快速开始
 
@@ -62,7 +62,7 @@ cp .env.example .env      # Windows: copy .env.example .env
 npm run verify
 ```
 
-> **当前阶段说明**：重构主线开发中（A1–A5、B3、B4、B5、B1、B2 已完成：上传受理/查询/转录下载/天气查询已可用，OpenAPI 契约已落地，B4 实时天气演示见 [`docs/evidence/release-b4-20260829/`](docs/evidence/release-b4-20260829/2026-08-29-weather-demo-guide.md)，B1/B2 演示见 [`docs/evidence/release-cbafff1/`](docs/evidence/release-cbafff1/2026-08-24-api-demo-guide.md)）。上面的快速开始验证的是**代码质量与测试环境**（依赖/类型/Lint/文档/结构/测试全绿）；`npm run dev` 可启动服务（需 .env 配置 key，见下）。可直接运行的教材示例见下方“快速开始(教材示例)” 。
+> **当前阶段说明**：重构主线开发中（A1–A5、B1–B4、C1 已完成，B5/B6 基础部分：上传受理/查询/转录下载/天气查询已可用，OpenAPI 契约已落地，B4 实时天气演示见 [`docs/evidence/release-b4-20260829/`](docs/evidence/release-b4-20260829/2026-08-29-weather-demo-guide.md)，B1/B2 演示见 [`docs/evidence/release-cbafff1/`](docs/evidence/release-cbafff1/2026-08-24-api-demo-guide.md)）。上面的快速开始验证的是**代码质量与测试环境**（依赖/类型/Lint/文档/结构/测试全绿）；`npm run dev` 可启动服务（需 .env 配置 key，见下）。可直接运行的教材示例见下方“快速开始(教材示例)” 。
 
 **环境要求与已知坑**：
 
@@ -104,7 +104,7 @@ node index.js
 - [`docs/architecture/architecture-design.md`](docs/architecture/architecture-design.md) — 工程架构设计（分层、状态机、接口契约、防护与观测；重构依据）
 - [`docs/project-structure.md`](docs/project-structure.md) — 工程目录结构（代码/测试/文档/运行产物的组织与落地状态）
 - [`docs/project-division/task-list.md`](docs/project-division/task-list.md) — 任务清单（任务、验收标准、依赖链）
-- [`docs/adr/`](docs/adr/) — 决策记录（ADR-0001~0004）
+- [`docs/adr/`](docs/adr/) — 决策记录（ADR-0001~0005）
 - [`docs/records/`](docs/records/) — 过程记录与答辩材料
 - [`docs/evidence/`](docs/evidence/) — 验收证据归档（运行命令输出、覆盖率记录）
 - [`CLAUDE.md`](CLAUDE.md) — 开发协作约定（SDK v2 差异、运行注意事项、中转站限制等），供 Claude Code 读取，该文件未上传到github中

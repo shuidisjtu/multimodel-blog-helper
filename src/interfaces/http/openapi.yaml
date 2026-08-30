@@ -254,6 +254,7 @@ paths:
           $ref: '#/components/responses/InternalError'
 
   /health/live:
+    x-implementation-status: planned
     get:
       tags: [Health]
       operationId: healthLive
@@ -275,6 +276,7 @@ paths:
                 requestId: req_01J9Z0L1
 
   /health/ready:
+    x-implementation-status: planned
     get:
       tags: [Health]
       operationId: healthReady
@@ -312,6 +314,7 @@ paths:
                 requestId: req_01J9Z0R2
 
   /metrics:
+    x-implementation-status: planned
     get:
       tags: [Metrics]
       operationId: getMetrics

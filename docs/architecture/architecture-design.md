@@ -1,6 +1,6 @@
 # OpenAI 多模态博客助手：工程架构设计文档
 
-> 文档版本：v1.3 ｜ 适用阶段：从第 3、4 章示例工程整合为可部署的学习研究型 HTTP 服务 ｜ 最后更新：2026-08-22
+> 文档版本：v1.4 ｜ 适用阶段：从第 3、4 章示例工程整合为可部署的学习研究型 HTTP 服务 ｜ 最后更新：2026-08-30
 
 ## 1. 目标、范围与边界
 
@@ -100,9 +100,9 @@ type BlogJob = {
 | `GET /api/v1/audio-jobs/{id}` | 查询任务与摘要 | `200` | `404 JOB_NOT_FOUND`、`410 JOB_EXPIRED` |
 | `GET /api/v1/audio-jobs/{id}/transcript` | 下载纯文本转录 | `200 text/plain` | `409 JOB_NOT_READY` |
 | `POST /api/v1/assistant/weather` | 触发天气工具调用 | `200` | `422 INVALID_LOCATION`、`429 RATE_LIMITED`、`503 WEATHER_UNAVAILABLE` |
-| `GET /health/live` | 进程存活 | `200` | 不探测外部依赖 |
-| `GET /health/ready` | 服务就绪 | `200/503` | 检查配置、temp 可写、任务仓储可读写、worker 已启动且队列可接收任务 |
-| `GET /metrics` | Prometheus 风格指标（内网），供 Prometheus/Grafana 可视化（答辩演示） | `200` | 生产环境需访问控制 |
+| `GET /health/live`（planned） | 进程存活 | `200` | 长期增强；当前版本未实现，不探测外部依赖 |
+| `GET /health/ready`（planned） | 服务就绪 | `200/503` | 长期增强；当前版本未实现，计划检查配置、temp、仓储、worker 与队列 |
+| `GET /metrics`（planned） | Prometheus 风格指标（内网） | `200` | 长期增强；当前版本未实现，实际部署需要时再接入 Prometheus/Grafana |
 
 上传默认限制：仅 `audio/mpeg`、`audio/wav`、`audio/mp4`、`audio/x-m4a`（相比教材示例 03-02 的 `audio/*` 前缀匹配，此处为有意收紧，防止伪造 MIME）；最大 25 MB（可配置，但不得超过转录提供方限制；上游官方明确限制为文件大小 25 MB，未规定时长）；文件名仅作展示，存储名由服务生成；拒绝路径分隔符和 MIME/魔数不一致的文件。
 
@@ -148,7 +148,8 @@ type BlogJob = {
 | `OPENAI_API_KEY`、`OPENAI_BASE_URL` | 是 | API 凭证与兼容网关地址 |
 | `OPENAI_TRANSCRIBE_MODEL`、`OPENAI_SUMMARY_MODEL` | 是 | 明确记录实际模型版本；转录默认 `whisper-1`（当前中转站仅支持该模型，可配置性为多平台预留） |
 | `TEMP_DIR`、`MAX_UPLOAD_BYTES`、`JOB_TTL_HOURS` | 是 | 本地存储策略 |
-| `WEATHER_BASE_URL`、`WEATHER_TIMEOUT_MS` | 是 | wttr.in 适配器配置 |
+| `WEATHER_BASE_URL` | 是 | wttr.in 适配器 base URL |
+| `WEATHER_TIMEOUT_MS` | 否 | wttr.in 适配器超时，默认 15000 |
 | `OPENAI_TRANSCRIBE_TIMEOUT_MS` | 否 | 转录上游超时，默认 600000（大文件转录耗时长，勿与普通请求超时共用） |
 | `OPENAI_SUMMARY_TIMEOUT_MS` | 否 | 摘要上游超时，默认 60000（摘要文本量小，不复用转录超时） |
 | `OPENAI_MAX_RETRIES` | 否 | 可恢复错误（网络/429/5xx）最大重试次数，默认 2（共 3 次尝试），0 表示不重试 |
@@ -175,9 +176,9 @@ type BlogJob = {
 
 日志采用 JSON，一行一个事件，至少含 `timestamp, level, requestId, jobId, event, durationMs, errorCode`；对文件名、文本内容、音频路径、Authorization、API key 做脱敏，禁止记录完整转录内容。
 
-核心指标：请求计数/延迟、上传拒绝数、队列深度、任务终态计数、各阶段耗时、OpenAI 与天气调用错误率、temp 占用。连续 `/health/live` 失败触发服务不可用告警；`/health/ready` 连续失败或 5 分钟任务失败率超过阈值触发通知。告警渠道（邮件/短信）通过运行环境或监控系统配置，应用只暴露健康和指标。
+健康检查、指标与告警属于实际部署后的长期增强：计划指标包括请求计数/延迟、上传拒绝数、队列深度、任务终态计数、各阶段耗时、OpenAI 与天气调用错误率和 temp 占用。当前单机答辩版本不实现 `/health/*`、`/metrics` 或告警；答辩以真实 API、自动化测试和录屏/截图作为运行证据。
 
-**可视化（答辩演示）**：部署 Prometheus 抓取 `/metrics`，Grafana 面板展示核心指标（请求量、任务终态分布、转录/摘要耗时、错误率、队列深度）。本地演示单机二进制即可，无需集群。
+**可视化（后续可选）**：实际部署时可由 Prometheus 抓取 `/metrics`，再用 Grafana 展示请求量、任务终态分布、转录/摘要耗时、错误率和队列深度。本轮答辩不以该能力作为验收前置。
 
 ## 9. 测试与质量门禁
 
@@ -224,5 +225,4 @@ PR 与主分支 push：检出 → 安装锁定依赖 → 格式/Lint/类型检�
 ## 12. 完成定义（Definition of Done）
 
 一个功能只有同时满足以下条件才算完成：接口在 OpenAPI 中定义；输入校验和错误码齐全；成功和关键失败路径有测试；日志可关联 requestId/jobId；配置与 secrets 不泄漏；必要 ADR/运行记录已更新；代码通过架构依赖规则和 CI 门禁；临时兼容代码写明删除计划。
-
 
