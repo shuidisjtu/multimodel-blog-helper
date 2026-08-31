@@ -152,6 +152,7 @@ describe('errorHandler(架构文档 §8.1 错误边界, openapi.yaml 错误码�
     const handler = errorHandler(new FakeLogger());
     for (const code of [
       'AUDIO_TOO_LONG',
+      'INVALID_IDEMPOTENCY_KEY',
       'IDEMPOTENCY_CONFLICT',
       'FILE_TOO_LARGE',
       'UNSUPPORTED_MEDIA_TYPE',

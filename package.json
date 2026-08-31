@@ -13,21 +13,26 @@
     "check:docs": "tsx scripts/check-docs.ts",
     "check:structure": "tsx scripts/generate-structure.ts --check",
     "structure:update": "tsx scripts/generate-structure.ts --update",
-    "verify": "npm run lint && npm run typecheck && npm run check:docs && npm run check:structure && npm test && npx vitest run --coverage",
-    "dev": "tsx watch src/bootstrap/server.ts"
+    "verify": "npm run lint && npm run lint:openapi && npm run typecheck && npm run check:docs && npm run check:structure && npm test && npx vitest run --coverage",
+    "dev": "tsx watch src/bootstrap/server.ts",
+    "lint:openapi": "redocly lint src/interfaces/http/openapi.yaml"
   },
   "engines": {
     "node": ">=24"
   },
   "devDependencies": {
     "@biomejs/biome": "^2.5.9",
+    "@redocly/cli": "^2.49.0",
     "@types/express": "^5.0.6",
     "@types/multer": "^2.2.0",
     "@types/node": "^26.2.0",
     "@vitest/coverage-v8": "^4.1.10",
+    "ajv": "^8.20.0",
+    "ajv-formats": "^3.0.1",
     "tsx": "^4.23.12",
     "typescript": "^7.0.2",
-    "vitest": "^4.1.10"
+    "vitest": "^4.1.10",
+    "yaml": "^2.9.0"
   },
   "dependencies": {
     "dotenv": "^17.4.2",

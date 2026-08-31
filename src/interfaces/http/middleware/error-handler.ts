@@ -8,6 +8,7 @@ import { errorEnvelope } from '../envelope.js';
 const STATUS_BY_CODE: Record<ErrorCode, number> = {
   INVALID_FILE: 400,
   AUDIO_TOO_LONG: 400,
+  INVALID_IDEMPOTENCY_KEY: 400,
   IDEMPOTENCY_CONFLICT: 409,
   FILE_TOO_LARGE: 413,
   UNSUPPORTED_MEDIA_TYPE: 415,
@@ -26,6 +27,7 @@ const STATUS_BY_CODE: Record<ErrorCode, number> = {
 const MESSAGE_BY_CODE: Record<ErrorCode, string> = {
   INVALID_FILE: 'Invalid audio file',
   AUDIO_TOO_LONG: 'Audio duration exceeds limit',
+  INVALID_IDEMPOTENCY_KEY: 'Invalid Idempotency-Key',
   IDEMPOTENCY_CONFLICT: 'Idempotency key conflict',
   FILE_TOO_LARGE: 'File is too large',
   UNSUPPORTED_MEDIA_TYPE: 'Unsupported media type',

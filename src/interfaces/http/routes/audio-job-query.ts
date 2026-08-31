@@ -1,18 +1,8 @@
 import { Router } from 'express';
 import type { GetTranscript } from '../../../application/get-transcript.js';
 import type { QueryJob } from '../../../application/query-job.js';
-import { DomainError } from '../../../domain/errors.js';
 import { jobView, successEnvelope } from '../envelope.js';
-
-/** 服务端生成 jobId 格式(randomUUID, shared/ids.ts); 校验失败视为不存在(404), 不暴露格式(§5 路径注入防御)。 */
-const JOB_ID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-
-function parseJobId(raw: string): string {
-  if (!JOB_ID_PATTERN.test(raw)) {
-    throw new DomainError('JOB_NOT_FOUND', 'Job not found');
-  }
-  return raw;
-}
+import { parseJobId } from '../schemas/job-id.js';
 
 /**
  * GET /api/v1/audio-jobs/{id} 与 /transcript(openapi.yaml getAudioJob / downloadTranscript):

@@ -12,12 +12,14 @@
 | `2026-08-22-coverage-output.txt` | 覆盖率报告：Statements 95.13% / Branches 91.32% / Functions 98.95% / Lines 96.74%（阈 ≥80%） | 2026-08-22 本机 |
 | `2026-08-24-verify-output.txt` | B2 完成态门禁输出：208 测试 / 覆盖率 Statements 92% / Branches 89.74% / Functions 92.8% / Lines 93.83% | 2026-08-24 本机 |
 | `2026-08-29-b4-verify-output.txt` | B4 完成态门禁输出：237 测试 / 覆盖率 Statements 92.01% / Branches 88.86% / Functions 93.00% / Lines 94.06% | 2026-08-29 本机 |
+| `2026-08-30-b5-dto-contract-tests.md` | B5 完成态验证：263 测试 / 覆盖率 Statements 92.06% / Branches 88.91% / Functions 93.05% / Lines 94.09% | 2026-08-31 本机 |
 
 ## api-contract/(OpenAPI 契约验证)
 
 | 文件 | 内容 | 来源 |
 | --- | --- | --- |
-| `2026-08-23-api-contract-and-verify.md` | B5 OpenAPI 契约落地及本机验证结果：质量门禁、158 测试、覆盖率与 HTTP 启动入口阻塞 | 2026-08-23 本机 |
+| `2026-08-23-api-contract-and-verify.md` | 早期 OpenAPI 契约落地记录；当时 HTTP server 尚未可用，保留作历史阻塞说明 | 2026-08-23 本机 |
+| `2026-08-30-b5-dto-contract-tests.md` | B5 完成态：共享 DTO、Redocly lint、OpenAPI 驱动 HTTP 契约测试及最终 verify 结果 | 2026-08-30 本机 |
 
 ## release-cbafff1/(功能演示:B1 上传受理 + B2 查询/转录下载,2026-08-24 实跑)
 
