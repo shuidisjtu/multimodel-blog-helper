@@ -55,9 +55,9 @@ paths:
                 $ref: '#/components/schemas/SuccessAudioJobSubmission'
               example:
                 data:
-                  id: job_01J9Z0N7M5J5P2FJ5Q7Y2V3W4X
+                  id: 123e4567-e89b-12d3-a456-426614174000
                   status: queued
-                  queryUrl: /api/v1/audio-jobs/job_01J9Z0N7M5J5P2FJ5Q7Y2V3W4X
+                  queryUrl: /api/v1/audio-jobs/123e4567-e89b-12d3-a456-426614174000
                   replayed: false
                 requestId: req_01J9Z0N7M4
         '200':
@@ -71,13 +71,13 @@ paths:
                 $ref: '#/components/schemas/SuccessAudioJobSubmission'
               example:
                 data:
-                  id: job_01J9Z0N7M5J5P2FJ5Q7Y2V3W4X
+                  id: 123e4567-e89b-12d3-a456-426614174000
                   status: transcribing
-                  queryUrl: /api/v1/audio-jobs/job_01J9Z0N7M5J5P2FJ5Q7Y2V3W4X
+                  queryUrl: /api/v1/audio-jobs/123e4567-e89b-12d3-a456-426614174000
                   replayed: true
                 requestId: req_01J9Z0N7M4
         '400':
-          description: 文件内容无效或音频超过时长上限
+          description: 文件内容无效、音频超过时长上限或 Idempotency-Key 规范化后超过 255 字符
           headers:
             X-Request-Id:
               $ref: '#/components/headers/X-Request-Id'
@@ -90,6 +90,8 @@ paths:
                   $ref: '#/components/examples/InvalidFileError'
                 audioTooLong:
                   $ref: '#/components/examples/AudioTooLongError'
+                invalidIdempotencyKey:
+                  $ref: '#/components/examples/InvalidIdempotencyKeyError'
         '409':
           description: 相同 Idempotency-Key 对应不同文件内容
           headers:
@@ -162,14 +164,14 @@ paths:
                 $ref: '#/components/schemas/SuccessJob'
               example:
                 data:
-                  id: job_01J9Z0N7M5J5P2FJ5Q7Y2V3W4X
+                  id: 123e4567-e89b-12d3-a456-426614174000
                   requestId: req_01J9Z0N4
                   status: succeeded
                   createdAt: '2026-08-23T10:00:00Z'
                   updatedAt: '2026-08-23T10:02:31Z'
                   expiresAt: '2026-08-24T10:00:00Z'
-                  queryUrl: /api/v1/audio-jobs/job_01J9Z0N7M5J5P2FJ5Q7Y2V3W4X
-                  transcriptUrl: /api/v1/audio-jobs/job_01J9Z0N7M5J5P2FJ5Q7Y2V3W4X/transcript
+                  queryUrl: /api/v1/audio-jobs/123e4567-e89b-12d3-a456-426614174000
+                  transcriptUrl: /api/v1/audio-jobs/123e4567-e89b-12d3-a456-426614174000/transcript
                   summary: '- 要点一\n- 要点二'
                   model: gpt-4o
                 requestId: req_01J9Z0N9
@@ -357,20 +359,20 @@ components:
       name: id
       in: path
       required: true
-      description: 服务生成的音频任务标识。
+      description: 服务端生成的 UUID 音频任务标识；非法格式按不存在处理并返回 JOB_NOT_FOUND。
       schema:
         type: string
-        minLength: 1
+        format: uuid
     IdempotencyKey:
       name: Idempotency-Key
       in: header
       required: false
       description: |
         24 小时内用于幂等提交的客户端标识。同一 key 且文件 sha256 相同时重放原任务；
-        同一 key 对应不同有效文件时返回 IDEMPOTENCY_CONFLICT。
+        同一 key 对应不同有效文件时返回 IDEMPOTENCY_CONFLICT。空白值会被 trim 并视为未提供；
+        非空规范化值必须为 1–255 个字符，超长返回 INVALID_IDEMPOTENCY_KEY。
       schema:
         type: string
-        minLength: 1
         maxLength: 255
 
   schemas:
@@ -397,8 +399,8 @@ components:
       properties:
         id:
           type: string
-          minLength: 1
-          description: 音频任务标识。
+          format: uuid
+          description: 服务端生成的 UUID 音频任务标识。
         status:
           $ref: '#/components/schemas/JobStatus'
         queryUrl:
@@ -427,7 +429,7 @@ components:
       properties:
         id:
           type: string
-          minLength: 1
+          format: uuid
         requestId:
           type: string
           minLength: 1
@@ -468,7 +470,8 @@ components:
           type: string
           minLength: 1
           maxLength: 200
-          description: 要查询的地点名称。
+          pattern: '[\\s\\S]*\\S[\\s\\S]*'
+          description: 要查询的地点名称。服务端按原始 wire 值校验长度为 1–200 且不能全为空白，然后 trim 首尾空白后交给天气用例。
 
     Weather:
       type: object
@@ -490,6 +493,7 @@ components:
         - AUDIO_TOO_LONG
         - FILE_TOO_LARGE
         - UNSUPPORTED_MEDIA_TYPE
+        - INVALID_IDEMPOTENCY_KEY
         - IDEMPOTENCY_CONFLICT
         - QUEUE_FULL
         - RATE_LIMITED
@@ -713,3 +717,10 @@ components:
           code: AUDIO_TOO_LONG
           message: Audio duration exceeds limit
         requestId: req_01J9Z0E2
+    InvalidIdempotencyKeyError:
+      summary: 幂等键过长
+      value:
+        error:
+          code: INVALID_IDEMPOTENCY_KEY
+          message: Invalid Idempotency-Key
+        requestId: req_01J9Z0E3

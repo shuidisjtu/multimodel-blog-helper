@@ -57,7 +57,10 @@ src/
         audio-jobs.ts # POST /api/v1/audio-jobs 上传受理(multer 内存暂存→校验→SubmitAudio→202/200/409)
         audio-job-query.ts # GET /api/v1/audio-jobs/{id} 查询与 /transcript 转录下载(UUID 校验, 非法一律 404)
         weather.ts # POST /api/v1/assistant/weather 天气查询(DTO 校验→AskWeather→统一 JSON 信封)
-      schemas/ (planned) # 待 B5(DTO 校验)
+      schemas/ # 共享 HTTP 请求 DTO 解析与标准化(B5)
+        idempotency-key.ts # Idempotency-Key 空白归一化与 255 字符上限(B5)
+        job-id.ts # UUID jobId 校验(非法 ID 统一映射为 JOB_NOT_FOUND)
+        weather-request.ts # weather 请求对象校验，原始值检查后 trim
       envelope.ts # HTTP 响应信封(成功 data/requestId; 失败 error/requestId, 契约 §5)
       app.ts # Express 应用组装(requestId→路由→错误边界, async rejection 自动转发)
 tests/
@@ -85,6 +88,9 @@ tests/
     get-transcript.test.ts # GetTranscript 用例单测(成功/不存在/过期/未就绪/IO 错误)
     ask-weather.test.ts # AskWeather 用例单测(委派、日志与未知错误归一)
     wttr-weather-provider.test.ts # wttr.in 适配器单测(映射、超时与错误脱敏)
+    idempotency-key-schema.test.ts # 幂等键 DTO 单测(空白、trim、255 上限)
+    job-id-schema.test.ts # jobId DTO 单测(UUID/非法格式/路径注入)
+    weather-request-schema.test.ts # weather DTO 单测(对象边界/原始长度/trim)
   integration/ # 跨模块集成测试
     cleanup-expired.test.ts
     file-job-repository.test.ts
@@ -97,6 +103,8 @@ tests/
   scripts/ # 脚本测试
     generate-structure.test.ts # 结构生成器测试
     check-docs.test.ts # 文档一致性检查
+  contract/ # OpenAPI 驱动的真实 HTTP 响应契约测试(B5)
+    openapi-contract.test.ts # 读取 OpenAPI 并校验状态/头/媒体类型/JSON Schema
 fixtures/           audio-sample.mp3        # E2E 测试音频 fixture
 docs/               adr/, architecture/, project-division/, records/, evidence/
                                             # 决策记录/架构设计/任务清单/过程证据/验收证据
@@ -112,9 +120,9 @@ temp/               uploads/, outputs/      # 运行期文件(gitignored, 启动
 | `src/domain/` | Job 状态机、领域错误、端口接口;不导入 SDK | ✅ A1–A2 |
 | `src/application/` | 用例编排(只依赖 domain + shared) | ✅ A3–A4 |
 | `src/infrastructure/` | OpenAI/队列/仓储/文件系统/天气实现(适配器) | ✅ A2–A4/B4 |
-| `src/interfaces/http/` | 路由、DTO 校验、中间件与 OpenAPI 契约 | ✅ B1/B2/B4;B5 `openapi.yaml` ✅ |
+| `src/interfaces/http/` | 路由、共享 DTO 校验、中间件与 OpenAPI 契约 | ✅ B1/B2/B4/B5 |
 | `src/shared/` | logger / ids / clock 基础工具 | ✅ |
-| `tests/` | 单元 + 集成测试(覆盖率门禁 80%) | ✅;e2e 待 C6 |
+| `tests/` | 单元 + 集成 + OpenAPI 驱动的契约测试(覆盖率门禁 80%) | ✅ B5/C2;e2e 待 C6 |
 | `fixtures/` | E2E 测试音频(随仓库分发) | ✅ |
 | `docs/` | ADR / 架构设计 / 任务清单 / 过程证据(records) / 验收证据(evidence) | ✅;runbooks 待 C7 |
 | `temp/` | 上传文件与处理产物(gitignored) | 运行期生成 |

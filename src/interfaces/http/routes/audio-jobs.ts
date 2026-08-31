@@ -4,6 +4,7 @@ import type { SubmitAudio } from '../../../application/submit-audio.js';
 import { validateAudioUpload } from '../../../domain/audio-upload.js';
 import { DomainError } from '../../../domain/errors.js';
 import { submissionData, successEnvelope } from '../envelope.js';
+import { parseIdempotencyKey } from '../schemas/idempotency-key.js';
 
 /**
  * POST /api/v1/audio-jobs(架构文档 §5/§6.1/§8.1 + openapi.yaml submitAudioJob):
@@ -23,11 +24,7 @@ export function createAudioJobsRouter(deps: {
 
   router.post('/api/v1/audio-jobs', upload.single('file'), async (req, res) => {
     const requestId = String(res.locals.requestId ?? '');
-    // 空 key 与无 key 语义相同(普通创建): 契约 minLength 1 由服务端归一化;
-    // trim 防止纯空白/首尾空白 key 被原样存储(HTTP 解析器通常已去 OWS, 此处防御性兜底)
-    const headerKey = req.header('Idempotency-Key');
-    const idempotencyKey =
-      headerKey !== undefined && headerKey.trim() !== '' ? headerKey.trim() : undefined;
+    const idempotencyKey = parseIdempotencyKey(req.header('Idempotency-Key'));
     const file = req.file;
     if (file === undefined) {
       throw new DomainError('INVALID_FILE', 'Uploaded file is empty');
