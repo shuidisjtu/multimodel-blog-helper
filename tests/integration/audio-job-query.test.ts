@@ -82,6 +82,11 @@ async function buildTestApp(): Promise<TestContext> {
     ids,
     logger,
     maxUploadBytes: 25 * 1024 * 1024,
+    // 本测试不测限流(B6 语义见 rate-limit.test.ts), 阈值放大避免干扰
+    trustProxy: false,
+    corsAllowedOrigins: [],
+    rateLimitUploadPerMinute: 1000,
+    rateLimitWeatherPerMinute: 1000,
   });
   const server = app.listen(0);
   const { port } = server.address() as AddressInfo;

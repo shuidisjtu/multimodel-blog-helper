@@ -42,6 +42,7 @@ function config(): AppConfig {
       rateLimitWeatherPerMinute: 30,
       maxAudioDurationSeconds: 3600,
     },
+    security: { trustProxy: false, corsAllowedOrigins: [] },
     metrics: { port: 9100 },
     logLevel: 'error',
   };
@@ -64,6 +65,11 @@ async function startApp(provider: {
     askWeather,
     logger,
     maxUploadBytes: config().storage.maxUploadBytes,
+    // 本测试不测限流(B6 语义见 rate-limit.test.ts), 阈值放大避免干扰
+    trustProxy: false,
+    corsAllowedOrigins: [],
+    rateLimitUploadPerMinute: 1000,
+    rateLimitWeatherPerMinute: 1000,
   });
   const server = app.listen(0);
   await new Promise<void>((resolve) => server.once('listening', resolve));

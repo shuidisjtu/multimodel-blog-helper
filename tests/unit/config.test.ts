@@ -89,6 +89,37 @@ describe('loadConfig(架构文档 §7.2)', () => {
     expect(() => loadConfig({ ...BASE_ENV, OPENAI_MAX_RETRIES: '-1' })).toThrow(ConfigError); // min 0
   });
 
+  it('B6 安全配置: TRUST_PROXY 与 CORS 白名单默认值', () => {
+    const config = loadConfig(BASE_ENV);
+    expect(config.security).toEqual({ trustProxy: false, corsAllowedOrigins: [] });
+  });
+
+  it('B6 安全配置: TRUST_PROXY 白名单解析(非法值启动即失败)', () => {
+    expect(loadConfig({ ...BASE_ENV, TRUST_PROXY: 'true' }).security.trustProxy).toBe(true);
+    expect(loadConfig({ ...BASE_ENV, TRUST_PROXY: '1' }).security.trustProxy).toBe(true);
+    expect(loadConfig({ ...BASE_ENV, TRUST_PROXY: 'false' }).security.trustProxy).toBe(false);
+    expect(loadConfig({ ...BASE_ENV, TRUST_PROXY: '0' }).security.trustProxy).toBe(false);
+    expect(() => loadConfig({ ...BASE_ENV, TRUST_PROXY: 'maybe' })).toThrow(/TRUST_PROXY/);
+  });
+
+  it('B6 安全配置: CORS 白名单逗号分隔解析, 空值=同源, 禁止通配符与无 scheme 项', () => {
+    expect(
+      loadConfig({
+        ...BASE_ENV,
+        CORS_ALLOWED_ORIGINS: 'https://app.example.com, https://admin.example.com',
+      }).security.corsAllowedOrigins,
+    ).toEqual(['https://app.example.com', 'https://admin.example.com']);
+    expect(
+      loadConfig({ ...BASE_ENV, CORS_ALLOWED_ORIGINS: '  ' }).security.corsAllowedOrigins,
+    ).toEqual([]);
+    expect(() => loadConfig({ ...BASE_ENV, CORS_ALLOWED_ORIGINS: '*' })).toThrow(
+      /CORS_ALLOWED_ORIGINS/,
+    );
+    expect(() => loadConfig({ ...BASE_ENV, CORS_ALLOWED_ORIGINS: 'example.com' })).toThrow(
+      /CORS_ALLOWED_ORIGINS/,
+    );
+  });
+
   it('Node 版本低于 24 时抛 ConfigError(环境自检)', () => {
     const realVersions = process.versions;
     vi.spyOn(process, 'versions', 'get').mockReturnValue({
