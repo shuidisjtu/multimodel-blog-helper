@@ -53,6 +53,7 @@ src/
       middleware/
         error-handler.ts # 统一错误边界(ErrorCode→HTTP 状态/稳定消息/Retry-After; 未知错误 500 兜底不泄漏)
         request-id.ts # requestId 中间件(服务生成, 写 X-Request-Id 响应头与 res.locals)
+        access-log.ts # 访问日志中间件(请求完成时一行 http.access: 方法/路由模式路径/状态/耗时/requestId)
       routes/
         audio-jobs.ts # POST /api/v1/audio-jobs 上传受理(multer 内存暂存→校验→SubmitAudio→202/200/409)
         audio-job-query.ts # GET /api/v1/audio-jobs/{id} 查询与 /transcript 转录下载(UUID 校验, 非法一律 404)
@@ -99,6 +100,7 @@ tests/
     audio-jobs-route.test.ts # 上传受理集成测试(真实仓储/队列: 202/200/409/400/413/415/503 全场景)
     audio-job-query.test.ts # 查询与转录下载集成测试(真实仓储+真实文件: 200 全状态/404/409/410/路径注入)
     weather-route.test.ts # 天气路由集成测试(200 envelope、DTO 校验、422/503 脱敏)
+    access-log.test.ts # 访问日志集成测试(成功/404/未匹配路由: 字段、路由模式路径与 requestId 关联)
   e2e/ (planned) # 待 C6
   scripts/ # 脚本测试
     generate-structure.test.ts # 结构生成器测试

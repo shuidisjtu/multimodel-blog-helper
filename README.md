@@ -38,7 +38,7 @@
 
 ###  重构主线进度（本仓库的任务,以 task-list.md 为唯一权威参考）
 
-将第 3、4 章示例整合为单机可演示的学习研究型 HTTP 服务：上传音频 → 异步转录 + 摘要 → 查询/下载；另含天气工具调用与 CI。当前已完成 A1–A5、B1–B4、C1，以及 B5/B6 的基础部分；现有 237 项测试通过，覆盖率门禁达标。下一步为 B5 契约测试、B6 防护、B7 核心闭环验证和最小 Web 工作台；health/metrics 与完整运维治理属于后续按需增强，详见 [`task-list.md`](docs/project-division/task-list.md)。
+将第 3、4 章示例整合为单机可演示的学习研究型 HTTP 服务：上传音频 → 异步转录 + 摘要 → 查询/下载；另含天气工具调用与 CI。当前已完成 A1–A5、B1–B5、B6a、C1；错误边界与访问日志就绪（统一 `X-Request-Id`、递归日志脱敏、`http.access` 每请求一行）；现有 270 项测试通过，覆盖率门禁达标。下一步为 B6b 限流/CORS、B7 核心闭环验证和最小 Web 工作台；health/metrics 与完整运维治理属于后续按需增强，详见 [`task-list.md`](docs/project-division/task-list.md)。
 
 - **工程架构**：[`docs/architecture/architecture-design.md`](docs/architecture/architecture-design.md)(v1.4)
 - **任务计划**：[`docs/project-division/task-list.md`](docs/project-division/task-list.md)(22 项，含验收标准与依赖)
@@ -62,7 +62,7 @@ cp .env.example .env      # Windows: copy .env.example .env
 npm run verify
 ```
 
-> **当前阶段说明**：重构主线开发中（A1–A5、B1–B4、C1 已完成，B5/B6 基础部分：上传受理/查询/转录下载/天气查询已可用，OpenAPI 契约已落地，B4 实时天气演示见 [`docs/evidence/release-b4-20260829/`](docs/evidence/release-b4-20260829/2026-08-29-weather-demo-guide.md)，B1/B2 演示见 [`docs/evidence/release-cbafff1/`](docs/evidence/release-cbafff1/2026-08-24-api-demo-guide.md)）。上面的快速开始验证的是**代码质量与测试环境**（依赖/类型/Lint/文档/结构/测试全绿）；`npm run dev` 可启动服务（需 .env 配置 key，见下）。可直接运行的教材示例见下方“快速开始(教材示例)” 。
+> **当前阶段说明**：重构主线开发中（A1–A5、B1–B5、B6a、C1 已完成；OpenAPI 契约与 B5 契约测试已落地，B6b 限流/CORS 待做，B4 实时天气演示见 [`docs/evidence/release-b4-20260829/`](docs/evidence/release-b4-20260829/2026-08-29-weather-demo-guide.md)，B1/B2 演示见 [`docs/evidence/release-cbafff1/`](docs/evidence/release-cbafff1/2026-08-24-api-demo-guide.md)，B6a 错误边界/访问日志记录见 [`docs/evidence/b6a-error-access-log/`](docs/evidence/b6a-error-access-log/2026-09-01-b6a-error-boundary-access-log-shuidisjtu.md)）。上面的快速开始验证的是**代码质量与测试环境**（依赖/类型/Lint/文档/结构/测试全绿）；`npm run dev` 可启动服务（需 .env 配置 key，见下）。可直接运行的教材示例见下方“快速开始(教材示例)” 。
 
 **环境要求与已知坑**：
 
