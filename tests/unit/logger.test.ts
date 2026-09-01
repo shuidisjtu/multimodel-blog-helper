@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { createLogger } from '../../src/shared/logger.js';
+import { createLogger, type LogFields } from '../../src/shared/logger.js';
 
 /** 捕获 console.log 输出并解析为 JSON 行(架构文档 §8.2:一行一事件)。 */
 function capture() {
@@ -120,5 +120,80 @@ describe('createLogger(架构文档 §8.2:JSON 一行一事件)', () => {
     // 原始路径不得出现在任何日志行中
     expect(JSON.stringify(lines)).not.toContain('input.mp3');
     expect(JSON.stringify(lines)).not.toContain('audio.mp3');
+  });
+
+  it('递归脱敏:嵌套对象中的敏感键同样替换, 安全键不受影响', () => {
+    const lines = capture();
+    const logger = createLogger('debug');
+    logger.info({
+      event: 'job.failed.detail',
+      requestId: 'r1',
+      detail: {
+        path: '/tmp/uploads/j1/input.mp3',
+        text: 'secret text',
+        summary: '摘要',
+        authorization: 'Bearer sk-abc',
+        apiKey: 'sk-123',
+      },
+      meta: { durationMs: 7, attempt: 2 },
+    });
+    const line = lines[0] as Record<string, unknown>;
+    const detail = line.detail as Record<string, unknown>;
+    expect(detail.path).toBe('[redacted]');
+    expect(detail.text).toBe('[redacted]');
+    expect(detail.summary).toBe('[redacted]');
+    expect(detail.authorization).toBe('[redacted]');
+    expect(detail.apiKey).toBe('[redacted]');
+    expect(line.meta).toEqual({ durationMs: 7, attempt: 2 });
+    expect(line.requestId).toBe('r1');
+    // 原始敏感值不得出现在任何日志行中
+    expect(JSON.stringify(lines)).not.toContain('secret text');
+    expect(JSON.stringify(lines)).not.toContain('input.mp3');
+    expect(JSON.stringify(lines)).not.toContain('摘要');
+  });
+
+  it('递归脱敏:数组中嵌套对象/数组同样处理', () => {
+    const lines = capture();
+    const logger = createLogger('debug');
+    logger.info({
+      event: 'batch.processing',
+      items: [
+        { transcript: '片段一', path: '/tmp/a.mp3' },
+        [{ content: '深层内容' }],
+        'plain-string',
+      ],
+    });
+    const line = lines[0] as Record<string, unknown>;
+    const items = line.items as Array<Record<string, unknown>>;
+    expect(items[0]).toEqual({ transcript: '[redacted]', path: '[redacted]' });
+    expect(items[1]).toEqual([{ content: '[redacted]' }]);
+    expect(items[2]).toBe('plain-string');
+    expect(JSON.stringify(lines)).not.toContain('片段一');
+    expect(JSON.stringify(lines)).not.toContain('深层内容');
+    expect(JSON.stringify(lines)).not.toContain('/tmp/a.mp3');
+  });
+
+  it('递归脱敏:嵌套键名不区分大小写', () => {
+    const lines = capture();
+    const logger = createLogger('debug');
+    logger.info({ event: 'e', detail: { Path: 'P', TEXT: 'T1', AudioPath: 'A' } });
+    const line = lines[0] as Record<string, unknown>;
+    expect(line.detail).toEqual({
+      Path: '[redacted]',
+      TEXT: '[redacted]',
+      AudioPath: '[redacted]',
+    });
+  });
+
+  it('递归脱敏:循环引用不导致栈溢出/崩溃, 记录为安全占位', () => {
+    const lines = capture();
+    const logger = createLogger('debug');
+    const cyclic: LogFields = { event: 'e', summary: 's1' };
+    cyclic.self = cyclic;
+    logger.info(cyclic);
+    const line = lines[0] as Record<string, unknown>;
+    expect(line.event).toBe('e');
+    expect(line.summary).toBe('[redacted]');
+    expect(JSON.stringify(lines)).not.toContain('s1');
   });
 });

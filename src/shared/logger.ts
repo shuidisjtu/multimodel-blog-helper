@@ -27,18 +27,13 @@ export function createLogger(level: LogLevel): Logger {
   const minRank = LEVEL_RANK[level];
   const write = (levelOut: LogLevel, fields: LogFields): void => {
     if (LEVEL_RANK[levelOut] < minRank) return;
+    // sanitizeValue 对 LogFields 的输出仍是对象类型(嵌套/数组分支在该类型下不成立)
+    const sanitized = sanitizeValue(fields, new WeakSet<object>()) as Record<string, unknown>;
     const line: Record<string, unknown> = {
-      ...fields,
+      ...sanitized,
       timestamp: new Date().toISOString(),
       level: levelOut,
     };
-    for (const key of Object.keys(line)) {
-      const lower = key.toLowerCase();
-      // 安全字段永不脱敏; 敏感字段名不区分大小写
-      if (!SAFE_KEYS.has(lower) && SENSITIVE_KEYS.has(lower)) {
-        line[key] = '[redacted]';
-      }
-    }
     console.log(JSON.stringify(line));
   };
   return {
@@ -55,6 +50,36 @@ const LEVEL_RANK: Record<LogLevel, number> = {
   warn: 2,
   error: 3,
 };
+
+/** 递归脱敏(架构文档 §8.2): 嵌套对象/数组中的敏感键同样替换, 不依赖调用方约定;
+ * 循环引用替换为占位符(避免栈溢出), 非纯对象(Date/Error/Buffer 等)原样交给 JSON.stringify。 */
+function sanitizeValue(value: unknown, seen: WeakSet<object>): unknown {
+  if (value === null || typeof value !== 'object') return value;
+  if (seen.has(value)) return '[circular]';
+  if (Array.isArray(value)) {
+    seen.add(value);
+    return value.map((item) => sanitizeValue(item, seen));
+  }
+  if (!isPlainObject(value)) return value;
+  seen.add(value);
+  const out: Record<string, unknown> = {};
+  for (const [key, nested] of Object.entries(value)) {
+    const lower = key.toLowerCase();
+    // 安全字段永不脱敏; 敏感字段名不区分大小写
+    if (!SAFE_KEYS.has(lower) && SENSITIVE_KEYS.has(lower)) {
+      out[key] = '[redacted]';
+    } else {
+      out[key] = sanitizeValue(nested, seen);
+    }
+  }
+  return out;
+}
+
+/** 纯对象判定: 原型为 Object.prototype 或 null(排除 Date/Error/Buffer 等有自定义序列化的类型)。 */
+function isPlainObject(value: object): boolean {
+  const proto = Object.getPrototypeOf(value);
+  return proto === Object.prototype || proto === null;
+}
 
 /** 敏感字段名(小写比较): 命中即脱敏。 */
 const SENSITIVE_KEYS = new Set([
