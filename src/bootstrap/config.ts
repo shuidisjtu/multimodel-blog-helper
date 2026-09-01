@@ -37,6 +37,12 @@ export interface AppConfig {
     rateLimitWeatherPerMinute: number;
     maxAudioDurationSeconds: number;
   };
+  security: {
+    /** TRUST_PROXY: 为 true 时限流按 X-Forwarded-For 首段计 IP(部署在反代后时配置)。 */
+    trustProxy: boolean;
+    /** CORS 白名单: 逗号分隔 Origin; 空 = 默认同源(不返回 CORS 允许头)。 */
+    corsAllowedOrigins: string[];
+  };
   metrics: {
     port: number;
   };
@@ -111,8 +117,38 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
     metrics: {
       port: intEnv(env, 'METRICS_PORT', 9100, 1),
     },
+    security: {
+      trustProxy: parseTrustProxy(env.TRUST_PROXY),
+      corsAllowedOrigins: parseCorsOrigins(env.CORS_ALLOWED_ORIGINS),
+    },
     logLevel: parseLogLevel(env.LOG_LEVEL),
   };
+}
+
+/** TRUST_PROXY 白名单解析(B6): 空=不信任代理(默认用 socket 地址); 仅 true/1 显式启用, 其余非法值启动即失败。 */
+function parseTrustProxy(raw: string | undefined): boolean {
+  if (raw === undefined || raw === '') return false;
+  if (raw === 'true' || raw === '1') return true;
+  if (raw === 'false' || raw === '0') return false;
+  throw new ConfigError(`Invalid TRUST_PROXY: ${raw}`);
+}
+
+/** CORS 白名单解析(B6): 逗号分隔绝对 Origin; 空=默认同源; 禁止通配符 * 与无 scheme 的值。 */
+function parseCorsOrigins(raw: string | undefined): string[] {
+  if (raw === undefined || raw.trim() === '') return [];
+  const origins = raw
+    .split(',')
+    .map((s) => s.trim())
+    .filter((s) => s !== '');
+  for (const origin of origins) {
+    if (origin === '*') {
+      throw new ConfigError('CORS_ALLOWED_ORIGINS must not contain "*"');
+    }
+    if (!/^https?:\/\/\S+/.test(origin)) {
+      throw new ConfigError(`Invalid CORS_ALLOWED_ORIGINS entry: ${origin}`);
+    }
+  }
+  return origins;
 }
 
 const LOG_LEVELS: readonly LogLevel[] = ['debug', 'info', 'warn', 'error'];

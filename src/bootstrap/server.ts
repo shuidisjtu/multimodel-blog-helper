@@ -24,6 +24,10 @@ async function main(): Promise<void> {
     ids,
     logger,
     maxUploadBytes: config.storage.maxUploadBytes,
+    trustProxy: config.security.trustProxy,
+    corsAllowedOrigins: config.security.corsAllowedOrigins,
+    rateLimitUploadPerMinute: config.limits.rateLimitUploadPerMinute,
+    rateLimitWeatherPerMinute: config.limits.rateLimitWeatherPerMinute,
   });
   const server = app.listen(config.port, () => {
     logger.info({ event: 'server.started', port: config.port, nodeEnv: config.nodeEnv });

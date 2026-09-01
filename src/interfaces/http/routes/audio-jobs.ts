@@ -1,4 +1,4 @@
-import { Router } from 'express';
+import { type RequestHandler, Router } from 'express';
 import multer from 'multer';
 import type { SubmitAudio } from '../../../application/submit-audio.js';
 import { validateAudioUpload } from '../../../domain/audio-upload.js';
@@ -8,13 +8,15 @@ import { parseIdempotencyKey } from '../schemas/idempotency-key.js';
 
 /**
  * POST /api/v1/audio-jobs(架构文档 §5/§6.1/§8.1 + openapi.yaml submitAudioJob):
- * multer 内存暂存(显式大小限制) → validateAudioUpload(MIME/大小/魔数, 纯函数) →
- * SubmitAudio 用例(落盘/时长/幂等/入队) → 202(created) / 200(replayed) / 409(conflict)。
- * 路由层不落盘、不直接读文件系统(§3.1); 429 限流属 B6。
+ * 路由级限流(处于入口, 无效请求也计数) → multer 内存暂存(显式大小限制) →
+ * validateAudioUpload(MIME/大小/魔数, 纯函数) → SubmitAudio 用例(落盘/时长/幂等/入队) →
+ * 202(created) / 200(replayed) / 409(conflict)。
+ * 路由层不落盘、不直接读文件系统(§3.1); 429 限流响应由 rateLimiter 统一输出(B6)。
  */
 export function createAudioJobsRouter(deps: {
   submitAudio: SubmitAudio;
   maxUploadBytes: number;
+  rateLimiter: RequestHandler;
 }): Router {
   const router = Router();
   const upload = multer({
@@ -22,7 +24,7 @@ export function createAudioJobsRouter(deps: {
     limits: { fileSize: deps.maxUploadBytes },
   });
 
-  router.post('/api/v1/audio-jobs', upload.single('file'), async (req, res) => {
+  router.post('/api/v1/audio-jobs', deps.rateLimiter, upload.single('file'), async (req, res) => {
     const requestId = String(res.locals.requestId ?? '');
     const idempotencyKey = parseIdempotencyKey(req.header('Idempotency-Key'));
     const file = req.file;

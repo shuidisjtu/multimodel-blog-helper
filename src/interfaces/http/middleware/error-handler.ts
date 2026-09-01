@@ -24,7 +24,7 @@ const STATUS_BY_CODE: Record<ErrorCode, number> = {
 };
 
 /** 客户端可见稳定消息(openapi.yaml example 文案); 领域错误原始 message 只进日志(§8.1)。 */
-const MESSAGE_BY_CODE: Record<ErrorCode, string> = {
+export const MESSAGE_BY_CODE: Record<ErrorCode, string> = {
   INVALID_FILE: 'Invalid audio file',
   AUDIO_TOO_LONG: 'Audio duration exceeds limit',
   INVALID_IDEMPOTENCY_KEY: 'Invalid Idempotency-Key',
@@ -42,7 +42,8 @@ const MESSAGE_BY_CODE: Record<ErrorCode, string> = {
   INTERNAL_ERROR: 'Internal error',
 };
 
-/** Retry-After(秒): 仅限流与队列满场景(openapi.yaml: 429/503 响应要求该头)。B1 只触发 QUEUE_FULL; 动态值属 B6。 */
+/** Retry-After(秒): 仅限流与队列满场景(openapi.yaml: 429/503 响应要求该头)。B1 只触发 QUEUE_FULL;
+ * B6 的动态 Retry-After 由 rate-limit handler 直接输出; 此处 RATE_LIMITED 为 DomainError 兜底值。 */
 const RETRY_AFTER_BY_CODE: Partial<Record<ErrorCode, number>> = {
   QUEUE_FULL: 1,
   RATE_LIMITED: 1,

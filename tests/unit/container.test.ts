@@ -28,6 +28,7 @@ function fakeConfig(): AppConfig {
       rateLimitWeatherPerMinute: 30,
       maxAudioDurationSeconds: 3600,
     },
+    security: { trustProxy: false, corsAllowedOrigins: [] },
     metrics: { port: 9100 },
     logLevel: 'error',
   };

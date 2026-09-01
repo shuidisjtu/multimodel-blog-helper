@@ -23,6 +23,7 @@
   "devDependencies": {
     "@biomejs/biome": "^2.5.9",
     "@redocly/cli": "^2.49.0",
+    "@types/cors": "^2.8.19",
     "@types/express": "^5.0.6",
     "@types/multer": "^2.2.0",
     "@types/node": "^26.2.0",
@@ -35,8 +36,10 @@
     "yaml": "^2.9.0"
   },
   "dependencies": {
+    "cors": "^2.8.6",
     "dotenv": "^17.4.2",
     "express": "^5.2.1",
+    "express-rate-limit": "^8.7.0",
     "multer": "^2.2.0",
     "music-metadata": "^11.15.0",
     "openai": "^7.4.0"

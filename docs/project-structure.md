@@ -54,6 +54,8 @@ src/
         error-handler.ts # 统一错误边界(ErrorCode→HTTP 状态/稳定消息/Retry-After; 未知错误 500 兜底不泄漏)
         request-id.ts # requestId 中间件(服务生成, 写 X-Request-Id 响应头与 res.locals)
         access-log.ts # 访问日志中间件(请求完成时一行 http.access: 方法/路由模式路径/状态/耗时/requestId)
+        cors.ts # 白名单 CORS 中间件(默认同源/仅白名单 Origin 获允许头/OPTIONS 预检, B6)
+        rate-limit.ts # 路由级 IP 限流(统一 429 envelope + 动态 Retry-After; TRUST_PROXY 语义, B6)
       routes/
         audio-jobs.ts # POST /api/v1/audio-jobs 上传受理(multer 内存暂存→校验→SubmitAudio→202/200/409)
         audio-job-query.ts # GET /api/v1/audio-jobs/{id} 查询与 /transcript 转录下载(UUID 校验, 非法一律 404)
@@ -92,6 +94,7 @@ tests/
     idempotency-key-schema.test.ts # 幂等键 DTO 单测(空白、trim、255 上限)
     job-id-schema.test.ts # jobId DTO 单测(UUID/非法格式/路径注入)
     weather-request-schema.test.ts # weather DTO 单测(对象边界/原始长度/trim)
+    rate-limit.test.ts # 限流纯函数单测(XFF 首段解析/动态 Retry-After 边界)
   integration/ # 跨模块集成测试
     cleanup-expired.test.ts
     file-job-repository.test.ts
@@ -101,6 +104,8 @@ tests/
     audio-job-query.test.ts # 查询与转录下载集成测试(真实仓储+真实文件: 200 全状态/404/409/410/路径注入)
     weather-route.test.ts # 天气路由集成测试(200 envelope、DTO 校验、422/503 脱敏)
     access-log.test.ts # 访问日志集成测试(成功/404/未匹配路由: 字段、路由模式路径与 requestId 关联)
+    cors.test.ts # CORS 集成测试(白名单/默认同源/预检 204/非法 Origin 无允许头)
+    rate-limit.test.ts # 限流集成测试(429 envelope/Retry-After/无效请求计数/XFF 信任)
   e2e/ (planned) # 待 C6
   scripts/ # 脚本测试
     generate-structure.test.ts # 结构生成器测试
