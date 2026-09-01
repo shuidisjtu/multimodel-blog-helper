@@ -21,6 +21,13 @@
 | `2026-08-23-api-contract-and-verify.md` | 早期 OpenAPI 契约落地记录；当时 HTTP server 尚未可用，保留作历史阻塞说明 | 2026-08-23 本机 |
 | `2026-08-30-b5-dto-contract-tests.md` | B5 完成态：共享 DTO、Redocly lint、OpenAPI 驱动 HTTP 契约测试及最终 verify 结果 | 2026-08-30 本机 |
 
+## d2-web-weather/(D2 Web 工作台天气/DTO 模块，2026-09-01)
+
+> 对应分支：`feature/d2-web-weather-dto`。此阶段为 mock `fetch` 自动化测试与生产构建，不包含真实 wttr.in/OpenAI 调用，也不将 mock 画面表述为实时服务结果。
+
+| 文件 | 内容 | 来源 |
+| --- | --- | --- |
+| `2026-09-01-d2-web-weather-dto-ym-hello.md` | D2 共享工作台骨架、天气/DTO、测试范围、质量门禁和后续真实联调入口 | 2026-09-01 本机 |
 ## release-cbafff1/(功能演示:B1 上传受理 + B2 查询/转录下载,2026-08-24 实跑)
 
 > 对应版本:main `cbafff1`(两个演示修复合并提交:transcriber File 上传 1ff7665 + rename EPERM 重试 0d9eca2)。演示素材与版本号一并归档,符合 task-list §5。

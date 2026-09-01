@@ -38,7 +38,7 @@
 
 ###  重构主线进度（本仓库的任务,以 task-list.md 为唯一权威参考）
 
-将第 3、4 章示例整合为单机可演示的学习研究型 HTTP 服务：上传音频 → 异步转录 + 摘要 → 查询/下载；另含天气工具调用与 CI。当前已完成 A1–A5、B1–B6、C1、C2；上传/天气接口 IP 限流（429 + 动态 Retry-After）、默认同源 + 白名单 CORS、错误边界与访问日志（统一 `X-Request-Id`、递归日志脱敏、`http.access` 每请求一行）就绪；全量测试通过，覆盖率门禁达标。下一步为 B7 核心闭环验证和最小 Web 工作台；health/metrics 与完整运维治理属于后续按需增强，详见 [`task-list.md`](docs/project-division/task-list.md)。
+将第 3、4 章示例整合为单机可演示的学习研究型 HTTP 服务：上传音频 → 异步转录 + 摘要 → 查询/下载；另含天气工具调用与 CI。当前已完成 A1–A5、B1–B6、C1、C2；上传/天气接口 IP 限流（429 + 动态 Retry-After）、默认同源 + 白名单 CORS、错误边界与访问日志（统一 `X-Request-Id`、递归日志脱敏、`http.access` 每请求一行）就绪。D2 最小 Web 工作台处于进行中：已落地共享浅色博客助手骨架与天气/DTO 模块，音频主流程仍待后续接入；视觉规范见 [`2026-09-01-d2-web-workbench-visual-design.md`](docs/records/2026-09-01-d2-web-workbench-visual-design.md)。B7 核心闭环验证、health/metrics 与完整运维治理属于后续工作，详见 [`task-list.md`](docs/project-division/task-list.md)。
 
 - **工程架构**：[`docs/architecture/architecture-design.md`](docs/architecture/architecture-design.md)(v1.4)
 - **任务计划**：[`docs/project-division/task-list.md`](docs/project-division/task-list.md)(22 项，含验收标准与依赖)
@@ -46,15 +46,16 @@
 
 ## 重构项目快速开始
 
-> 主线代码在 `src/` + `tests/`(TypeScript ESM)。按以下三步复现开发环境,约 2 分钟:
+> 主线代码在 `src/` + `tests/`(TypeScript ESM)。按以下步骤复现后端与 Web 开发环境,约 2 分钟:
 
 ```bash
 # 1. 获取代码(新队员:从 GitHub 克隆;已在仓库内可跳过)
 git clone https://github.com/shuidisjtu/multimodel-blog-helper.git
 cd multimodel-blog-helper
 
-# 2. 安装依赖(要求 Node >= 24;npm ci 按 lock 文件精确安装)
+# 2. 安装根服务与独立 Web 工作台依赖(要求 Node >= 24;npm ci 按 lock 文件精确安装)
 npm ci
+npm ci --prefix web
 
 # 3. 配置环境变量(模板见 .env.example;OPENAI_API_KEY 为 openai-hk 中转站 key,`hk-` 前缀,向项目成员获取)
 cp .env.example .env      # Windows: copy .env.example .env
@@ -63,7 +64,21 @@ cp .env.example .env      # Windows: copy .env.example .env
 npm run verify
 ```
 
-> **当前阶段说明**：重构主线开发中（A1–A5、B1–B6、C1、C2 已完成；OpenAPI 契约与 B5 契约测试已落地，B4 实时天气演示见 [`docs/evidence/release-b4-20260829/`](docs/evidence/release-b4-20260829/2026-08-29-weather-demo-guide.md)，B1/B2 演示见 [`docs/evidence/release-cbafff1/`](docs/evidence/release-cbafff1/2026-08-24-api-demo-guide.md)，B6a 错误边界/访问日志记录见 [`docs/evidence/b6a-error-access-log/`](docs/evidence/b6a-error-access-log/2026-09-01-b6a-error-boundary-access-log-shuidisjtu.md)，B6b 限流/CORS 记录见 [`docs/evidence/b6b-rate-limit-cors/`](docs/evidence/b6b-rate-limit-cors/2026-09-01-b6b-rate-limit-cors-shuidisjtu.md)）。上面的快速开始验证的是**代码质量与测试环境**（依赖/类型/Lint/文档/结构/测试全绿）；`npm run dev` 可启动服务（需 .env 配置 key，见下）。可直接运行的教材示例见下方“快速开始(教材示例)” 。
+### 本地启动后端与 Web 工作台
+
+分别在两个终端运行：
+
+```bash
+# 终端 1：启动 Express 后端（默认 http://localhost:3000）
+npm run dev
+
+# 终端 2：启动 Vite Web 工作台（默认 http://localhost:5173）
+npm --prefix web run dev
+```
+
+打开 Vite 输出的地址即可访问浅色博客助手工作台。天气面板请求 `/api/v1/assistant/weather`，开发期由 Vite `/api` proxy 转发到本地后端；本阶段音频区域是待后续接入的共享槽位。
+
+> **当前阶段说明**：重构主线开发中（A1–A5、B1–B6、C1、C2 已完成；OpenAPI 契约与 B5 契约测试已落地，B4 实时天气演示见 [`docs/evidence/release-b4-20260829/`](docs/evidence/release-b4-20260829/2026-08-29-weather-demo-guide.md)，B1/B2 演示见 [`docs/evidence/release-cbafff1/`](docs/evidence/release-cbafff1/2026-08-24-api-demo-guide.md)，B6a 错误边界/访问日志记录见 [`docs/evidence/b6a-error-access-log/`](docs/evidence/b6a-error-access-log/2026-09-01-b6a-error-boundary-access-log-shuidisjtu.md)，B6b 限流/CORS 记录见 [`docs/evidence/b6b-rate-limit-cors/`](docs/evidence/b6b-rate-limit-cors/2026-09-01-b6b-rate-limit-cors-shuidisjtu.md)，D2 共享工作台与天气模块记录见 [`docs/evidence/d2-web-weather/`](docs/evidence/d2-web-weather/2026-09-01-d2-web-weather-dto-ym-hello.md)）。上面的快速开始验证的是**代码质量与测试环境**（后端与 Web 的依赖/类型/Lint/文档/结构/测试全绿）；`npm run dev` 可启动后端服务（需 `.env` 配置 key，见下），再运行 `npm --prefix web run dev` 启动前端并通过 Vite `/api` 代理访问本地 API。可直接运行的教材示例见下方“快速开始(教材示例)” 。
 
 **环境要求与已知坑**：
 

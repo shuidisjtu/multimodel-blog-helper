@@ -13,9 +13,14 @@
     "check:docs": "tsx scripts/check-docs.ts",
     "check:structure": "tsx scripts/generate-structure.ts --check",
     "structure:update": "tsx scripts/generate-structure.ts --update",
-    "verify": "npm run lint && npm run lint:openapi && npm run typecheck && npm run check:docs && npm run check:structure && npm test && npx vitest run --coverage",
+    "verify": "npm run lint && npm run lint:openapi && npm run typecheck && npm run check:docs && npm run check:structure && npm test && npx vitest run --coverage && npm run web:verify",
     "dev": "tsx watch src/bootstrap/server.ts",
-    "lint:openapi": "redocly lint src/interfaces/http/openapi.yaml"
+    "lint:openapi": "redocly lint src/interfaces/http/openapi.yaml",
+    "web:lint": "npm --prefix web run lint",
+    "web:typecheck": "npm --prefix web run typecheck",
+    "web:test": "npm --prefix web run test",
+    "web:build": "npm --prefix web run build",
+    "web:verify": "npm run web:lint && npm run web:typecheck && npm run web:build && npm run web:test"
   },
   "engines": {
     "node": ">=24"
