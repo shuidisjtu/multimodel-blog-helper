@@ -1,6 +1,6 @@
 # B6b 限流与 CORS — 完成记录
 
-> 日期：2026-09-01 ｜ 责任人：shuidisjtu ｜ 分支：`feature/b6-error-rate-limit`
+> 日期：2026-09-01 ｜ 责任人：shuidisjtu ｜ 分支：`feature/b6b-rate-limit-cors`
 >
 > 任务状态以 [`docs/project-division/task-list.md`](../../project-division/task-list.md) 为唯一权威；实施决策见 [`docs/records/2026-08-29-B6-implementation-plan.md`](../../records/2026-08-29-B6-implementation-plan.md) 与 [`docs/adr/0006-rate-limit-cors.md`](../../adr/0006-rate-limit-cors.md)；B6a 部分见 [`../b6a-error-access-log/2026-09-01-b6a-error-boundary-access-log-shuidisjtu.md`](../b6a-error-access-log/2026-09-01-b6a-error-boundary-access-log-shuidisjtu.md)。
 
@@ -33,5 +33,5 @@
 
 ## 下一步
 
-- B6 完整计划随 `feature/b6-error-rate-limit` PR 合并(待 B6b 评审通过后与 B6a 一并合入 `main`)。
+- B6 完整计划已合入 `main`：B6a 随 PR #5、B6b 随 PR #6 分两次合并（2026-09-01）。
 - B7 核心闭环集成验证(依赖 B6a/B6b 完成)已解锁。

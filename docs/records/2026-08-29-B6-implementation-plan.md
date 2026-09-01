@@ -2,7 +2,7 @@
 
 > 日期：2026-08-29 ｜ 状态：已实施（2026-09-01）｜ 责任人：shuidisjtu
 >
-> 本文记录 B6 实施前已确认的设计决策。任务完成状态以 [`docs/project-division/task-list.md`](../project-division/task-list.md) 为唯一权威；B6a/B6b 完成证据见 [`docs/evidence/b6a-error-access-log/`](../evidence/b6a-error-access-log/2026-09-01-b6a-error-boundary-access-log-shuidisjtu.md) 与 [`docs/evidence/b6b-rate-limit-cors/`](../evidence/b6b-rate-limit-cors/2026-09-01-b6b-rate-limit-cors-shuidisjtu.md)；B6a 已合入 main（PR #5），B6b 待合并（本分支），合并后本条自动失效。
+> 本文记录 B6 实施前已确认的设计决策。任务完成状态以 [`docs/project-division/task-list.md`](../project-division/task-list.md) 为唯一权威；B6a/B6b 完成证据见 [`docs/evidence/b6a-error-access-log/`](../evidence/b6a-error-access-log/2026-09-01-b6a-error-boundary-access-log-shuidisjtu.md) 与 [`docs/evidence/b6b-rate-limit-cors/`](../evidence/b6b-rate-limit-cors/2026-09-01-b6b-rate-limit-cors-shuidisjtu.md)；B6a 已合入 main（PR #5），B6b 已合入 main（PR #6）。
 
 ## 目标
 

@@ -63,7 +63,7 @@ cp .env.example .env      # Windows: copy .env.example .env
 npm run verify
 ```
 
-> **当前阶段说明**：重构主线开发中（A1–A5、B1–B5、B6a、C1 已完成；OpenAPI 契约与 B5 契约测试已落地，B6b 限流/CORS 待做，B4 实时天气演示见 [`docs/evidence/release-b4-20260829/`](docs/evidence/release-b4-20260829/2026-08-29-weather-demo-guide.md)，B1/B2 演示见 [`docs/evidence/release-cbafff1/`](docs/evidence/release-cbafff1/2026-08-24-api-demo-guide.md)，B6a 错误边界/访问日志记录见 [`docs/evidence/b6a-error-access-log/`](docs/evidence/b6a-error-access-log/2026-09-01-b6a-error-boundary-access-log-shuidisjtu.md)，B6b 限流/CORS 记录见 [`docs/evidence/b6b-rate-limit-cors/`](docs/evidence/b6b-rate-limit-cors/2026-09-01-b6b-rate-limit-cors-shuidisjtu.md)）。上面的快速开始验证的是**代码质量与测试环境**（依赖/类型/Lint/文档/结构/测试全绿）；`npm run dev` 可启动服务（需 .env 配置 key，见下）。可直接运行的教材示例见下方“快速开始(教材示例)” 。
+> **当前阶段说明**：重构主线开发中（A1–A5、B1–B6、C1、C2 已完成；OpenAPI 契约与 B5 契约测试已落地，B4 实时天气演示见 [`docs/evidence/release-b4-20260829/`](docs/evidence/release-b4-20260829/2026-08-29-weather-demo-guide.md)，B1/B2 演示见 [`docs/evidence/release-cbafff1/`](docs/evidence/release-cbafff1/2026-08-24-api-demo-guide.md)，B6a 错误边界/访问日志记录见 [`docs/evidence/b6a-error-access-log/`](docs/evidence/b6a-error-access-log/2026-09-01-b6a-error-boundary-access-log-shuidisjtu.md)，B6b 限流/CORS 记录见 [`docs/evidence/b6b-rate-limit-cors/`](docs/evidence/b6b-rate-limit-cors/2026-09-01-b6b-rate-limit-cors-shuidisjtu.md)）。上面的快速开始验证的是**代码质量与测试环境**（依赖/类型/Lint/文档/结构/测试全绿）；`npm run dev` 可启动服务（需 .env 配置 key，见下）。可直接运行的教材示例见下方“快速开始(教材示例)” 。
 
 **环境要求与已知坑**：
 

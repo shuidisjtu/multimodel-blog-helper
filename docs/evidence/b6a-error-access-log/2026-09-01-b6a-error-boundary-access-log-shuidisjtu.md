@@ -32,4 +32,4 @@
 ## 下一步
 
 - B6b：上传/天气接口 IP 限流（429 + 动态 `Retry-After`）与白名单 CORS。
-- B6 计划完成后随 `feature/b6-error-rate-limit` 开 PR 合并到 `main`。
+- B6a 已合入 `main`（PR #5，2026-09-01）；B6b 随 PR #6 合入。
