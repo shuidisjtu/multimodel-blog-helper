@@ -1,10 +1,16 @@
 # Unify line endings: git normalizes to LF on both checkin and checkout.
 # Windows editors/tools may write CRLF; without this, biome's byte-level
 # check fails locally while git status stays clean (autocrlf hides it).
-* text=auto
-*.ts text eol=lf
-*.js text eol=lf
-*.json text eol=lf
-*.md text eol=lf
-*.yml text eol=lf
-*.yaml text eol=lf
+#
+# The default below applies to every text file, so newly introduced file
+# types are covered automatically. Listing extensions one by one silently
+# missed .tsx/.css when the web workbench landed, and web lint failed on
+# Windows checkouts while Linux CI stayed green.
+* text=auto eol=lf
+
+# PowerShell scripts stay CRLF: they are run natively on Windows.
+*.ps1 text eol=crlf
+
+# Never apply text normalization to binary assets.
+*.png binary
+*.mp3 binary
