@@ -112,6 +112,8 @@ tests/
     check-docs.test.ts # 文档一致性检查
   contract/ # OpenAPI 驱动的真实 HTTP 响应契约测试(B5)
     openapi-contract.test.ts # 读取 OpenAPI 并校验状态/头/媒体类型/JSON Schema
+web/                package.json, vite.config.ts # 独立 React + Vite 答辩工作台(D2)
+  src/             api/, components/, styles/, test/ # fetch DTO、共享模块、浅色博客助手样式与交互测试
 fixtures/           audio-sample.mp3        # E2E 测试音频 fixture
 docs/               adr/, architecture/, project-division/, records/, evidence/
                                             # 决策记录/架构设计/任务清单/过程证据/验收证据
@@ -130,6 +132,7 @@ temp/               uploads/, outputs/      # 运行期文件(gitignored, 启动
 | `src/interfaces/http/` | 路由、共享 DTO 校验、中间件与 OpenAPI 契约 | ✅ B1/B2/B4/B5 |
 | `src/shared/` | logger / ids / clock 基础工具 | ✅ |
 | `tests/` | 单元 + 集成 + OpenAPI 驱动的契约测试(覆盖率门禁 80%) | ✅ B5/C2;e2e 待 C6 |
+| `web/` | 独立 React + Vite 工作台；共享布局、天气 DTO/API、视觉令牌与交互测试 | 🚧 D2（ym-hello） |
 | `fixtures/` | E2E 测试音频(随仓库分发) | ✅ |
 | `docs/` | ADR / 架构设计 / 任务清单 / 过程证据(records) / 验收证据(evidence) | ✅;runbooks 待 C7 |
 | `temp/` | 上传文件与处理产物(gitignored) | 运行期生成 |
