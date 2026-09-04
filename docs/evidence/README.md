@@ -28,6 +28,19 @@
 | 文件 | 内容 | 来源 |
 | --- | --- | --- |
 | `2026-09-01-d2-web-weather-dto-ym-hello.md` | D2 共享工作台骨架、天气/DTO、测试范围、质量门禁和后续真实联调入口 | 2026-09-01 本机 |
+
+## b7-core-flow/(B7 后端核心闭环集成验证，2026-09-04)
+
+> 对应分支：`feature/b7-core-flow`。自动化验收使用真实 HTTP、文件仓储、队列和 Worker；OpenAI、wttr.in 与时长探针使用确定性 fake，不访问公网。
+
+| 文件 | 内容 | 来源 |
+| --- | --- | --- |
+| `2026-09-04-b7-core-flow-dorotheaqxq-code.md` | 独立 main 基线上的 B7 场景、本机 8 项测试、完成判定及 C3 合并兼容性 | 2026-09-04 本机 |
+| `2026-09-04-b7-test-output.txt` | B7 专用测试原始输出 | 2026-09-04 本机 |
+| `2026-09-04-verify-output.txt` | B7 初始 `npm run verify` 原始输出 | 2026-09-04 本机 |
+| `2026-09-04-main-b7-verify-summary.txt` | 独立 main 基线最终复验与 C3 双分支合并兼容性摘要 | 2026-09-04 本机 |
+| `2026-09-04-b7-live-guide.md` | 可选真实 OpenAI/wttr.in 实跑步骤和证据规则 | 2026-09-04 |
+| `2026-09-04-b7-live-check.ps1` | 可选真实上传/轮询/下载/天气 smoke check；未作为 CI 门禁 | 2026-09-04 |
 ## release-cbafff1/(功能演示:B1 上传受理 + B2 查询/转录下载,2026-08-24 实跑)
 
 > 对应版本:main `cbafff1`(两个演示修复合并提交:transcriber File 上传 1ff7665 + rename EPERM 重试 0d9eca2)。演示素材与版本号一并归档,符合 task-list §5。

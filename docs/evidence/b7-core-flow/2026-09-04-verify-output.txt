@@ -1,0 +1,162 @@
+
+> multimodel-blog-helper@0.1.0 verify
+> npm run lint && npm run lint:openapi && npm run typecheck && npm run check:docs && npm run check:structure && npm test && npx vitest run --coverage && npm run web:verify
+
+
+> multimodel-blog-helper@0.1.0 lint
+> biome check src tests scripts
+
+Checked 85 files in 45ms. No fixes applied.
+
+> multimodel-blog-helper@0.1.0 lint:openapi
+> redocly lint src/interfaces/http/openapi.yaml
+
+
+    ╔═══════════════════════════════════════════════════════╗
+    ║                                                       ║
+    ║  A new version of Redocly CLI (2.51.1) is available.  ║
+    ║  Update now: `npm i -g @redocly/cli@latest`.          ║
+    ║  Changelog: https://redocly.com/docs/cli/changelog/   ║
+    ║                                                       ║
+    ╚═══════════════════════════════════════════════════════╝
+
+validating src\interfaces\http\openapi.yaml...
+src\interfaces\http\openapi.yaml: validated in 8ms
+
+Woohoo! Your API description is valid. 🎉
+
+
+> multimodel-blog-helper@0.1.0 typecheck
+> tsc --noEmit
+
+
+> multimodel-blog-helper@0.1.0 check:docs
+> tsx scripts/check-docs.ts
+
+-- rule-1 (0) --
+-- rule-2 (0) --
+-- rule-4 (0) --
+-- rule-5 (0) --
+All checks passed.
+
+> multimodel-blog-helper@0.1.0 check:structure
+> tsx scripts/generate-structure.ts --check
+
+structure document is up to date
+
+> multimodel-blog-helper@0.1.0 test
+> vitest run
+
+
+ RUN  v4.1.10 E:/chuang/clone/multimodel-blog-helper-b7
+
+
+ Test Files  41 passed (41)
+      Tests  299 passed (299)
+   Start at  13:17:17
+   Duration  2.19s (transform 4.25s, setup 0ms, import 9.94s, tests 6.74s, environment 7ms)
+
+
+ RUN  v4.1.10 E:/chuang/clone/multimodel-blog-helper-b7
+      Coverage enabled with v8
+
+
+ Test Files  41 passed (41)
+      Tests  299 passed (299)
+   Start at  13:17:20
+   Duration  2.72s (transform 4.09s, setup 0ms, import 9.43s, tests 7.52s, environment 4ms)
+
+ % Coverage report from v8
+-------------------|---------|----------|---------|---------|-------------------
+File               | % Stmts | % Branch | % Funcs | % Lines | Uncovered Line #s
+-------------------|---------|----------|---------|---------|-------------------
+All files          |    93.1 |    89.08 |   94.44 |   94.94 |
+ application       |   99.46 |    98.78 |     100 |     100 |
+  ...transcript.ts |   95.65 |    95.45 |     100 |     100 | 13
+ bootstrap         |   70.45 |    88.88 |   55.55 |   72.15 |
+  config.ts        |     100 |       96 |     100 |     100 | 79,83
+  server.ts        |       0 |        0 |       0 |       0 | 11-56
+ domain            |     100 |    96.87 |     100 |     100 |
+  audio-upload.ts  |     100 |    96.29 |     100 |     100 | 77
+ ...ructure/common |     100 |     92.3 |     100 |     100 |
+  retry.ts         |     100 |    88.88 |     100 |     100 | 53
+ ...tructure/queue |   96.15 |       90 |     100 |      96 |
+  ...-job-queue.ts |   96.15 |       90 |     100 |      96 | 50
+ ...ure/repository |    86.3 |    81.81 |   96.15 |    90.6 |
+  ...repository.ts |    86.3 |    81.81 |   96.15 |    90.6 | ...48,275-276,344
+ ...ucture/storage |   96.96 |    83.33 |     100 |     100 |
+  file-store.ts    |   96.96 |    83.33 |     100 |     100 | 57
+ ...ucture/weather |   95.91 |    88.37 |     100 |   97.72 |
+  ...r-provider.ts |   95.91 |    88.37 |     100 |   97.72 | 47
+ ...ttp/middleware |   98.33 |    78.72 |     100 |     100 |
+  access-log.ts    |     100 |    83.33 |     100 |     100 | 13
+  error-handler.ts |   96.29 |       85 |     100 |     100 | 53,72,98
+  rate-limit.ts    |     100 |    68.42 |     100 |     100 | 16,28-31,67
+ ...es/http/routes |     100 |    72.22 |     100 |     100 |
+  ...-job-query.ts |     100 |       50 |     100 |     100 | 19-26
+  audio-jobs.ts    |     100 |       90 |     100 |     100 | 28
+  weather.ts       |     100 |       50 |     100 |     100 | 16
+ shared            |   97.43 |    88.88 |     100 |     100 |
+  logger.ts        |   97.14 |    88.88 |     100 |     100 | 63,81
+-------------------|---------|----------|---------|---------|-------------------
+
+=============================== Coverage summary ===============================
+Statements   : 93.1% ( 756/812 )
+Branches     : 89.08% ( 400/449 )
+Functions    : 94.44% ( 153/162 )
+Lines        : 94.94% ( 714/752 )
+================================================================================
+
+> multimodel-blog-helper@0.1.0 web:verify
+> npm run web:lint && npm run web:typecheck && npm run web:build && npm run web:test
+
+
+> multimodel-blog-helper@0.1.0 web:lint
+> npm --prefix web run lint
+
+
+> multimodel-blog-helper-web@0.1.0 lint
+> biome check src vite.config.ts
+
+Checked 12 files in 11ms. No fixes applied.
+
+> multimodel-blog-helper@0.1.0 web:typecheck
+> npm --prefix web run typecheck
+
+
+> multimodel-blog-helper-web@0.1.0 typecheck
+> tsc --noEmit
+
+
+> multimodel-blog-helper@0.1.0 web:build
+> npm --prefix web run build
+
+
+> multimodel-blog-helper-web@0.1.0 build
+> tsc --noEmit && vite build
+
+vite v7.3.6 building client environment for production...
+transforming...
+✓ 34 modules transformed.
+rendering chunks...
+computing gzip size...
+dist/index.html                   0.58 kB │ gzip:  0.41 kB
+dist/assets/index-CYOhMD6X.css    6.00 kB │ gzip:  2.13 kB
+dist/assets/index-B_tWVUNt.js   200.59 kB │ gzip: 63.52 kB
+✓ built in 433ms
+
+> multimodel-blog-helper@0.1.0 web:test
+> npm --prefix web run test
+
+
+> multimodel-blog-helper-web@0.1.0 test
+> vitest run
+
+
+ RUN  v4.1.11 E:/chuang/clone/multimodel-blog-helper-b7/web
+
+
+ Test Files  1 passed (1)
+      Tests  9 passed (9)
+   Start at  13:17:29
+   Duration  1.79s (transform 61ms, setup 69ms, import 188ms, tests 967ms, environment 453ms)
