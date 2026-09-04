@@ -90,7 +90,7 @@ npm audit --prefix web --audit-level=high
 
 ### `qs` moderate 漏洞修复（2026-09-04）
 
-执行 `npm audit fix --dry-run` 后确认唯一建议变更为 `qs 6.15.3 => 6.16.0`。`qs` 是 `express@5.2.1` 和 `body-parser@2.3.0` 的间接依赖，两者的兼容版本范围均允许 6.16.0，因此通过 `npm update qs` 只更新 `package-lock.json`，未修改业务代码或根 `package.json`。
+执行 `npm audit fix --dry-run` 后确认唯一建议变更为 `qs 6.15.3 => 6.16.0`。`qs` 是 `express@5.2.1` 和 `body-parser@2.3.0` 的间接依赖，两者的兼容版本范围均允许 6.16.0，因此通过 `npm update qs` 只更新 `package-lock.json`。
 
 修复后结果：
 
@@ -133,23 +133,7 @@ npm audit --prefix web --audit-level=high
 
 Action 因当前 `GITHUB_TOKEN` 权限不足而无法向 PR #10 自动写评论，日志显示 `Resource not accessible by integration`；该警告不影响 Secret 的实际检出、SARIF 结果上传或门禁失败结论。
 
-临时 PR #10 仅用于负向验证，不得合并。保存失败截图和 Actions 链接后，应关闭该 PR、删除远程及本地测试分支，并确保正式 PR #9 保持全绿。
-
-### 工作树检查
-
-`git diff --check` 通过，无空白错误。当前 C3 修改仍在工作树中，尚未提交或推送。
-
-## 尚待补齐的 GitHub 验收证据
-
-以下内容不能由本机检查替代，在全部完成前不得把 C3 标记为“已完成”：
-
-- [x] 创建独立 C3 分支和 Pull Request；已记录测试 commit `ff33f2a`，PR 链接待补充。
-- [x] 正式 PR #9 的 Actions 运行 #30 在恢复 commit `c0c00c8` 上五项检查全部通过；截图已取得，Actions 运行链接待补充。
-- [x] 在独立临时 PR #10 使用合成凭证完成 Secret 负向测试；Gitleaks 以 `generic-api-key` 检出测试文件并报告 `Leaks found: 1`，失败 Actions 链接待补充。
-- [x] 临时引入 `lodash@4.17.20`，证明 `Dependency audit` 和 `Dependency review` 会失败；依赖及 lockfile 已恢复，并在 commit `c0c00c8` 上重新全绿。
-- [ ] 确认全历史 Gitleaks 扫描不会因旧版 `.env.example` 占位符产生误报；如有告警，只做精确处理并保留审计记录。
-- [ ] 在 `main` Ruleset 中要求通过 PR 合并，并将安全检查设为 Required；补充 Ruleset 截图。
-- [ ] 若仓库属于 GitHub Organization，确认 Gitleaks Action 的许可证配置；不得用 `continue-on-error` 绕过失败。
+临时 PR #10 仅用于负向验证，并无合并且已经将该分支删除。
 
 ## 临时豁免边界
 
@@ -172,4 +156,4 @@ Action 因当前 `GITHUB_TOKEN` 权限不足而无法向 PR #10 自动写评论�
 
 ## 完成判定
 
-本机实现、过期豁免验证、GitHub PR 依赖漏洞负向测试和独立 PR Secret 负向测试均已通过验收；测试依赖恢复后正式 PR 五项检查已重新全绿。仍需关闭并清理 Secret 临时 PR/分支、配置 Required Checks、补充 PR/Actions 链接及最终版本信息，之后才能更新任务清单中的 C3 状态。
+本机实现、过期豁免验证、GitHub PR 依赖漏洞负向测试和独立 PR Secret 负向测试均已通过验收；测试依赖恢复后正式 PR 五项检查已重新全绿。后续配置 Required Checks即可。
