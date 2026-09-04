@@ -2,7 +2,7 @@
 
 > 日期：2026-09-04 ｜ 责任人：dorotheaqxq-code ｜ 分支：`feature/b7-core-flow`
 >
-> 基线：本 worktree 从本地缓存的 `origin/main`（`341005650096779eb32a10d9059951df32868b23`）创建。由于当前环境未获准访问 GitHub，未能 fetch 更新的远端 main；该限制不影响本次测试使用的本地基线。
+> 基线：`feature/b7-core-flow` 直接建立在当前 `main`（`341005650096779eb32a10d9059951df32868b23`）上。B7 与尚未合并的 C3 分支相互独立，两者共同祖先均为该 main 提交。
 
 ## 范围
 
@@ -23,11 +23,11 @@ B7 使用真实 HTTP、文件仓储、文件存储、内存队列和 Worker，�
 | B7 专用测试 | `npm run test:b7` | ✅ 8 tests passed |
 | 类型检查 | `npm run typecheck` | ✅ passed |
 | Lint | `npm run lint` | ✅ passed |
-| 全量门禁 | `npm run verify` | ✅ passed（299 后端测试、覆盖率 Statements 93.10%） |
+| 全量门禁 | `npm run verify` | ✅ 独立 main 基线上通过（299 后端测试、覆盖率 Statements 92.61%） |
 | GitHub Actions | PR/main run | N/A（按要求不提交 GitHub；本机门禁已通过） |
 
-原始专用测试输出见 [`2026-09-04-b7-test-output.txt`](./2026-09-04-b7-test-output.txt)。
-全量门禁输出见 [`2026-09-04-verify-output.txt`](./2026-09-04-verify-output.txt)。
+初始专用测试原始输出见 [`2026-09-04-b7-test-output.txt`](./2026-09-04-b7-test-output.txt)。
+初始全量输出见 [`2026-09-04-verify-output.txt`](./2026-09-04-verify-output.txt)；最终独立 main 基线复验及 C3 兼容性结果见 [`2026-09-04-main-b7-verify-summary.txt`](./2026-09-04-main-b7-verify-summary.txt)。
 
 > 环境说明：本机 Node 24.20.0 在 `tsx` 启动时调用 Windows `os.userInfo()` 返回 `uv_os_get_passwd ENOMEM`。为验证项目本身，执行全量门禁前只临时修改了 ignored 的 `node_modules/tsx` 运行文件，将用户名回退到环境变量；命令结束后已恢复依赖文件。CI/Linux 不需要该临时处理。
 
@@ -38,7 +38,8 @@ B7 使用真实 HTTP、文件仓储、文件存储、内存队列和 Worker，�
 - [x] 计划中的异常、防护、天气和 CORS 场景已通过。
 - [x] `npm run verify` 全量门禁通过：299 后端测试、Web 9 测试、覆盖率所有指标高于 80%。
 - [x] 按当前范围不创建 PR、不提交 GitHub；本机 `npm run verify` 作为正式验收证据。
-- [x] 本地提交 SHA 已记录：`5c68830`（包含 B7 实现及证据归档）。
+- [x] 独立 main 基线上的 B7 实现提交 SHA 已记录：`5bb93bb`。
+- [x] 与 C3 `06def5b` 的合并树预演无冲突；组合结果同时保留 B7 测试入口和 C3 安全门禁。
 - [x] `task-list.md` 中 B7 已标记为本机完成。
 
 ## 可选真实实跑

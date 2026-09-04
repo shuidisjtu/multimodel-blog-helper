@@ -35,9 +35,10 @@
 
 | 文件 | 内容 | 来源 |
 | --- | --- | --- |
-| `2026-09-04-b7-core-flow-dorotheaqxq-code.md` | B7 场景范围、本机 8 项测试结果、完成判定和待补 PR/CI 证据 | 2026-09-04 本机 |
+| `2026-09-04-b7-core-flow-dorotheaqxq-code.md` | 独立 main 基线上的 B7 场景、本机 8 项测试、完成判定及 C3 合并兼容性 | 2026-09-04 本机 |
 | `2026-09-04-b7-test-output.txt` | B7 专用测试原始输出 | 2026-09-04 本机 |
-| `2026-09-04-verify-output.txt` | B7 worktree 全量 `npm run verify` 输出：299 后端测试、Web 9 测试、覆盖率 93.10% Statements | 2026-09-04 本机 |
+| `2026-09-04-verify-output.txt` | B7 初始 `npm run verify` 原始输出 | 2026-09-04 本机 |
+| `2026-09-04-main-b7-verify-summary.txt` | 独立 main 基线最终复验与 C3 双分支合并兼容性摘要 | 2026-09-04 本机 |
 | `2026-09-04-b7-live-guide.md` | 可选真实 OpenAI/wttr.in 实跑步骤和证据规则 | 2026-09-04 |
 | `2026-09-04-b7-live-check.ps1` | 可选真实上传/轮询/下载/天气 smoke check；未作为 CI 门禁 | 2026-09-04 |
 ## release-cbafff1/(功能演示:B1 上传受理 + B2 查询/转录下载,2026-08-24 实跑)

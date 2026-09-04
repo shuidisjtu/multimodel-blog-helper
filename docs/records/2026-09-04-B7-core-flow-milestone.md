@@ -1,6 +1,6 @@
 # B7 核心闭环集成验证里程碑
 
-> 日期：2026-09-04 ｜ 分支：`feature/b7-core-flow` ｜ 状态：本机实现与验证完成；按要求不提交 GitHub
+> 日期：2026-09-04 ｜ 分支：`feature/b7-core-flow` ｜ 基线：`main` `3410056` ｜ 状态：本机实现与验证完成；按要求不提交 GitHub
 
 ## 目标
 
@@ -11,14 +11,16 @@
 - 新增 `tests/e2e/core-flow.test.ts` 和 `tests/e2e/support/b7-test-system.ts`。
 - 真实链路使用 `LocalFileStore`、`FileJobRepository`、`MemoryJobQueue`、`ProcessJob`、`ProcessJobWorker`。
 - OpenAI、wttr.in 和音频时长探测均通过可控 fake 注入，不访问公网。
+- B7 已从 C3 历史中拆出并直接基于 `main`；与 C3 `06def5b` 的合并预演无冲突，组合树同时保留双方脚本、测试与 CI 配置。
 - `npm run test:b7` 当前 8 个测试全部通过；类型检查和 lint 通过。
-- 全量 `npm run verify` 已通过：299 个后端测试、Web 9 个测试，覆盖率 Statements 93.10%、Branches 89.08%、Functions 94.44%、Lines 94.94%。
+- 独立 main 基线的 `npm run verify` 已通过：299 个后端测试、Web 9 个测试，覆盖率 Statements 92.61%、Branches 88.41%、Functions 93.82%、Lines 94.54%。
 - 本次按要求不创建 PR、不提交 GitHub；远端 Actions 结果标记为 N/A。
 
 ## 证据
 
 - [B7 本机验收记录](../evidence/b7-core-flow/2026-09-04-b7-core-flow-dorotheaqxq-code.md)
 - [B7 专用测试原始输出](../evidence/b7-core-flow/2026-09-04-b7-test-output.txt)
+- [独立 main 基线复验与 C3 兼容性摘要](../evidence/b7-core-flow/2026-09-04-main-b7-verify-summary.txt)
 
 ## 下一步
 

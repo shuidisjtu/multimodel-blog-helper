@@ -1,0 +1,47 @@
+Independent main-based B7 verification summary
+Date: 2026-09-04
+Branch: feature/b7-core-flow
+Base: main 341005650096779eb32a10d9059951df32868b23
+B7 implementation commit after base rewrite: 5bb93bb
+
+Branch independence
+- merge-base(feature/b7-core-flow, main): 341005650096779eb32a10d9059951df32868b23
+- merge-base(feature/b7-core-flow, feature/c3-security-ci): 341005650096779eb32a10d9059951df32868b23
+- The B7 diff against main contains no C3 security files or qs lock-file update.
+
+B7 focused verification
+- Command: npm run test:b7
+- Result: exit 0; 1 test file passed; 8 tests passed
+
+Independent B7 quality gate
+- Command: npm run verify
+- Result: exit 0
+- Lint: passed (85 files)
+- OpenAPI lint: passed
+- TypeScript: passed
+- Documentation checks: passed
+- Structure check: passed
+- Backend: 41 test files passed; 299 tests passed
+- Coverage: Statements 92.61%; Branches 88.41%; Functions 93.82%; Lines 94.54%
+- Web lint/typecheck/build: passed
+- Web: 1 test file passed; 9 tests passed
+
+C3 compatibility
+- C3 commit: 06def5be646f98fe1d302308b8128992eddde702
+- git merge-tree --write-tree feature/c3-security-ci feature/b7-core-flow: exit 0
+- The synthetic merge preserved B7 test:b7 and the named B7 E2E CI test step.
+- The synthetic merge preserved C3 check:security-exceptions, dependency audit,
+  dependency review, secret scan, security exception manifest, and qs@6.16.0 update.
+- The combined C3+B7 quality gate was also executed successfully before the
+  histories were separated: 299 backend tests, 9 Web tests, and 0 security exceptions.
+
+Other checks
+- git diff --check main..feature/b7-core-flow: passed
+- No OpenAI, wttr.in, or other public service was called by B7 tests
+- No GitHub push or pull request was created for B7
+
+Environment note
+Node 24.20.0 on this Windows host can fail in tsx before project code runs with
+uv_os_get_passwd ENOMEM. The ignored node_modules/tsx username lookup was
+temporarily changed to an environment-variable fallback for the quality gate,
+then restored. No dependency workaround remains in the repository diff.
