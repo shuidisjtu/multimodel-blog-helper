@@ -27,7 +27,7 @@
 | B5 | 接口 DTO 与契约测试 | B1、B2、B4 | 对现有 `/api/v1` 路由校验请求/响应 DTO、状态码、错误 envelope 与媒体类型；OpenAPI 与实际响应一致 | ✅ 已完成 2026-08-31 / ym-hello（共享 HTTP schemas、OpenAPI lint 与 OpenAPI 驱动的 263 项测试；证据见 [`2026-08-30-b5-dto-contract-tests.md`](../evidence/api-contract/2026-08-30-b5-dto-contract-tests.md)） |
 | B6a | 错误边界与访问日志 | B1、B2、B4 | async 路由统一进入错误边界；响应有 `X-Request-Id`；访问日志记录脱敏路径、方法、状态、耗时与 requestId | ✅ 已完成 2026-09-01(`npm run verify` 全绿：lint/lint:openapi/typecheck/check:docs/check:structure/270 测试/覆盖率 92.18%；递归日志脱敏(嵌套对象/数组/循环引用安全)与 `http.access` 每请求一行,已合入 main(PR #5)) |
 | B6b | 限流与 CORS | B5 | 上传/天气接口 IP 限流（`429`、动态 `Retry-After`）；默认同源，跨域仅白名单；有自动化测试 | ✅ 已完成 2026-09-01(`npm run verify` 全绿:291 测试/覆盖率 92.61%,已合入 main(PR #6),ADR 见 docs/adr/0006；详情 [`docs/evidence/b6b-rate-limit-cors/2026-09-01-b6b-rate-limit-cors-shuidisjtu.md`](../evidence/b6b-rate-limit-cors/2026-09-01-b6b-rate-limit-cors-shuidisjtu.md)) |
-| B7 | 核心闭环集成验证 | B5、B6a、B6b | 覆盖上传→异步状态迁移→查询摘要→下载转录；并覆盖非法文件、幂等冲突、队列满、限流、天气成功/失败与 CORS | 待办/dorotheaqxq-code |
+| B7 | 核心闭环集成验证 | B5、B6a、B6b | 覆盖上传→异步状态迁移→查询摘要→下载转录；并覆盖非法文件、幂等冲突、队列满、限流、天气成功/失败与 CORS | 🚧 本机实现与测试完成，待 PR/CI 证据/dorotheaqxq-code |
 
 ### 质量与交付
 

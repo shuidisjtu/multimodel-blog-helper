@@ -5,7 +5,7 @@
 
 ## 目录总览
 
-> 块内 `src/` 与 `tests/` 子树由 `scripts/generate-structure.ts` 自动生成（事实源: `git ls-files` 中的 .ts 文件；`--update` 重写 / `--check` 校验），其余根手写维护。标 `(planned)` 的行是有意记录的未来工作，磁盘落地后由生成器接管。tests/ 与 src 同层镜像；e2e/ 待 C6。
+> 块内 `src/` 与 `tests/` 子树由 `scripts/generate-structure.ts` 自动生成（事实源: `git ls-files` 中的 .ts 文件；`--update` 重写 / `--check` 校验），其余根手写维护。标 `(planned)` 的行是有意记录的未来工作，磁盘落地后由生成器接管。tests/ 与 src 同层镜像；e2e/ 保存 B7 后端闭环验收。
 
 ```text
 src/
@@ -106,7 +106,10 @@ tests/
     access-log.test.ts # 访问日志集成测试(成功/404/未匹配路由: 字段、路由模式路径与 requestId 关联)
     cors.test.ts # CORS 集成测试(白名单/默认同源/预检 204/非法 Origin 无允许头)
     rate-limit.test.ts # 限流集成测试(429 envelope/Retry-After/无效请求计数/XFF 信任)
-  e2e/ (planned) # 待 C6
+  e2e/ # B7 后端核心闭环 E2E 集成验证
+    support/
+      b7-test-system.ts # B7 测试装配器、Deferred 与可控 fake
+    core-flow.test.ts # 真实 HTTP/文件仓储/队列/Worker + fake 外部边界全场景
   scripts/ # 脚本测试
     generate-structure.test.ts # 结构生成器测试
     check-docs.test.ts # 文档一致性检查
@@ -131,7 +134,7 @@ temp/               uploads/, outputs/      # 运行期文件(gitignored, 启动
 | `src/infrastructure/` | OpenAI/队列/仓储/文件系统/天气实现(适配器) | ✅ A2–A4/B4 |
 | `src/interfaces/http/` | 路由、共享 DTO 校验、中间件与 OpenAPI 契约 | ✅ B1/B2/B4/B5 |
 | `src/shared/` | logger / ids / clock 基础工具 | ✅ |
-| `tests/` | 单元 + 集成 + OpenAPI 驱动的契约测试(覆盖率门禁 80%) | ✅ B5/C2;e2e 待 C6 |
+| `tests/` | 单元 + 集成 + B7 E2E + OpenAPI 驱动的契约测试(覆盖率门禁 80%) | ✅ B5/C2/B7 |
 | `web/` | 独立 React + Vite 工作台；共享布局、天气 DTO/API、视觉令牌与交互测试 | 🚧 D2（ym-hello） |
 | `fixtures/` | E2E 测试音频(随仓库分发) | ✅ |
 | `docs/` | ADR / 架构设计 / 任务清单 / 过程证据(records) / 验收证据(evidence) | ✅;runbooks 待 C7 |

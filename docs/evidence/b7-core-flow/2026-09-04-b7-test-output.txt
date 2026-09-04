@@ -1,0 +1,13 @@
+
+> multimodel-blog-helper@0.1.0 test:b7
+> vitest run tests/e2e/core-flow.test.ts
+
+
+ RUN  v4.1.10 E:/chuang/clone/multimodel-blog-helper-b7
+
+
+ Test Files  1 passed (1)
+      Tests  8 passed (8)
+   Start at  13:07:37
+   Duration  1.58s (transform 116ms, setup 0ms, import 418ms, tests 1.04s, environment 0ms)
+
