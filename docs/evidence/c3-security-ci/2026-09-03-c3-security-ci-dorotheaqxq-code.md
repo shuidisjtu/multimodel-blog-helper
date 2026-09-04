@@ -83,10 +83,23 @@ npm audit --prefix web --audit-level=high
   - `GHSA-4mjr-xmp4-gh2g`：`isBuffer` 判断可被攻击者控制的对象触发，形成拒绝服务风险。恶意查询输入可能使解析过程抛出异常或消耗资源，影响服务可用性。
 - `moderate` 严重级别来自 2026-09-03 本机执行 `npm audit` 时 npm Registry 返回的公告数据，并非项目成员主观判断。npm 将当前受影响的 `qs` 依赖节点汇总为 `1 moderate severity vulnerability`。
 - C3 当前使用 `npm audit --audit-level=high`：high 和 critical 会返回非零状态并阻断 CI，moderate 会被报告但不会使该命令失败。因此本次审计状态码为 0，表示通过 high/critical 门禁，不表示依赖树完全没有漏洞。
-- 当前处理决定：该 moderate 漏洞不阻塞 C3 合并，但必须保留记录并安排兼容升级；若漏洞等级升高、确认存在可利用的公网查询参数入口，或风险评估发生变化，应立即提升修复优先级。升级时先执行 `npm audit fix --dry-run` 评估变更，不直接使用可能引入破坏性升级的 `npm audit fix --force`。
+- 初始处理决定：该 moderate 漏洞不阻塞 high/critical 门禁，但必须保留记录并优先采用兼容升级修复，不使用可能引入破坏性升级的 `npm audit fix --force`。
 - `web/`：0 个漏洞。
 
 完整命令、npm 原始输出与退出码见 [`2026-09-03-npm-audit-output.txt`](./2026-09-03-npm-audit-output.txt)。
+
+### `qs` moderate 漏洞修复（2026-09-04）
+
+执行 `npm audit fix --dry-run` 后确认唯一建议变更为 `qs 6.15.3 => 6.16.0`。`qs` 是 `express@5.2.1` 和 `body-parser@2.3.0` 的间接依赖，两者的兼容版本范围均允许 6.16.0，因此通过 `npm update qs` 只更新 `package-lock.json`，未修改业务代码或根 `package.json`。
+
+修复后结果：
+
+- `npm ls qs`：Express 与 body-parser 均使用去重后的 `qs@6.16.0`。
+- `npm audit --audit-level=high`：`found 0 vulnerabilities`。
+- `npm audit --prefix web --audit-level=high`：`found 0 vulnerabilities`。
+- `npm run verify`：全部通过；后端 291 项测试、前端 9 项测试通过，覆盖率保持 Statements 92.61%、Branches 88.41%、Functions 93.82%、Lines 94.54%。
+
+结论：两条 `qs` moderate 公告已通过兼容升级修复，无需建立临时安全豁免。
 
 ### GitHub PR 依赖漏洞负向测试（2026-09-04）
 

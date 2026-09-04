@@ -69,3 +69,42 @@ Exit code: 1
 Interpretation:
 - The temporary lodash version caused a high-severity finding, so npm audit returned exit code 1 as required by the C3 gate.
 - This is the expected negative-test failure. The lodash fixture must not remain in the final PR.
+
+qs remediation verification
+Date: 2026-09-04
+
+Command:
+npm update qs
+
+Result:
+change qs 6.15.3 => 6.16.0
+changed 1 package, and audited 190 packages
+found 0 vulnerabilities
+
+Command:
+npm ls qs
+
+Result:
+multimodel-blog-helper@0.1.0
+└─┬ express@5.2.1
+  ├─┬ body-parser@2.3.0
+  │ └── qs@6.16.0 deduped
+  └── qs@6.16.0
+
+Command:
+npm audit --audit-level=high
+
+Result:
+found 0 vulnerabilities
+Exit code: 0
+
+Command:
+npm audit --prefix web --audit-level=high
+
+Result:
+found 0 vulnerabilities
+Exit code: 0
+
+Interpretation:
+- The two previously reported moderate qs advisories are resolved by the compatible transitive update to qs 6.16.0.
+- No security exception is required.
