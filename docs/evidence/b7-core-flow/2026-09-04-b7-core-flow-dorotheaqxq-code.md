@@ -27,6 +27,9 @@ B7 使用真实 HTTP、文件仓储、文件存储、内存队列和 Worker，�
 | GitHub Actions | PR/main run | ⏳ 尚未创建 PR；不得据此宣称 CI 通过 |
 
 原始专用测试输出见 [`2026-09-04-b7-test-output.txt`](./2026-09-04-b7-test-output.txt)。
+全量门禁输出见 [`2026-09-04-verify-output.txt`](./2026-09-04-verify-output.txt)。
+
+> 环境说明：本机 Node 24.20.0 在 `tsx` 启动时调用 Windows `os.userInfo()` 返回 `uv_os_get_passwd ENOMEM`。为验证项目本身，执行全量门禁前只临时修改了 ignored 的 `node_modules/tsx` 运行文件，将用户名回退到环境变量；命令结束后已恢复依赖文件。CI/Linux 不需要该临时处理。
 
 ## 完成判定
 
