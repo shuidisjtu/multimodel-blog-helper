@@ -1,0 +1,39 @@
+C3 dependency audit evidence
+Date: 2026-09-03
+Repository: shuidisjtu/multimodel-blog-helper
+Purpose: demonstrate that both dependency trees pass the configured high/critical gate
+
+Command (repository root):
+npm audit --audit-level=high
+
+Output:
+# npm audit report
+
+qs  2.2.5 - 6.15.3
+Severity: moderate
+qs array-limit bypass via bracket-key comma parsing - https://github.com/advisories/GHSA-x5fp-wj9c-mxmx
+qs: Denial of Service via Attacker Controlled isBuffer - https://github.com/advisories/GHSA-4mjr-xmp4-gh2g
+fix available via `npm audit fix`
+node_modules/qs
+
+1 moderate severity vulnerability
+
+To address all issues, run:
+  npm audit fix
+
+Exit code: 0
+
+Command (web dependency tree):
+npm audit --prefix web --audit-level=high
+
+Output:
+found 0 vulnerabilities
+
+Exit code: 0
+
+Interpretation:
+- npm reported one affected qs dependency node at moderate severity in the root dependency tree.
+- The two GHSA lines identify two advisories affecting that qs node; they do not change npm's summary to two dependency vulnerabilities.
+- With --audit-level=high, only high and critical findings make npm audit exit unsuccessfully.
+- Both commands exited with code 0, so both dependency trees passed the configured C3 high/critical gate.
+- This evidence does not claim that the root dependency tree is vulnerability-free. The moderate qs finding remains recorded for follow-up remediation.
