@@ -68,36 +68,36 @@ structure document is up to date
 
  % Coverage report from v8
 -------------------|---------|----------|---------|---------|-------------------
-File               | % Stmts | % Branch | % Funcs | % Lines | Uncovered Line #s 
+File               | % Stmts | % Branch | % Funcs | % Lines | Uncovered Line #s
 -------------------|---------|----------|---------|---------|-------------------
-All files          |    93.1 |    89.08 |   94.44 |   94.94 |                   
- application       |   99.46 |    98.78 |     100 |     100 |                   
-  ...transcript.ts |   95.65 |    95.45 |     100 |     100 | 13                
- bootstrap         |   70.45 |    88.88 |   55.55 |   72.15 |                   
-  config.ts        |     100 |       96 |     100 |     100 | 79,83             
-  server.ts        |       0 |        0 |       0 |       0 | 11-56             
- domain            |     100 |    96.87 |     100 |     100 |                   
-  audio-upload.ts  |     100 |    96.29 |     100 |     100 | 77                
- ...ructure/common |     100 |     92.3 |     100 |     100 |                   
-  retry.ts         |     100 |    88.88 |     100 |     100 | 53                
- ...tructure/queue |   96.15 |       90 |     100 |      96 |                   
-  ...-job-queue.ts |   96.15 |       90 |     100 |      96 | 50                
- ...ure/repository |    86.3 |    81.81 |   96.15 |    90.6 |                   
-  ...repository.ts |    86.3 |    81.81 |   96.15 |    90.6 | ...48,275-276,344 
- ...ucture/storage |   96.96 |    83.33 |     100 |     100 |                   
-  file-store.ts    |   96.96 |    83.33 |     100 |     100 | 57                
- ...ucture/weather |   95.91 |    88.37 |     100 |   97.72 |                   
-  ...r-provider.ts |   95.91 |    88.37 |     100 |   97.72 | 47                
- ...ttp/middleware |   98.33 |    78.72 |     100 |     100 |                   
-  access-log.ts    |     100 |    83.33 |     100 |     100 | 13                
-  error-handler.ts |   96.29 |       85 |     100 |     100 | 53,72,98          
-  rate-limit.ts    |     100 |    68.42 |     100 |     100 | 16,28-31,67       
- ...es/http/routes |     100 |    72.22 |     100 |     100 |                   
-  ...-job-query.ts |     100 |       50 |     100 |     100 | 19-26             
-  audio-jobs.ts    |     100 |       90 |     100 |     100 | 28                
-  weather.ts       |     100 |       50 |     100 |     100 | 16                
- shared            |   97.43 |    88.88 |     100 |     100 |                   
-  logger.ts        |   97.14 |    88.88 |     100 |     100 | 63,81             
+All files          |    93.1 |    89.08 |   94.44 |   94.94 |
+ application       |   99.46 |    98.78 |     100 |     100 |
+  ...transcript.ts |   95.65 |    95.45 |     100 |     100 | 13
+ bootstrap         |   70.45 |    88.88 |   55.55 |   72.15 |
+  config.ts        |     100 |       96 |     100 |     100 | 79,83
+  server.ts        |       0 |        0 |       0 |       0 | 11-56
+ domain            |     100 |    96.87 |     100 |     100 |
+  audio-upload.ts  |     100 |    96.29 |     100 |     100 | 77
+ ...ructure/common |     100 |     92.3 |     100 |     100 |
+  retry.ts         |     100 |    88.88 |     100 |     100 | 53
+ ...tructure/queue |   96.15 |       90 |     100 |      96 |
+  ...-job-queue.ts |   96.15 |       90 |     100 |      96 | 50
+ ...ure/repository |    86.3 |    81.81 |   96.15 |    90.6 |
+  ...repository.ts |    86.3 |    81.81 |   96.15 |    90.6 | ...48,275-276,344
+ ...ucture/storage |   96.96 |    83.33 |     100 |     100 |
+  file-store.ts    |   96.96 |    83.33 |     100 |     100 | 57
+ ...ucture/weather |   95.91 |    88.37 |     100 |   97.72 |
+  ...r-provider.ts |   95.91 |    88.37 |     100 |   97.72 | 47
+ ...ttp/middleware |   98.33 |    78.72 |     100 |     100 |
+  access-log.ts    |     100 |    83.33 |     100 |     100 | 13
+  error-handler.ts |   96.29 |       85 |     100 |     100 | 53,72,98
+  rate-limit.ts    |     100 |    68.42 |     100 |     100 | 16,28-31,67
+ ...es/http/routes |     100 |    72.22 |     100 |     100 |
+  ...-job-query.ts |     100 |       50 |     100 |     100 | 19-26
+  audio-jobs.ts    |     100 |       90 |     100 |     100 | 28
+  weather.ts       |     100 |       50 |     100 |     100 | 16
+ shared            |   97.43 |    88.88 |     100 |     100 |
+  logger.ts        |   97.14 |    88.88 |     100 |     100 | 63,81
 -------------------|---------|----------|---------|---------|-------------------
 
 =============================== Coverage summary ===============================
@@ -160,4 +160,3 @@ dist/assets/index-B_tWVUNt.js   200.59 kB │ gzip: 63.52 kB
       Tests  9 passed (9)
    Start at  13:17:29
    Duration  1.79s (transform 61ms, setup 69ms, import 188ms, tests 967ms, environment 453ms)
-
