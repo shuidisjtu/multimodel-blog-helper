@@ -24,7 +24,7 @@ B7 使用真实 HTTP、文件仓储、文件存储、内存队列和 Worker，�
 | 类型检查 | `npm run typecheck` | ✅ passed |
 | Lint | `npm run lint` | ✅ passed |
 | 全量门禁 | `npm run verify` | ✅ passed（299 后端测试、覆盖率 Statements 93.10%） |
-| GitHub Actions | PR/main run | ⏳ 尚未创建 PR；不得据此宣称 CI 通过 |
+| GitHub Actions | PR/main run | N/A（按要求不提交 GitHub；本机门禁已通过） |
 
 原始专用测试输出见 [`2026-09-04-b7-test-output.txt`](./2026-09-04-b7-test-output.txt)。
 全量门禁输出见 [`2026-09-04-verify-output.txt`](./2026-09-04-verify-output.txt)。
@@ -37,9 +37,9 @@ B7 使用真实 HTTP、文件仓储、文件存储、内存队列和 Worker，�
 - [x] 真实 HTTP/文件仓储/队列/Worker 的核心闭环已通过。
 - [x] 计划中的异常、防护、天气和 CORS 场景已通过。
 - [x] `npm run verify` 全量门禁通过：299 后端测试、Web 9 测试、覆盖率所有指标高于 80%。
-- [ ] 新分支 PR 创建并通过 GitHub Actions 全量门禁。
-- [ ] 将 PR、Actions run 和最终 commit SHA 补入本记录与证据索引。
-- [ ] 完成上述远端证据后，才把 `task-list.md` 中 B7 标记为完成。
+- [x] 按当前范围不创建 PR、不提交 GitHub；本机 `npm run verify` 作为正式验收证据。
+- [x] 本地提交 SHA 已记录：`5c68830`（包含 B7 实现及证据归档）。
+- [x] `task-list.md` 中 B7 已标记为本机完成。
 
 ## 可选真实实跑
 

@@ -1,6 +1,6 @@
 # B7 核心闭环集成验证里程碑
 
-> 日期：2026-09-04 ｜ 分支：`feature/b7-core-flow` ｜ 状态：本机实现与验证完成，等待 PR/CI 证据
+> 日期：2026-09-04 ｜ 分支：`feature/b7-core-flow` ｜ 状态：本机实现与验证完成；按要求不提交 GitHub
 
 ## 目标
 
@@ -13,7 +13,7 @@
 - OpenAI、wttr.in 和音频时长探测均通过可控 fake 注入，不访问公网。
 - `npm run test:b7` 当前 8 个测试全部通过；类型检查和 lint 通过。
 - 全量 `npm run verify` 已通过：299 个后端测试、Web 9 个测试，覆盖率 Statements 93.10%、Branches 89.08%、Functions 94.44%、Lines 94.94%。
-- PR 链接和 GitHub Actions 结果仍需在远端创建 PR 后补齐。
+- 本次按要求不创建 PR、不提交 GitHub；远端 Actions 结果标记为 N/A。
 
 ## 证据
 
@@ -22,6 +22,5 @@
 
 ## 下一步
 
-1. 创建 `feature/b7-core-flow` Pull Request，等待 required checks 全绿。
-2. 将 PR、Actions run 和最终 commit SHA 补入证据记录。
-3. 远端证据完成后更新任务清单和 README 的 B7 状态。
+1. 如需现场演示，可按 B7 可选实跑指引运行真实服务。
+2. 后续 C4 若需要 CI 发布证据，应另行决定是否开放远端流水线；不属于本次 B7。
