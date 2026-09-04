@@ -1,10 +1,10 @@
 # C3 安全与 Secret 扫描 CI — 验收记录
 
-> 日期：2026-09-03 ｜ 责任人：dorotheaqxq-code ｜ 当前分支：`main`
+> 日期：2026-09-04 ｜ 责任人：dorotheaqxq-code ｜ 验证分支：`feature/c3-security-ci`
 >
-> 当前基线 commit：`341005650096779eb32a10d9059951df32868b23`。C3 变更尚未提交，因此该 SHA 仅表示实施前基线，不是最终验收版本。
+> 实施前基线 commit：`341005650096779eb32a10d9059951df32868b23`；依赖负向测试 commit：`ff33f2a`；恢复 commit：`c0c00c8`；正式 Pull Request：#9；恢复成功的 Actions 运行：#30。
 >
-> 任务状态以 [`docs/project-division/task-list.md`](../../project-division/task-list.md) 为准。本记录只把已经执行的本机检查记为通过；PR、GitHub Actions、Secret 负向测试和分支保护仍待完成。
+> 任务状态以 [`docs/project-division/task-list.md`](../../project-division/task-list.md) 为准。本记录区分正常门禁、预期失败的负向测试和仍待完成的分支保护配置。
 
 ## 目标
 
@@ -76,7 +76,7 @@ npm audit --audit-level=high
 npm audit --prefix web --audit-level=high
 ```
 
-结果：两条命令均以状态码 0 结束，C3 的 high/critical 门禁通过。
+基线结果：在未加入测试依赖时，两条命令均以状态码 0 结束，C3 的 high/critical 门禁通过。
 
 - 根项目发现 `qs` 的 1 个 moderate 漏洞，命中两条安全公告：
   - `GHSA-x5fp-wj9c-mxmx`：通过带逗号的 bracket key 绕过 `arrayLimit` 限制。攻击者可能构造异常查询参数，使解析结果突破应用预期的数组数量限制，增加资源消耗或绕过依赖该限制的输入约束。
@@ -88,6 +88,40 @@ npm audit --prefix web --audit-level=high
 
 完整命令、npm 原始输出与退出码见 [`2026-09-03-npm-audit-output.txt`](./2026-09-03-npm-audit-output.txt)。
 
+### GitHub PR 依赖漏洞负向测试（2026-09-04）
+
+为验证云端门禁，临时在 PR 分支加入 `lodash@4.17.20`，并推送测试 commit `ff33f2a`。该版本在当前 npm Registry 审计中命中 high 级别的命令注入、ReDoS 和原型污染公告。
+
+截图显示本次 Pull Request 检查结果为：
+
+- `Dependency audit (pull_request)`：失败（预期结果）。
+- `Dependency review (pull_request)`：失败（预期结果）。
+- `Secret scan (pull_request)`：通过。
+- `Static quality gates (pull_request)`：通过。
+- `Tests and coverage (pull_request)`：通过。
+- PR 与 `main`：无冲突，可自动合并，但在安全检查失败期间不得合并。
+
+这证明 high 级漏洞依赖能够被 npm 审计和 PR 依赖审查阻断。失败检查的 PR 页面截图/链接应在最终归档时补充到本节。
+
+负向测试后已通过 commit `c0c00c8` 删除 `lodash`，`package.json` 和 `package-lock.json` 与加入测试依赖前一致。正式 PR #9 的 Actions 运行 #30 最终为 `Success`：`Dependency audit`、`Dependency review`、`Secret scan`、`Static quality gates` 和 `Tests and coverage` 五项检查全部通过，且 PR 与 `main` 无冲突。成功运行链接仍待补充。
+
+### GitHub PR Secret 负向测试（2026-09-04）
+
+为避免合成 Secret 留在正式 C3 分支历史中，从恢复后的 `feature/c3-security-ci` 创建独立分支 `test/c3-secret-negative`，只加入 `fixtures/gitleaks-negative-test.txt`，测试 commit 为 `a24460e`，并通过临时 PR #10 触发扫描。
+
+`gitleaks/gitleaks-action@v3` 使用 Gitleaks 8.24.3 扫描后给出：
+
+- `RuleID`：`generic-api-key`。
+- 文件：`fixtures/gitleaks-negative-test.txt`。
+- 行号：1。
+- commit：`a24460eea0c78ec92ebcef2ab0fa7fe094694f87`。
+- 指纹：`a24460eea0c78ec92ebcef2ab0fa7fe094694f87:fixtures/gitleaks-negative-test.txt:generic-api-key:1`。
+- 扫描结果：`Leaks found: 1`，`Secret scan` 以非零状态失败，符合负向测试预期。
+
+Action 因当前 `GITHUB_TOKEN` 权限不足而无法向 PR #10 自动写评论，日志显示 `Resource not accessible by integration`；该警告不影响 Secret 的实际检出、SARIF 结果上传或门禁失败结论。
+
+临时 PR #10 仅用于负向验证，不得合并。保存失败截图和 Actions 链接后，应关闭该 PR、删除远程及本地测试分支，并确保正式 PR #9 保持全绿。
+
 ### 工作树检查
 
 `git diff --check` 通过，无空白错误。当前 C3 修改仍在工作树中，尚未提交或推送。
@@ -96,10 +130,10 @@ npm audit --prefix web --audit-level=high
 
 以下内容不能由本机检查替代，在全部完成前不得把 C3 标记为“已完成”：
 
-- [ ] 创建独立 C3 分支和 Pull Request，并补充最终 commit SHA、分支名及 PR 链接。
-- [ ] 保存正常 PR 中 `Dependency audit`、`Dependency review` 和 `Secret scan` 全部通过的 Actions 链接或截图。
-- [ ] 使用 Gitleaks 官方测试假凭证完成 Secret 负向测试，证明 `Secret scan` 会失败；不得使用真实密钥。
-- [ ] 临时引入经确认的 high 漏洞测试依赖，证明 `Dependency audit` 或 `Dependency review` 会失败；测试后恢复依赖和 lockfile。
+- [x] 创建独立 C3 分支和 Pull Request；已记录测试 commit `ff33f2a`，PR 链接待补充。
+- [x] 正式 PR #9 的 Actions 运行 #30 在恢复 commit `c0c00c8` 上五项检查全部通过；截图已取得，Actions 运行链接待补充。
+- [x] 在独立临时 PR #10 使用合成凭证完成 Secret 负向测试；Gitleaks 以 `generic-api-key` 检出测试文件并报告 `Leaks found: 1`，失败 Actions 链接待补充。
+- [x] 临时引入 `lodash@4.17.20`，证明 `Dependency audit` 和 `Dependency review` 会失败；依赖及 lockfile 已恢复，并在 commit `c0c00c8` 上重新全绿。
 - [ ] 确认全历史 Gitleaks 扫描不会因旧版 `.env.example` 占位符产生误报；如有告警，只做精确处理并保留审计记录。
 - [ ] 在 `main` Ruleset 中要求通过 PR 合并，并将安全检查设为 Required；补充 Ruleset 截图。
 - [ ] 若仓库属于 GitHub Organization，确认 Gitleaks Action 的许可证配置；不得用 `continue-on-error` 绕过失败。
@@ -125,4 +159,4 @@ npm audit --prefix web --audit-level=high
 
 ## 完成判定
 
-本机实现及本机正常/过期豁免验证已通过；GitHub PR 实跑、Secret 与漏洞依赖负向测试、Required Checks 和最终版本信息尚待补齐。全部完成并归档后，才能更新任务清单中的 C3 状态。
+本机实现、过期豁免验证、GitHub PR 依赖漏洞负向测试和独立 PR Secret 负向测试均已通过验收；测试依赖恢复后正式 PR 五项检查已重新全绿。仍需关闭并清理 Secret 临时 PR/分支、配置 Required Checks、补充 PR/Actions 链接及最终版本信息，之后才能更新任务清单中的 C3 状态。

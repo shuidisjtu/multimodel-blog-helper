@@ -37,3 +37,35 @@ Interpretation:
 - With --audit-level=high, only high and critical findings make npm audit exit unsuccessfully.
 - Both commands exited with code 0, so both dependency trees passed the configured C3 high/critical gate.
 - This evidence does not claim that the root dependency tree is vulnerability-free. The moderate qs finding remains recorded for follow-up remediation.
+
+Negative test fixture (PR branch feature/c3-security-ci, commit ff33f2a):
+Command:
+npm audit --audit-level=high
+
+Output:
+# npm audit report
+
+lodash  <=4.17.23
+Severity: high
+Command Injection in lodash - https://github.com/advisories/GHSA-35jh-r3h4-6jhm
+Regular Expression Denial of Service (ReDoS) in lodash - https://github.com/advisories/GHSA-29mw-wpgm-hmr9
+lodash vulnerable to Code Injection via `_.template` imports key names - https://github.com/advisories/GHSA-r5fr-rjxr-66jc
+lodash vulnerable to Prototype Pollution via array path bypass in `_.unset` and `_.omit` - https://github.com/advisories/GHSA-f23m-r3pf-42rh
+Lodash has Prototype Pollution Vulnerability in `_.unset` and `_.omit` functions - https://github.com/advisories/GHSA-xxjr-mmjv-4gpg
+fix available via `npm audit fix`
+node_modules/lodash
+
+qs  2.2.5 - 6.15.3
+Severity: moderate
+qs array-limit bypass via bracket-key comma parsing - https://github.com/advisories/GHSA-x5fp-wj9c-mxmx
+qs: Denial of Service via Attacker Controlled isBuffer - https://github.com/advisories/GHSA-4mjr-xmp4-gh2g
+fix available via `npm audit fix`
+node_modules/qs
+
+2 vulnerabilities (1 moderate, 1 high)
+
+Exit code: 1
+
+Interpretation:
+- The temporary lodash version caused a high-severity finding, so npm audit returned exit code 1 as required by the C3 gate.
+- This is the expected negative-test failure. The lodash fixture must not remain in the final PR.
