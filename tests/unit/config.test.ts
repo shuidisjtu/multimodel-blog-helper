@@ -1,5 +1,9 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { ConfigError, loadConfig } from '../../src/bootstrap/config.js';
+import {
+  applyDevelopmentOpenAiOverrides,
+  ConfigError,
+  loadConfig,
+} from '../../src/bootstrap/config.js';
 
 afterEach(() => {
   vi.restoreAllMocks();
@@ -15,6 +19,55 @@ const BASE_ENV: NodeJS.ProcessEnv = {
 };
 
 describe('loadConfig(架构文档 §7.2)', () => {
+  it('开发环境只允许本地 .env 覆盖 OpenAI 凭据与网关地址', () => {
+    const env: NodeJS.ProcessEnv = {
+      OPENAI_API_KEY: 'global-key',
+      OPENAI_BASE_URL: 'https://global.example/v1',
+      OPENAI_TRANSCRIBE_MODEL: 'global-model',
+      PORT: '4000',
+      WEATHER_TIMEOUT_MS: '1',
+    };
+    applyDevelopmentOpenAiOverrides(
+      env,
+      {
+        OPENAI_API_KEY: 'local-key',
+        OPENAI_BASE_URL: 'https://local.example/v1',
+        OPENAI_TRANSCRIBE_MODEL: 'local-model',
+        PORT: '3000',
+        WEATHER_TIMEOUT_MS: '15000',
+      },
+      'development',
+    );
+
+    expect(env).toMatchObject({
+      OPENAI_API_KEY: 'local-key',
+      OPENAI_BASE_URL: 'https://local.example/v1',
+      OPENAI_TRANSCRIBE_MODEL: 'global-model',
+      PORT: '4000',
+      WEATHER_TIMEOUT_MS: '1',
+    });
+  });
+
+  it('非开发环境不使用本地 .env 覆盖显式进程变量', () => {
+    const env: NodeJS.ProcessEnv = {
+      OPENAI_API_KEY: 'process-key',
+      OPENAI_BASE_URL: 'https://process.example/v1',
+    };
+    applyDevelopmentOpenAiOverrides(
+      env,
+      {
+        OPENAI_API_KEY: 'local-key',
+        OPENAI_BASE_URL: 'https://local.example/v1',
+      },
+      'production',
+    );
+
+    expect(env).toEqual({
+      OPENAI_API_KEY: 'process-key',
+      OPENAI_BASE_URL: 'https://process.example/v1',
+    });
+  });
+
   it('必填缺失时抛 ConfigError', () => {
     expect(() => loadConfig({})).toThrow(ConfigError);
     const env = { ...BASE_ENV };

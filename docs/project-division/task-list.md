@@ -27,7 +27,7 @@
 | B5 | 接口 DTO 与契约测试 | B1、B2、B4 | 对现有 `/api/v1` 路由校验请求/响应 DTO、状态码、错误 envelope 与媒体类型；OpenAPI 与实际响应一致 | ✅ 已完成 2026-08-31 / ym-hello（共享 HTTP schemas、OpenAPI lint 与 OpenAPI 驱动的 263 项测试；证据见 [`2026-08-30-b5-dto-contract-tests.md`](../evidence/api-contract/2026-08-30-b5-dto-contract-tests.md)） |
 | B6a | 错误边界与访问日志 | B1、B2、B4 | async 路由统一进入错误边界；响应有 `X-Request-Id`；访问日志记录脱敏路径、方法、状态、耗时与 requestId | ✅ 已完成 2026-09-01(`npm run verify` 全绿：lint/lint:openapi/typecheck/check:docs/check:structure/270 测试/覆盖率 92.18%；递归日志脱敏(嵌套对象/数组/循环引用安全)与 `http.access` 每请求一行,已合入 main(PR #5)) |
 | B6b | 限流与 CORS | B5 | 上传/天气接口 IP 限流（`429`、动态 `Retry-After`）；默认同源，跨域仅白名单；有自动化测试 | ✅ 已完成 2026-09-01(`npm run verify` 全绿:291 测试/覆盖率 92.61%,已合入 main(PR #6),ADR 见 docs/adr/0006；详情 [`docs/evidence/b6b-rate-limit-cors/2026-09-01-b6b-rate-limit-cors-shuidisjtu.md`](../evidence/b6b-rate-limit-cors/2026-09-01-b6b-rate-limit-cors-shuidisjtu.md)) |
-| B7 | 核心闭环集成验证 | B5、B6a、B6b | 覆盖上传→异步状态迁移→查询摘要→下载转录；并覆盖非法文件、幂等冲突、队列满、限流、天气成功/失败与 CORS | ✅ 本机完成 2026-09-04（不提交 GitHub；证据见 docs/evidence/b7-core-flow）/dorotheaqxq-code |
+| B7 | 核心闭环集成验证 | B5、B6a、B6b | 覆盖上传→异步状态迁移→查询摘要→下载转录；并覆盖非法文件、幂等冲突、队列满、限流、天气成功/失败与 CORS | ✅ 已完成 2026-09-04（证据见 docs/evidence/b7-core-flow）/dorotheaqxq-code） |
 
 ### 质量与交付
 
@@ -35,7 +35,7 @@
 | --- | --- | --- | --- | --- |
 | C1 | 格式化、Lint、类型检查 CI | — | 全部为必过项，失败不放行 | ✅ 已完成 |
 | C2 | 测试与覆盖率 CI（含契约测试） | C1、B5 | 保持覆盖率阈值 ≥80%；契约测试进入 CI；当前 291 项测试与覆盖率基线持续通过 | ✅ 已完成 2026-08-31 / ym-hello（CI 执行 OpenAPI lint、契约测试与覆盖率） |
-| C3 | 安全与 secret 扫描 CI | C1 | 依赖漏洞与 secret 扫描为必过项；临时豁免有 issue 链接、责任人、失效日期 | 待办/dorotheaqxq-code |
+| C3 | 安全与 secret 扫描 CI | C1 | 依赖漏洞与 secret 扫描为必过项；临时豁免有 issue 链接、责任人、失效日期 |✅ 已完成 2026-09-04 / dorotheaqxq-code（根项目与 Web 依赖审计、Dependency Review、Gitleaks 全历史扫描及过期豁免校验已接入 CI；已通过负向测试，`qs` 已升级至 6.16.0）|
 | C4 | 可复现制品与发布检查 | C2、B7 | 制品带 commit SHA；CI 全绿且本地可复现；发布检查单记录执行人、时间和核心闭环证据 | 待办/dorotheaqxq-code |
 | C5 | 健康与指标（长期增强） | B6a | `/health/live`、`/health/ready` 与独立 `/metrics`；Prometheus/Grafana 仅在实际部署需要时实施 | ⏸️ 延期，不阻塞单机答辩 / shuidisjtu |
 | C7 | 轻量故障运行手册 | B6a、B7 | 包含失败判定、日志定位、任务恢复、临时文件清理和重启后验证 | 待办/ym-hello |
@@ -45,7 +45,7 @@
 | 编号 | 任务 | 前置 | 验收标准 | 状态/优先级 |
 | --- | --- | --- | --- | --- |
 | D1 | 展示目标与叙事设计 | A5、B1、B2、B4 | 明确产品场景、三项已实现能力、技术主线、当前边界和后续方向；确定 PPT 结构与必展示证据 | 🔶 初始设计已完成，答辩 storyboard 待收口 / shuidisjtu |
-| D2 | 最小 Web 工作台 | B1、B2、B4、D1 | 独立 `web/` 前端真实调用现有 API；音频上传、Job 轮询、摘要/转录展示、下载和天气查询；关键交互有 mock 测试；第 2 周末未完成真实联调时降级为 API 真实证据 | 🚧 进行中/P0；共享骨架 + 天气/DTO：ym-hello；音频主流程：dorotheaqxq-code；集成验收：shuidisjtu |
+| D2 | 最小 Web 工作台 | B1、B2、B4、D1 | 独立 `web/` 前端真实调用现有 API；音频上传、Job 轮询、摘要/转录展示、下载和天气查询；关键交互有 mock 测试；第 2 周末未完成真实联调时降级为 API 真实证据 | 🚧 进行中/共享骨架 + 天气/DTO：ym-hello；音频主流程与本地：dorotheaqxq-code（真实 Express/Vite/文件/队列/Worker，本地确定性 OpenAI 兼容上游；证据见 `docs/evidence/d2-web-audio/`）集成验收：shuidisjtu |
 | D3 | PPT 汇报材料与证据整合 | D1 | PPT 为唯一正式展示物，嵌入 Web 画面或真实 API 截图/录屏、架构图、状态机、测试数据、问题解决与后续方向；无运行环境时仍可完成展示 | 待办/P0；主责 shuidisjtu，全员提供证据 |
 
 > D2 的现场实时启动和离线 replay 均不是硬性验收条件。离线 replay 仅作为可选备用；PPT 中必须明确区分真实运行结果与离线展示。D2 若在第 2 周结束时未完成真实联调，D3 使用真实 API 截图/录屏完成正式展示。

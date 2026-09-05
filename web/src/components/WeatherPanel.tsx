@@ -6,7 +6,6 @@ type WeatherStatus = 'idle' | 'loading' | 'success' | 'error';
 
 interface WeatherError {
   message: string;
-  requestId?: string;
   retryAfterSeconds?: number;
 }
 
@@ -20,7 +19,6 @@ function messageForError(error: unknown): WeatherError {
   }
 
   const metadata = {
-    requestId: error.requestId,
     retryAfterSeconds: error.retryAfterSeconds,
   };
   switch (error.code) {
@@ -46,21 +44,18 @@ export function WeatherPanel() {
   const [location, setLocation] = useState('Shanghai');
   const [status, setStatus] = useState<WeatherStatus>('idle');
   const [weather, setWeather] = useState<WeatherDto>();
-  const [requestId, setRequestId] = useState<string>();
   const [error, setError] = useState<WeatherError>();
 
   async function submitWeather() {
     if (requestInFlight.current) return;
     if (location.trim() === '') {
       setWeather(undefined);
-      setRequestId(undefined);
       setError({ message: '请输入要查询的地点名称。' });
       setStatus('error');
       return;
     }
     if (location.length > 200) {
       setWeather(undefined);
-      setRequestId(undefined);
       setError({ message: '地点名称不能超过 200 个字符。' });
       setStatus('error');
       return;
@@ -70,11 +65,9 @@ export function WeatherPanel() {
     setStatus('loading');
     setError(undefined);
     setWeather(undefined);
-    setRequestId(undefined);
     try {
       const result = await getWeather(location);
       setWeather(result.data);
-      setRequestId(result.requestId);
       setStatus('success');
     } catch (requestError) {
       setError(messageForError(requestError));
@@ -137,15 +130,11 @@ export function WeatherPanel() {
                 <p>{weather.description}</p>
               </div>
             </div>
-            <p className="request-id">requestId: {requestId}</p>
           </div>
         )}
         {status === 'error' && error !== undefined && (
           <div className="weather-error" role="alert">
             <p>{error.message}</p>
-            {error.requestId !== undefined && (
-              <p className="request-id">requestId: {error.requestId}</p>
-            )}
             {location.trim() !== '' && (
               <button className="retry-button" type="button" onClick={() => void submitWeather()}>
                 重试查询

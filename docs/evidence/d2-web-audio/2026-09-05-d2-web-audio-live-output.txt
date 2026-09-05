@@ -1,0 +1,33 @@
+D2 Web audio integration smoke check
+Date: 2026-09-05 Asia/Shanghai
+Branch: feature/d2-web-audio-integration
+Base HEAD: bf5fa74 (working-tree implementation, no feature commit created)
+
+Boundary:
+- Browser/API requests went through http://127.0.0.1:5173/api (Vite proxy).
+- Express routes, upload validation, file storage, queue, worker, job repository and transcript download were real local implementations.
+- OpenAI-compatible transcription and Responses endpoints used a deterministic local stub on 127.0.0.1:4010 because no usable OpenAI key was configured.
+- This run is not evidence of a public OpenAI call.
+
+Sanitized result:
+{
+  "via": "vite-proxy",
+  "submitStatus": 202,
+  "jobId": "c35112b9-5d56-4c27-823a-9236820a265d",
+  "states": ["transcribing", "succeeded"],
+  "terminal": "succeeded",
+  "summary": "- 已完成音频上传与异步转录\n- 已生成摘要并提供转录下载",
+  "model": "whisper-1",
+  "transcriptStatus": 200,
+  "transcriptLength": 23,
+  "invalidStatus": 415,
+  "invalidCode": "UNSUPPORTED_MEDIA_TYPE",
+  "invalidRequestIdPresent": true
+}
+
+Browser UI verification:
+- Pasted the returned Job ID into the recovery field.
+- UI rendered succeeded, Job ID, requestId, summary, model and timestamps.
+- Transcript was not fetched until clicking "加载转录".
+- UI then rendered the full deterministic transcript and enabled "下载 TXT".
+- No API key, server path, stack trace or raw upstream error was displayed.
