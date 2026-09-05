@@ -78,6 +78,20 @@ npm --prefix web run dev
 
 打开 Vite 输出的地址即可访问浅色博客助手工作台。音频任务与天气查询通过标签页切换并保留各自状态；音频面板调用 `/api/v1/audio-jobs` 完成上传、自动轮询、摘要/转录展示与下载，也可通过音频任务编号恢复查询；天气面板请求 `/api/v1/assistant/weather`。开发期均由 Vite `/api` proxy 转发到本地后端。
 
+### 快速打开网页（Windows）
+
+依赖和 `.env` 已配置后，在仓库目录打开两个 PowerShell 窗口：
+
+```powershell
+# 窗口 1：启动后端
+npm run dev
+
+# 窗口 2：启动前端
+npm --prefix web run dev
+```
+
+等待前端终端显示 `Local: http://localhost:5173/` 后，在浏览器打开 <http://localhost:5173/>。音频上传和天气查询需要两个窗口中的服务同时运行；只查看页面布局时可以只启动前端。
+
 > **当前阶段说明**：重构主线开发中（A1–A5、B1–B7、C1、C2 已完成；B7 后端核心闭环自动化测试与本机全量门禁已通过；OpenAPI 契约与 B5 契约测试已落地，B4 实时天气演示见 [`docs/evidence/release-b4-20260829/`](docs/evidence/release-b4-20260829/2026-08-29-weather-demo-guide.md)，B1/B2 演示见 [`docs/evidence/release-cbafff1/`](docs/evidence/release-cbafff1/2026-08-24-api-demo-guide.md)，B6a 错误边界/访问日志记录见 [`docs/evidence/b6a-error-access-log/`](docs/evidence/b6a-error-access-log/2026-09-01-b6a-error-boundary-access-log-shuidisjtu.md)，B6b 限流/CORS 记录见 [`docs/evidence/b6b-rate-limit-cors/`](docs/evidence/b6b-rate-limit-cors/2026-09-01-b6b-rate-limit-cors-shuidisjtu.md)，D2 天气模块记录见 [`docs/evidence/d2-web-weather/`](docs/evidence/d2-web-weather/2026-09-01-d2-web-weather-dto-ym-hello.md)，D2 音频主流程与本地联调记录见 [`docs/evidence/d2-web-audio/`](docs/evidence/d2-web-audio/2026-09-05-d2-web-audio-integration.md)）。上面的快速开始验证的是**代码质量与测试环境**（后端与 Web 的依赖/类型/Lint/文档/结构/测试全绿）；`npm run dev` 可启动后端服务（需 `.env` 配置 key，见下），再运行 `npm --prefix web run dev` 启动前端并通过 Vite `/api` 代理访问本地 API。可直接运行的教材示例见下方“快速开始(教材示例)” 。
 
 **环境要求与已知坑**：
