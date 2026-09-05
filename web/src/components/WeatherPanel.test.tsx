@@ -43,7 +43,7 @@ describe('WeatherPanel', () => {
     expect(screen.getByRole('alert')).toHaveTextContent('请输入要查询的地点名称。');
   });
 
-  it('renders the successful weather DTO and requestId', async () => {
+  it('renders the successful weather DTO without exposing requestId', async () => {
     const fetchMock = vi.fn().mockResolvedValue(successResponse());
     vi.stubGlobal('fetch', fetchMock);
     const user = userEvent.setup();
@@ -54,7 +54,7 @@ describe('WeatherPanel', () => {
     await waitFor(() => expect(screen.getByText('27.5°C')).toBeInTheDocument());
     expect(screen.getByText('Shanghai')).toBeInTheDocument();
     expect(screen.getByText('Partly cloudy')).toBeInTheDocument();
-    expect(screen.getByText('requestId: req_weather_success')).toBeInTheDocument();
+    expect(screen.queryByText('requestId: req_weather_success')).not.toBeInTheDocument();
     expect(fetchMock).toHaveBeenCalledWith(
       '/api/v1/assistant/weather',
       expect.objectContaining({
@@ -81,7 +81,7 @@ describe('WeatherPanel', () => {
 
     await waitFor(() => expect(screen.getByRole('alert')).toHaveTextContent(message));
     expect(screen.queryByText('upstream detail')).not.toBeInTheDocument();
-    expect(screen.getByText('requestId: req_problem')).toBeInTheDocument();
+    expect(screen.queryByText('requestId: req_problem')).not.toBeInTheDocument();
   });
 
   it('shows Retry-After without exposing the raw error envelope', async () => {

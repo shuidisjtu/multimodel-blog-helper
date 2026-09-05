@@ -29,6 +29,15 @@
 | --- | --- | --- |
 | `2026-09-01-d2-web-weather-dto-ym-hello.md` | D2 共享工作台骨架、天气/DTO、测试范围、质量门禁和后续真实联调入口 | 2026-09-01 本机 |
 
+## d2-web-audio/(D2 Web 音频主流程，2026-09-05)
+
+> 对应分支：`feature/d2-web-audio-integration`。Web 通过 Vite 代理接入真实本地 Express、文件仓储、队列和 Worker；外部 OpenAI 边界使用确定性本地兼容 stub，未访问公网，不能表述为真实 OpenAI 调用。
+
+| 文件 | 内容 | 来源 |
+| --- | --- | --- |
+| `2026-09-05-d2-web-audio-integration.md` | 音频上传、轮询/恢复、摘要、按需转录、TXT 下载、自动化门禁与联调边界 | 2026-09-05 本机 |
+| `2026-09-05-d2-web-audio-live-output.txt` | 经 Vite `/api` 代理的真实本地链路脱敏结果与浏览器 UI 验收记录 | 2026-09-05 本机 |
+
 ## b7-core-flow/(B7 后端核心闭环集成验证，2026-09-04)
 
 > 对应分支：`feature/b7-core-flow`。自动化验收使用真实 HTTP、文件仓储、队列和 Worker；OpenAI、wttr.in 与时长探针使用确定性 fake，不访问公网。

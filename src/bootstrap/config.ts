@@ -2,8 +2,33 @@
  * 环境配置加载与校验(架构文档 §7.2):启动时校验失败即退出。
  * 所有 process.env 读取集中在此,禁止散落读取(架构文档 §11.2)。
  */
-import 'dotenv/config';
+import dotenv from 'dotenv';
 import type { LogLevel } from '../shared/logger.js';
+
+const DEVELOPMENT_OPENAI_DOTENV_OVERRIDES = ['OPENAI_API_KEY', 'OPENAI_BASE_URL'] as const;
+
+/**
+ * 本地开发允许仓库 .env 覆盖 IDE 注入的 OpenAI 凭据和网关地址。
+ * 端口、超时、模型、队列和限流等配置仍保持标准优先级：显式进程变量高于 .env。
+ */
+export function applyDevelopmentOpenAiOverrides(
+  env: NodeJS.ProcessEnv,
+  localEnv: NodeJS.ProcessEnv | undefined,
+  nodeEnv: string,
+): void {
+  if (nodeEnv !== 'development' || localEnv === undefined) return;
+  for (const key of DEVELOPMENT_OPENAI_DOTENV_OVERRIDES) {
+    const value = localEnv[key];
+    if (value !== undefined) env[key] = value;
+  }
+}
+
+const dotenvResult = dotenv.config({ quiet: true });
+applyDevelopmentOpenAiOverrides(
+  process.env,
+  dotenvResult.parsed,
+  process.env.NODE_ENV ?? 'development',
+);
 
 export interface AppConfig {
   nodeEnv: string;
