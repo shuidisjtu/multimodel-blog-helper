@@ -512,5 +512,10 @@ MULTIMODAL BLOG HELPER / BLOG ASSISTANT
 | `web/src/components/WeatherPanel.tsx` | 天气表单、反馈状态、错误文案和重试操作 |
 | `web/index.html` | `lang`、页面标题和描述 |
 | `web/src/components/WeatherPanel.test.tsx` | 天气模块关键交互的 mock 测试 |
+| `web/src/main.tsx` | React 应用挂载入口与样式加载顺序 |
+| `web/src/api/http.ts` | 共享 HTTP 客户端：envelope 解析、`X-Request-Id` 与 `Retry-After` 读取、未知响应安全降级（不承担视觉职责，但决定可展示的文本） |
+| `web/src/api/weather.ts` | 天气响应 `WeatherDto` 的运行时解析，是“匹配站点”字段名的唯一来源 |
+| `web/src/App.test.tsx` | 共享标签导航骨架的 mock 测试 |
+| `web/src/test/setup.ts` | Vitest/jsdom 测试环境初始化 |
 
 如本文与实现代码不一致，应先记录差异，再决定更新代码还是更新本文；未经说明不得默默偏离视觉合同。

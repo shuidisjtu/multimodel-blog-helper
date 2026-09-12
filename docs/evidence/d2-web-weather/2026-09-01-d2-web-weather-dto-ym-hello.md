@@ -47,3 +47,7 @@
 - `dorotheaqxq-code` 在此共享布局中接入音频上传、Job 轮询、摘要/转录展示与下载。
 - `shuidisjtu` 负责 D2 跨模块集成验收与 D3 展示叙事。
 - `ym-hello` 后续继续负责 C7 轻量故障运行手册。
+
+## 后续更新指向（2026-09-12）
+
+本文件保留 2026-09-01 当时的实施原貌，不回改历史正文。当前天气面板与本文存在以下差异，以 [`2026-09-12-d2-weather-display-polish-ym-hello.md`](2026-09-12-d2-weather-display-polish-ym-hello.md) 和 [`docs/records/2026-09-01-d2-web-workbench-visual-design.md`](../../records/2026-09-01-d2-web-workbench-visual-design.md)（v1.4）为准：面板说明与地点输入提示改为用户可操作表述（本文第 4 条提到的“`requestId` 展示”对应当时实现，现已移除）；成功态改为“匹配站点 / 你输入的”双名称展示。

@@ -21,9 +21,9 @@
 | `2026-08-23-api-contract-and-verify.md` | 早期 OpenAPI 契约落地记录；当时 HTTP server 尚未可用，保留作历史阻塞说明 | 2026-08-23 本机 |
 | `2026-08-30-b5-dto-contract-tests.md` | B5 完成态：共享 DTO、Redocly lint、OpenAPI 驱动 HTTP 契约测试及最终 verify 结果 | 2026-08-30 本机 |
 
-## d2-web-weather/(D2 Web 工作台天气/DTO 模块，2026-09-01)
+## d2-web-weather/(D2 Web 工作台天气/DTO 模块，2026-09-01 起持续更新)
 
-> 对应分支：`feature/d2-web-weather-dto`。此阶段为 mock `fetch` 自动化测试与生产构建，不包含真实 wttr.in/OpenAI 调用，也不将 mock 画面表述为实时服务结果。
+> 对应分支：`feature/d2-web-weather-dto`（首版骨架与天气模块）、`feature/d2-weather-copy-polish`（2026-09-12 天气结果展示细化）。此阶段为 mock `fetch` 自动化测试与生产构建，不包含真实 wttr.in/OpenAI 调用，也不将 mock 画面表述为实时服务结果。
 
 | 文件 | 内容 | 来源 |
 | --- | --- | --- |
