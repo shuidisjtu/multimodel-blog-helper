@@ -1,6 +1,6 @@
 # D2 Web 工作台视觉设计规范
 
-> **版本**：v1.3 ｜ **日期**：2026-09-05 ｜ **状态**：已实施（D2 音频主流程、天气/DTO、标签页工作区）
+> **版本**：v1.4 ｜ **日期**：2026-09-12 ｜ **状态**：已实施（D2 音频主流程、天气/DTO 与天气结果双名称展示、标签页工作区）
 > **视觉主题**：浅色博客助手（Light Blog Assistant）  
 > **适用范围**：`web/` 当前已落地的音频任务与天气查询页面。
 
@@ -293,7 +293,7 @@ MULTIMODAL BLOG HELPER / BLOG ASSISTANT
 
 面板标题下方说明：
 
-> 使用现有天气 API 查询当前天气；服务端会校验地点并隐藏上游细节。
+> 查询当前地点天气；输入格式见下方提示。
 
 `.panel-intro` 上边距 `26px`、下边距 `20px`，行高 `1.65`，颜色 `#62748A`。
 
@@ -305,7 +305,7 @@ MULTIMODAL BLOG HELPER / BLOG ASSISTANT
 - 输入框占据剩余宽度，`min-width:0`；按钮不收缩。
 - 输入框内边距上下 `12px`、左右 `13px`；边框 `1px solid #B9CADC`；圆角 `9px`；背景 `#FFFFFF`；文字 `#17283D`。
 - 输入框 hover 边框改为 `#78A6CE`。
-- 输入框 `maxLength=200`；前端提示“最多 200 个字符；首尾空白由服务端标准化。”。
+- 输入框 `maxLength=200`；`aria-describedby` 关联的 `.input-hint` 提示逐字为：建议输入城市名或“城市+区”，例如 南京市鼓楼区；最多 200 个字符。
 - 输入提交按钮内边距上下 `12px`、左右 `14px`；边框 `1px solid #2463A5`；圆角 `9px`；白色文字；字重 `800`；背景 `#2463A5`；阴影 `0 4px 10px rgba(36,99,165,0.18)`。
 - 主按钮 hover：边框和背景均为 `#174F8C`。
 - 加载时按钮文字为 `查询中…`，输入框和按钮均禁用。
@@ -315,18 +315,47 @@ MULTIMODAL BLOG HELPER / BLOG ASSISTANT
 
 选择器：`.weather-feedback`
 
-- 位于表单后，顶部间距 `28px`。
-- 最小高度 `176px`，保证 idle/loading/success/error 切换时卡片高度稳定。
+- 桌面端与表单同属 `.weather-panel` 双栏网格（`minmax(0,0.9fr) minmax(0,1.1fr)`，列间距 `24px`），位于表单右侧，`margin-top` 为 `0`。
+- 最小高度 `196px`，保证 idle/loading/success/error 切换时卡片高度稳定、页面不跳动；≤880px 单列时改为表单下方并恢复 `margin-top: 20px`。
 - 内边距 `20px`。
 - 边框 `1px solid #E0E8F0`，圆角 `9px`，背景 `#F8FBFE`。
 - 使用 `aria-live="polite"` 和 `aria-atomic="true"`；错误内部使用 `role="alert"`。
 
 四种主要反馈状态：
 
-1. **默认 idle**：显示 `输入地点后发起一次真实 API 查询。`，颜色 `#62748A`，不显示结果。
+1. **默认 idle**：显示 `输入城市名或“城市+区”，例如 南京市鼓楼区。`，颜色 `#62748A`，不显示结果。文案与表单提示一致，用于降低地点歧义。
 2. **加载 loading**：显示 `正在请求天气工具，请稍候。`，颜色 `#2463A5`；输入和主按钮禁用，不允许重复提交。
-3. **成功 success**：使用 `.weather-result`，左侧 3px 绿色边框 `#247A52`，内侧左间距 `15px`。`.weather-reading` 横向排列，温度与地点信息间距 `16px`。温度为 `#174F8C`、`2.2rem`、字重 `800`、等宽；地点为 `1.1rem`；天气描述上边距 `4px`、颜色 `#62748A`。
-4. **错误 error**：使用 `.weather-error`，左侧 3px 错误边框 `#C44F5A`，内侧左间距 `15px`；第一段错误文案颜色 `#A83F4A`。地点非空时提供 `重试查询` 按钮。
+3. **成功 success**：使用 `.weather-result`，左侧 3px 绿色边框 `#247A52`，内侧左间距 `15px`。`.weather-reading` 横向排列，温度与地点信息间距 `16px`。温度为 `#174F8C`、`2.2rem`、字重 `800`、等宽。**地点信息固定为双名称展示**，见下节。天气描述上边距 `4px`、颜色 `#62748A`。成功态**不显示** `requestId`，保持结果区简洁。
+4. **错误 error**：使用 `.weather-error`，左侧 3px 错误边框 `#C44F5A`，内侧左间距 `15px`；第一段错误文案颜色 `#A83F4A`。地点非空时提供 `重试查询` 按钮。错误态同样**不显示** `requestId`；排障标识仅保留在浏览器网络面板与服务端日志中，需要展示时须先在本文件登记。
+
+#### 成功态双名称展示
+
+成功结果的阅读顺序固定为：温度 → 匹配站点 → 你输入的 → 天气描述。
+
+```tsx
+<div className="weather-reading">
+  <span className="temperature">{weather.tempC}°C</span>
+  <div className="weather-places">
+    <p className="place-line">
+      <span className="place-label">匹配站点：</span>
+      <strong>{weather.location}</strong>
+    </p>
+    <p className="place-line">
+      <span className="place-label">你输入的：</span>
+      <strong>{submittedLocation.trim()}</strong>
+    </p>
+    <p>{weather.description}</p>
+  </div>
+</div>
+```
+
+- `weather.location` 是服务端/上游返回的**匹配站点名**，可能为 `Pootung`、`Hsinchuangchen` 等英文音译，前端**不做**中文回译、反向地理编码或行政区划映射。
+- `你输入的` 取自前端提交时刻的地点快照 `submittedLocation`（本次实际提交给接口的原值），仅展示时 `trim()`；请求仍发送未 trim 的原值，服务端标准化语义不变。
+- 两者相同也**始终双行显示**，不做等值折叠、不做两套布局，避免同一状态出现两种排版。
+- 用户查询成功后继续编辑输入框，**不得**改变已显示结果中的“你输入的”文本。
+- 每次新提交（含 `重试查询`）先清空旧结果并写入新的地点快照，进入 loading；空白与超长等本地拦截分支不写入快照。
+
+样式增量：`.weather-places { min-width: 0 }`；`.place-line:first-child { margin-top: 0 }`；`.place-label` 为 `#62748A`、`0.86rem`；`.place-line strong` 为 `#17283D`、`1.1rem` 且 `overflow-wrap: anywhere`（长站点名在 320px 视口不溢出）。描述行复用 `.weather-reading p`（上边距 `4px`、颜色 `#62748A`），不额外新增描述样式类。
 
 #### 天气错误文案映射
 
@@ -396,11 +425,11 @@ MULTIMODAL BLOG HELPER / BLOG ASSISTANT
 
 | 交互状态 | 输入 | 主按钮 | 反馈区 |
 | --- | --- | --- | --- |
-| 默认 | 可编辑，白底，`#B9CADC` 边框 | 蓝底“查询天气” | 中性提示 |
+| 默认 | 可编辑，白底，`#B9CADC` 边框 | 蓝底“查询天气” | 中性提示，含城市+区示例 |
 | 输入中 | 可编辑；最多 200 字符 | 可提交 | 不实时覆盖上一条已提交语义，提交后再更新 |
 | 加载 | 禁用，透明度 `0.62` | 禁用，文字变为“查询中…” | 蓝色加载文案 |
-| 成功 | 请求结束后可继续编辑 | 恢复可用 | 绿色左边框和天气读数 |
-| 可修正业务错误 | 保留原输入 | 恢复可用 | 珊瑚红左边框、稳定文案、重试 |
+| 成功 | 请求结束后可继续编辑，不改变已显示快照 | 恢复可用 | 绿色左边框、温度与“匹配站点 / 你输入的”双名称，不显示 requestId |
+| 可修正业务错误 | 保留原输入 | 恢复可用 | 珊瑚红左边框、稳定文案、重试；不显示 requestId |
 | 限流 | 保留原输入 | 恢复可用 | 稳定等待文案，可包含秒数 |
 | 网络失败 | 保留原输入 | 恢复可用 | 不暴露异常，提供重试 |
 
@@ -451,6 +480,12 @@ MULTIMODAL BLOG HELPER / BLOG ASSISTANT
 - [ ] 天气和音频成功使用绿色结构；错误使用珊瑚红结构；轮询暂停/超时使用琥珀色提示。
 - [ ] 温度为 2.2rem 等宽深蓝文本；音频任务编号为 0.78rem 等宽辅助文本并可换行。
 - [ ] 天气加载期间输入和按钮均禁用，且不允许重复提交。
+- [ ] 天气面板说明为用户行为导向文案「查询当前地点天气；输入格式见下方提示。」，不含「服务端会校验」等实现者表述。
+- [ ] 地点提示与 idle 反馈均给出「城市名或“城市+区”，例如 南京市鼓楼区」示例。
+- [ ] 成功态按温度 → 匹配站点 → 你输入的 → 天气描述顺序呈现双名称，即使两个名称相同也保持双行。
+- [ ] 查询成功后编辑输入框，已显示结果中的「你输入的」文本不变；重新提交后旧快照与旧读数被清除。
+- [ ] `.place-line strong` 为正文色并允许任意字符换行，长英文站点名在 320px 视口不产生横向溢出。
+- [ ] 天气成功态与错误态均不渲染 `requestId` 文本。
 - [ ] 页面所有输入有可见标签，状态反馈具备 aria 语义和可见焦点。
 - [ ] mock 测试画面不得在证据中描述为真实天气服务结果。
 
@@ -477,5 +512,10 @@ MULTIMODAL BLOG HELPER / BLOG ASSISTANT
 | `web/src/components/WeatherPanel.tsx` | 天气表单、反馈状态、错误文案和重试操作 |
 | `web/index.html` | `lang`、页面标题和描述 |
 | `web/src/components/WeatherPanel.test.tsx` | 天气模块关键交互的 mock 测试 |
+| `web/src/main.tsx` | React 应用挂载入口与样式加载顺序 |
+| `web/src/api/http.ts` | 共享 HTTP 客户端：envelope 解析、`X-Request-Id` 与 `Retry-After` 读取、未知响应安全降级（不承担视觉职责，但决定可展示的文本） |
+| `web/src/api/weather.ts` | 天气响应 `WeatherDto` 的运行时解析，是“匹配站点”字段名的唯一来源 |
+| `web/src/App.test.tsx` | 共享标签导航骨架的 mock 测试 |
+| `web/src/test/setup.ts` | Vitest/jsdom 测试环境初始化 |
 
 如本文与实现代码不一致，应先记录差异，再决定更新代码还是更新本文；未经说明不得默默偏离视觉合同。
