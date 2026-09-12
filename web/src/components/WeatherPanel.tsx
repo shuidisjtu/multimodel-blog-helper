@@ -45,6 +45,7 @@ export function WeatherPanel() {
   const [status, setStatus] = useState<WeatherStatus>('idle');
   const [weather, setWeather] = useState<WeatherDto>();
   const [error, setError] = useState<WeatherError>();
+  const [submittedLocation, setSubmittedLocation] = useState('');
 
   async function submitWeather() {
     if (requestInFlight.current) return;
@@ -65,6 +66,7 @@ export function WeatherPanel() {
     setStatus('loading');
     setError(undefined);
     setWeather(undefined);
+    setSubmittedLocation(location);
     try {
       const result = await getWeather(location);
       setWeather(result.data);
@@ -94,7 +96,7 @@ export function WeatherPanel() {
         <span className="module-tag module-tag-ready">已接入</span>
       </div>
 
-      <p className="panel-intro">使用现有天气 API 查询当前天气；服务端会校验地点并隐藏上游细节。</p>
+      <p className="panel-intro">查询当前地点天气；输入格式见下方提示。</p>
 
       <form className="weather-form" onSubmit={handleSubmit} noValidate>
         <label htmlFor="weather-location">地点名称</label>
@@ -114,19 +116,28 @@ export function WeatherPanel() {
           </button>
         </div>
         <p id="weather-input-hint" className="input-hint">
-          最多 200 个字符；首尾空白由服务端标准化。
+          建议输入城市名或“城市+区”，例如 南京市鼓楼区；最多 200 个字符。
         </p>
       </form>
 
       <div className="weather-feedback" aria-live="polite" aria-atomic="true">
-        {status === 'idle' && <p className="feedback-neutral">输入地点后发起一次真实 API 查询。</p>}
+        {status === 'idle' && (
+          <p className="feedback-neutral">输入城市名或“城市+区”，例如 南京市鼓楼区。</p>
+        )}
         {isLoading && <p className="feedback-loading">正在请求天气工具，请稍候。</p>}
         {status === 'success' && weather !== undefined && (
           <div className="weather-result">
             <div className="weather-reading">
               <span className="temperature">{weather.tempC}°C</span>
-              <div>
-                <strong>{weather.location}</strong>
+              <div className="weather-places">
+                <p className="place-line">
+                  <span className="place-label">匹配站点：</span>
+                  <strong>{weather.location}</strong>
+                </p>
+                <p className="place-line">
+                  <span className="place-label">你输入的：</span>
+                  <strong>{submittedLocation.trim()}</strong>
+                </p>
                 <p>{weather.description}</p>
               </div>
             </div>

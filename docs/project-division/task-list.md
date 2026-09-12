@@ -45,7 +45,7 @@
 | 编号 | 任务 | 前置 | 验收标准 | 状态/优先级 |
 | --- | --- | --- | --- | --- |
 | D1 | 展示目标与叙事设计 | A5、B1、B2、B4 | 明确产品场景、三项已实现能力、技术主线、当前边界和后续方向；确定 PPT 结构与必展示证据 | 🔶 初始设计已完成，答辩 storyboard 待收口 / shuidisjtu |
-| D2 | 最小 Web 工作台 | B1、B2、B4、D1 | 独立 `web/` 前端真实调用现有 API；音频上传、Job 轮询、摘要/转录展示、下载和天气查询；关键交互有 mock 测试；第 2 周末未完成真实联调时降级为 API 真实证据 | 🚧 进行中/共享骨架 + 天气/DTO：ym-hello；音频主流程与本地：dorotheaqxq-code（真实 Express/Vite/文件/队列/Worker，本地确定性 OpenAI 兼容上游；证据见 `docs/evidence/d2-web-audio/`）集成验收：shuidisjtu |
+| D2 | 最小 Web 工作台 | B1、B2、B4、D1 | 独立 `web/` 前端真实调用现有 API；音频上传、Job 轮询、摘要/转录展示、下载和天气查询；关键交互有 mock 测试；第 2 周末未完成真实联调时降级为 API 真实证据 | 🚧 进行中/共享骨架 + 天气/DTO：ym-hello（天气展示细化已完成 2026-09-12）；音频主流程与本地：dorotheaqxq-code（真实 Express/Vite/文件/队列/Worker，本地确定性 OpenAI 兼容上游；证据见 `docs/evidence/d2-web-audio/`）集成验收：shuidisjtu |
 | D3 | PPT 汇报材料与证据整合 | D1 | PPT 为唯一正式展示物，嵌入 Web 画面或真实 API 截图/录屏、架构图、状态机、测试数据、问题解决与后续方向；无运行环境时仍可完成展示 | 待办/P0；主责 shuidisjtu，全员提供证据 |
 
 > D2 的现场实时启动和离线 replay 均不是硬性验收条件。离线 replay 仅作为可选备用；PPT 中必须明确区分真实运行结果与离线展示。D2 若在第 2 周结束时未完成真实联调，D3 使用真实 API 截图/录屏完成正式展示。

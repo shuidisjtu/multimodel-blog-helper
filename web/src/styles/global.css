@@ -539,6 +539,24 @@ button:hover:not(:disabled) {
   color: var(--color-text-muted);
 }
 
+.weather-places {
+  min-width: 0;
+}
+
+.place-line:first-child {
+  margin-top: 0;
+}
+
+.place-label {
+  color: var(--color-text-muted);
+  font-size: 0.86rem;
+}
+
+.place-line strong {
+  color: var(--color-text);
+  overflow-wrap: anywhere;
+}
+
 .weather-error {
   border-left: 3px solid var(--color-error);
   padding-left: 15px;
