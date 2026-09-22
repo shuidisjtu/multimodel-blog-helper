@@ -1,5 +1,5 @@
 /**
- * 依赖组装(架构文档 §3.1 bootstrap 职责): 配置 → 基础设施 → 用例 → worker/recover。
+ * 依赖组装(bootstrap 职责): 配置 → 基础设施 → 用例 → worker/recover。
  * 业务依赖全部经此单点注入, 禁止在其他文件 new 基础设施实例。
  */
 import OpenAI from 'openai';

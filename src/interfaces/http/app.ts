@@ -33,9 +33,9 @@ export interface AppDeps {
 }
 
 /**
- * Express 应用组装(架构文档 §3.1 interfaces/http 职责):
+ * Express 应用组装(interfaces/http 职责):
  * requestId → CORS → 访问日志 → JSON → 路由级限流 → 业务路由 → 错误边界(B6 计划中间件顺序)。
- * Express 5 自动转发 async rejection 到错误中间件(§8.1 统一错误边界, 无需逐路由包装器)。
+ * Express 5 自动转发 async rejection 到错误中间件(统一错误边界, 无需逐路由包装器)。
  */
 export function createApp(deps: AppDeps): Express {
   const app = express();

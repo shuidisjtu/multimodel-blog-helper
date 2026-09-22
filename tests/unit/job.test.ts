@@ -16,7 +16,7 @@ const ALL_STATUSES: JobStatus[] = [
   'expired',
 ];
 
-describe('Job 状态机(架构文档 §4.1)', () => {
+describe('Job 状态机', () => {
   it('合法迁移:queued → transcribing → summarizing → succeeded', () => {
     expect(canTransition('queued', 'transcribing')).toBe(true);
     expect(canTransition('transcribing', 'summarizing')).toBe(true);

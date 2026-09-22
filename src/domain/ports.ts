@@ -1,5 +1,5 @@
 /**
- * 端口定义(架构文档 §7.1):领域层只依赖这些接口,不导入任何 SDK。
+ * 端口定义:领域层只依赖这些接口,不导入任何 SDK。
  * 实现位于 infrastructure/,可替换(fake / OpenAI / 本地 Whisper / GLM 等)。
  */
 import type { BlogJob, JobInput, JobResult } from './job.js';
@@ -19,7 +19,7 @@ export interface Weather {
 }
 
 export interface TranscribeParams {
-  /** 任务 id: 适配器据此记录重试日志(架构文档 §6)。 */
+  /** 任务 id: 适配器据此记录重试日志。 */
   jobId: string;
   /** 输入文件绝对路径(由 FileStore 落盘后提供)。 */
   path: string;
@@ -61,7 +61,7 @@ export interface JobRepository {
   /** 无幂等 key 时的普通创建。 */
   create(params: CreateJobParams): Promise<BlogJob>;
   /**
-   * 幂等创建(架构文档 §5):以 O_EXCL 原子占位互斥,
+   * 幂等创建:以 O_EXCL 原子占位互斥,
    * created=新任务;replayed=同 key 同 sha256 返回既有;conflict=同 key 不同文件。
    */
   createOrGetByIdempotencyKey(params: CreateJobParams): Promise<CreateOrGetOutcome>;
@@ -83,7 +83,7 @@ export interface SaveInputParams {
   /** 仅存元数据(展示用); 存储名由 extension 决定, 用户文件名不参与路径。 */
   originalName: string;
   mimeType: string;
-  /** 服务端受信扩展名(由 domain 校验器按 MIME 推断, §5: 存储名由服务生成)。 */
+  /** 服务端受信扩展名(由 domain 校验器按 MIME 推断, 存储名由服务生成)。 */
   extension: string;
   bytes: Buffer;
 }
@@ -102,12 +102,12 @@ export interface FileStore {
   deleteJobFiles(jobId: string): Promise<number>;
 }
 
-/** 时长探测端口(架构文档 §5): 落盘后解析音频时长; 解析失败返回 null(降级, 调用方视为"未校验"放行, 不得误杀)。 */
+/** 时长探测端口: 落盘后解析音频时长; 解析失败返回 null(降级, 调用方视为"未校验"放行, 不得误杀)。 */
 export interface AudioDurationProbe {
   probe(filePath: string): Promise<number | null>;
 }
 
-/** 内存任务队列(架构文档 §6.2): 有界; 同步入队使容量检查与入队原子(单线程下无异步插入点)。 */
+/** 内存任务队列: 有界; 同步入队使容量检查与入队原子(单线程下无异步插入点)。 */
 export interface JobQueue {
   /** 同步入队; 队列满(pending+processing >= maxLength)抛 DomainError('QUEUE_FULL', ...)。 */
   enqueue(jobId: string): void;

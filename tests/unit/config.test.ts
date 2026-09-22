@@ -18,7 +18,7 @@ const BASE_ENV: NodeJS.ProcessEnv = {
   WEATHER_BASE_URL: 'https://wttr.in',
 };
 
-describe('loadConfig(架构文档 §7.2)', () => {
+describe('loadConfig', () => {
   it('开发环境只允许本地 .env 覆盖 OpenAI 凭据与网关地址', () => {
     const env: NodeJS.ProcessEnv = {
       OPENAI_API_KEY: 'global-key',

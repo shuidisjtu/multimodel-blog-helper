@@ -1,5 +1,5 @@
 /**
- * HTTP 服务启动入口(架构文档 §3.1 bootstrap / §6 流程).
+ * HTTP 服务启动入口(bootstrap 流程).
  * 启动顺序契约(A3 教训): RecoverJobs.run() 必须先于 worker 启动(先启 worker 会把
  * 恢复重入队的任务标 PROCESS_INTERRUPTED)。
  */
@@ -33,7 +33,7 @@ async function main(): Promise<void> {
     logger.info({ event: 'server.started', port: config.port, nodeEnv: config.nodeEnv });
   });
 
-  // 优雅关闭(架构文档 §6): 停收新连接, 等待在途请求; 超时兜底退出
+  // 优雅关闭: 停收新连接, 等待在途请求; 超时兜底退出
   let shuttingDown = false;
   const shutdown = (signal: NodeJS.Signals): void => {
     if (shuttingDown) return;

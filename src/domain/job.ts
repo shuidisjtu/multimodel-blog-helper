@@ -1,5 +1,5 @@
 /**
- * Job 领域模型与状态机(架构文档 §4.1)。
+ * Job 领域模型与状态机。
  * 状态迁移只能由用例层完成,领域层只提供合法迁移定义。
  */
 import { JobStateError } from './errors.js';
@@ -35,7 +35,7 @@ export interface BlogJob {
   id: string;
   requestId: string;
   status: JobStatus;
-  /** 输入元数据; tombstone(expired)最小化后不再保留(架构文档 §4.2)。 */
+  /** 输入元数据; tombstone(expired)最小化后不再保留。 */
   input?: JobInput;
   result?: JobResult;
   failure?: JobFailure;

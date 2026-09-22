@@ -1,5 +1,5 @@
 /**
- * FileJobRepository 集成测试(架构文档 §9):真实临时目录 + fake 时钟/ID 生成器。
+ * FileJobRepository 集成测试:真实临时目录 + fake 时钟/ID 生成器。
  * 覆盖: create/get/update 原子写、createOrGet 幂等三角色(created/replayed/conflict)、
  * 列表方法(含损坏文件容忍)与 remove。
  */
@@ -68,7 +68,7 @@ afterAll(async () => {
   await rm(tempDir, { recursive: true, force: true });
 });
 
-describe('FileJobRepository(架构文档 §4.2/§5/§7.1)', () => {
+describe('FileJobRepository', () => {
   it('create: 生成 id/createdAt/updatedAt, 文件落盘且含全部字段, expiresAt 使用传入值', async () => {
     const clock = new FakeClock();
     const repo = makeRepo(clock);
@@ -108,7 +108,7 @@ describe('FileJobRepository(架构文档 §4.2/§5/§7.1)', () => {
     await expect(repo.get('bad-fields')).rejects.toMatchObject({ code: 'INTERNAL_ERROR' });
   });
 
-  it('get: 损坏文件错误 message 不含内部路径(§8.1), path 仅在 details 中', async () => {
+  it('get: 损坏文件错误 message 不含内部路径, path 仅在 details 中', async () => {
     const repo = makeRepo();
     const filePath = join(tempDir, 'jobs', 'bad-syntax.json');
     await writeFile(filePath, '{ not valid json', 'utf8');
@@ -215,7 +215,7 @@ describe('FileJobRepository(架构文档 §4.2/§5/§7.1)', () => {
     await repo.createOrGetByIdempotencyKey(
       makeParams({ idempotencyKey: 'key-tomb', id: 'tomb-1' }),
     );
-    // 模拟清理: 任务转为最小 tombstone(清空 input/idempotencyKey, §4.2)
+    // 模拟清理: 任务转为最小 tombstone(清空 input/idempotencyKey)
     await repo.update('tomb-1', (j) => ({
       id: j.id,
       requestId: j.requestId,
@@ -297,7 +297,7 @@ describe('FileJobRepository(架构文档 §4.2/§5/§7.1)', () => {
     }
   });
 
-  it('createOrGet: 占位损坏错误 message 不含路径与 key(§8.1), 细节仅在 details 中', async () => {
+  it('createOrGet: 占位损坏错误 message 不含路径与 key, 细节仅在 details 中', async () => {
     const repo = makeRepo();
     const key = 'key-secret-value';
     const keyPath = join(tempDir, 'jobs', 'by-key', `${sha256Of(key)}.json`);

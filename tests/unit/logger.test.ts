@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { createLogger, type LogFields } from '../../src/shared/logger.js';
 
-/** 捕获 console.log 输出并解析为 JSON 行(架构文档 §8.2:一行一事件)。 */
+/** 捕获 console.log 输出并解析为 JSON 行(一行一事件)。 */
 function capture() {
   const lines: Record<string, unknown>[] = [];
   vi.spyOn(console, 'log').mockImplementation((s: string) => {
@@ -14,7 +14,7 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
-describe('createLogger(架构文档 §8.2:JSON 一行一事件)', () => {
+describe('createLogger(JSON 一行一事件)', () => {
   it('级别过滤:info 级别不输出 debug,只输出 info/warn/error', () => {
     const lines = capture();
     const logger = createLogger('info');

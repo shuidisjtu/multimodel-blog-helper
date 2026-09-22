@@ -1,8 +1,8 @@
 /**
- * GetTranscript 用例(架构文档 §5):下载纯文本转录。
+ * GetTranscript 用例:下载纯文本转录。
  * 不存在 → JOB_NOT_FOUND(404); tombstone(expired)→ JOB_EXPIRED(410);
  * 任务未成功或产物文件缺失(清理窗口/未落盘)→ JOB_NOT_READY(409);
- * 其他错误 → INTERNAL_ERROR(500)。日志只记稳定错误码, 不记 err.message(可能含路径, §8.2)。
+ * 其他错误 → INTERNAL_ERROR(500)。日志只记稳定错误码, 不记 err.message(可能含路径)。
  */
 import { DomainError } from '../domain/errors.js';
 import type { FileStore, JobRepository } from '../domain/ports.js';

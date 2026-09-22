@@ -1,5 +1,5 @@
 /**
- * RecoverJobs 用例(架构文档 §4.2 启动恢复): 服务启动时恢复未完成任务。
+ * RecoverJobs 用例(启动恢复): 服务启动时恢复未完成任务。
  * - queued 任务逐个重新入队; 队列满(QUEUE_FULL)记录 warn 并跳过(任务保持 queued, 下次恢复仍可处理)
  * - transcribing/summarizing 标记 failed: PROCESS_INTERRUPTED, 不自动重试(避免不确定的重复转录计费);
  *   update mutator 内以仓储最终状态为准, 已被外部迁移的终态任务跳过(竞态护栏, 不覆盖出幽灵任务)
@@ -26,7 +26,7 @@ export class RecoverJobs {
   async run(): Promise<{ requeued: number; interrupted: number }> {
     let requeued = 0;
     let interrupted = 0;
-    // 1. queued 任务重新入队(§4.2): 队列满跳过不抛错, 任务保持 queued 等待下次恢复
+    // 1. queued 任务重新入队: 队列满跳过不抛错, 任务保持 queued 等待下次恢复
     for (const job of await this.deps.jobs.listRecoverable()) {
       try {
         this.deps.queue.enqueue(job.id);
@@ -40,7 +40,7 @@ export class RecoverJobs {
         this.deps.logger.error({ event: 'recovery.requeue_failed', jobId: job.id, error: err });
       }
     }
-    // 2. 进行中任务标记 PROCESS_INTERRUPTED, 不重试(§4.2: 避免不确定的重复转录计费)
+    // 2. 进行中任务标记 PROCESS_INTERRUPTED, 不重试(避免不确定的重复转录计费)
     for (const job of await this.deps.jobs.listInProgress()) {
       try {
         // update mutator 内以仓储最终状态为准: 列表与写入之间被外部迁移到终态(worker 失败/清理置 tombstone)

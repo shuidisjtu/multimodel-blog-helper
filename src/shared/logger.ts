@@ -1,5 +1,5 @@
 /**
- * 结构化 JSON 日志(架构文档 §8.2):一行一个事件,至少含 timestamp/level/event;
+ * 结构化 JSON 日志:一行一个事件,至少含 timestamp/level/event;
  * 文件名、文本内容、音频路径、Authorization、API key 等敏感字段脱敏为 [redacted]。
  * 仅过滤顶层键(嵌套对象由调用方自行避免记录敏感内容)。
  */
@@ -51,7 +51,7 @@ const LEVEL_RANK: Record<LogLevel, number> = {
   error: 3,
 };
 
-/** 递归脱敏(架构文档 §8.2): 嵌套对象/数组中的敏感键同样替换, 不依赖调用方约定;
+/** 递归脱敏: 嵌套对象/数组中的敏感键同样替换, 不依赖调用方约定;
  * 循环引用替换为占位符(避免栈溢出), 非纯对象(Date/Error/Buffer 等)原样交给 JSON.stringify。 */
 function sanitizeValue(value: unknown, seen: WeakSet<object>): unknown {
   if (value === null || typeof value !== 'object') return value;
@@ -95,7 +95,7 @@ const SENSITIVE_KEYS = new Set([
   'audiopath',
 ]);
 
-/** 安全字段(架构文档 §8.2): 永不脱敏。 */
+/** 安全字段: 永不脱敏。 */
 const SAFE_KEYS = new Set([
   'event',
   'jobid',

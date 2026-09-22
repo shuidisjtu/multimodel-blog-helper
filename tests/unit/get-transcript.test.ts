@@ -103,7 +103,7 @@ async function expectCode(p: Promise<unknown>, code: string): Promise<void> {
   expect((thrown as DomainError).code).toBe(code);
 }
 
-describe('GetTranscript(架构文档 §5 + openapi downloadTranscript)', () => {
+describe('GetTranscript(openapi downloadTranscript)', () => {
   it('succeeded 任务 → 返回 UTF-8 转录文本', async () => {
     const { repo, useCase } = setup();
     repo.jobs.set(
@@ -170,7 +170,7 @@ describe('GetTranscript(架构文档 §5 + openapi downloadTranscript)', () => {
     const warn = logger.calls.find((c) => c.event === 'job.transcript.missing');
     expect(warn).toBeDefined();
     expect(warn?.ioError).toBe('ENOENT');
-    // 日志不得出现错误对象的 message(含路径, §8.2)
+    // 日志不得出现错误对象的 message(含路径)
     expect(JSON.stringify(logger.calls)).not.toContain('no such file');
   });
 

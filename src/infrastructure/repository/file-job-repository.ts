@@ -1,9 +1,9 @@
 /**
- * FileJobRepository:jobs/ 目录下的 JSON 文件仓储(架构文档 §4.2/§5/§7.1)。
- * - 原子写: 一律先写 <目标>.tmp 再 rename(§4.2)
- * - 幂等占位: jobs/by-key/<sha256(key)>.json, 以 fs.open(path, 'wx') O_EXCL 原子互斥(§5)
+ * FileJobRepository:jobs/ 目录下的 JSON 文件仓储。
+ * - 原子写: 一律先写 <目标>.tmp 再 rename
+ * - 幂等占位: jobs/by-key/<sha256(key)>.json, 以 fs.open(path, 'wx') O_EXCL 原子互斥
  * - 列表扫描容忍单文件损坏(记录后跳过), 保证启动恢复/清理整体可用
- * - 错误消息中性化: DomainError 的 message 不含路径等内部细节(§8.1), 细节入 details 供排障
+ * - 错误消息中性化: DomainError 的 message 不含路径等内部细节, 细节入 details 供排障
  */
 import { createHash } from 'node:crypto';
 import { type Dirent, mkdirSync } from 'node:fs';
@@ -70,7 +70,7 @@ export class FileJobRepository implements JobRepository {
         const job = await this.get(placeholder.jobId);
         if (job !== null) {
           if (job.input === undefined) {
-            // 占位指向 tombstone(§4.2 最小化后无 input): 无法比对 sha256, 幂等命中直接重放原 Job(查询端返回 410)
+            // 占位指向 tombstone(最小化后无 input): 无法比对 sha256, 幂等命中直接重放原 Job(查询端返回 410)
             return { outcome: 'replayed', job };
           }
           if (job.input.sha256 === params.input.sha256) {
@@ -78,7 +78,7 @@ export class FileJobRepository implements JobRepository {
           }
           return { outcome: 'conflict', job };
         }
-        // 占位孤儿(占位已写但任务已删除): 清除占位后重试一次完整创建(§5)
+        // 占位孤儿(占位已写但任务已删除): 清除占位后重试一次完整创建
         await rm(keyPath, { force: true });
         if (attempt >= 2) {
           throw new DomainError('INTERNAL_ERROR', 'Idempotency placeholder orphan not resolvable', {
@@ -96,7 +96,7 @@ export class FileJobRepository implements JobRepository {
         await fd.close();
         return { outcome: 'created', job };
       } catch (err) {
-        // 失败回滚: 关闭 fd、删除占位与 job 文件, 防止幂等键卡死与孤儿任务(§5)
+        // 失败回滚: 关闭 fd、删除占位与 job 文件, 防止幂等键卡死与孤儿任务
         await fd.close().catch(() => undefined);
         await rm(keyPath, { force: true });
         await rm(this.jobFilePath(id), { force: true });
@@ -114,7 +114,7 @@ export class FileJobRepository implements JobRepository {
     if (job === null) {
       throw new DomainError('JOB_NOT_FOUND', 'Job not found', { id });
     }
-    // 单线程内读-改-写天然原子(§4.2); updatedAt 一律强制刷新, 不信任 mutator
+    // 单线程内读-改-写天然原子; updatedAt 一律强制刷新, 不信任 mutator
     const updated = { ...mutator(job), updatedAt: this.clock.now() };
     await this.writeJobFile(updated);
     return updated;
@@ -132,12 +132,12 @@ export class FileJobRepository implements JobRepository {
 
   async listExpired(now: string): Promise<BlogJob[]> {
     const jobs = await this.listAll();
-    // ISO 8601 字典序等价时间序, 字符串比较即可(§4.2 清理)
+    // ISO 8601 字典序等价时间序, 字符串比较即可(清理)
     return jobs.filter((j) => j.expiresAt < now);
   }
 
   async remove(id: string): Promise<void> {
-    // 占位清理: 任务元数据仍带 key 时按 key 删; tombstone 已清空 key, 再按 jobId 扫描兜底(§5: key 随 tombstone 清理)
+    // 占位清理: 任务元数据仍带 key 时按 key 删; tombstone 已清空 key, 再按 jobId 扫描兜底(key 随 tombstone 清理)
     await this.removePlaceholders(id);
     await rm(this.jobFilePath(id), { force: true });
     await rm(`${this.jobFilePath(id)}.tmp`, { force: true });
@@ -149,7 +149,7 @@ export class FileJobRepository implements JobRepository {
     try {
       job = await this.get(id);
     } catch (err) {
-      // job 文件损坏也继续尽力清理(清理不可因单文件损坏中断, §4.2)
+      // job 文件损坏也继续尽力清理(清理不可因单文件损坏中断)
       console.error(`[FileJobRepository] remove: corrupt job file for ${id}`, err);
     }
     if (job !== null && job.idempotencyKey !== undefined) {
@@ -157,7 +157,7 @@ export class FileJobRepository implements JobRepository {
       await rm(keyPath, { force: true });
       await rm(`${keyPath}.tmp`, { force: true });
     }
-    // 扫描兜底: tombstone 已清空 idempotencyKey, 只能按占位内容匹配 jobId(§5)
+    // 扫描兜底: tombstone 已清空 idempotencyKey, 只能按占位内容匹配 jobId
     let entries: Dirent[];
     try {
       entries = await readdir(this.keysDir, { withFileTypes: true });
@@ -174,7 +174,7 @@ export class FileJobRepository implements JobRepository {
         await rm(p, { force: true });
         await rm(`${p}.tmp`, { force: true });
       } catch {
-        // 空/损坏占位跳过(创建者写入中断窗口), 由 createOrGet 的孤儿自愈路径兜底(§5)
+        // 空/损坏占位跳过(创建者写入中断窗口), 由 createOrGet 的孤儿自愈路径兜底
       }
     }
   }
@@ -194,7 +194,7 @@ export class FileJobRepository implements JobRepository {
     };
   }
 
-  /** 原子写: 先写 <目标>.tmp 再 rename(§4.2), pretty-print 2 空格便于排障。
+  /** 原子写: 先写 <目标>.tmp 再 rename, pretty-print 2 空格便于排障。
    * Windows 上目标文件可能被杀毒/索引器瞬态短锁致 rename 报 EPERM(实测), 短退避重试。 */
   private async writeJobFile(job: BlogJob): Promise<void> {
     const filePath = this.jobFilePath(job.id);
@@ -292,7 +292,7 @@ export class FileJobRepository implements JobRepository {
     return join(this.jobsDir, `${id}.json`);
   }
 
-  /** 占位文件名 = sha256(key) 的十六进制, 防止 key 中的路径分隔符注入(§5)。 */
+  /** 占位文件名 = sha256(key) 的十六进制, 防止 key 中的路径分隔符注入。 */
   private placeholderPath(key: string): string {
     const digest = createHash('sha256').update(key).digest('hex');
     return join(this.keysDir, `${digest}.json`);
@@ -329,7 +329,7 @@ function isBlogJob(value: unknown): value is BlogJob {
   ) {
     return false;
   }
-  // tombstone(expired)最小化后无 input(§4.2); 其余状态必须带完整输入, 不返回残缺对象
+  // tombstone(expired)最小化后无 input; 其余状态必须带完整输入, 不返回残缺对象
   if (v.status !== 'expired') {
     const input = v.input;
     if (typeof input !== 'object' || input === null) return false;

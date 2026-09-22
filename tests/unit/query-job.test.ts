@@ -91,7 +91,7 @@ function setup() {
   return { repo, logger, useCase };
 }
 
-describe('QueryJob(架构文档 §5)', () => {
+describe('QueryJob', () => {
   it('返回 queued/transcribing/succeeded/failed 任务', async () => {
     const { repo, useCase } = setup();
     const jobs: BlogJob[] = [

@@ -1,6 +1,6 @@
 /**
  * ResponsesSummarizer:通过 Responses API 实现 Summarizer 端口(ADR-0001)。
- * 工具调用/对话统一走 responses.create。重试策略(架构文档 §6)与转录一致:
+ * 工具调用/对话统一走 responses.create。重试策略与转录一致:
  * withRetry 仅重试网络错误/429/5xx, SDK 内置重试关闭(maxRetries: 0)。
  */
 import type OpenAI from 'openai';

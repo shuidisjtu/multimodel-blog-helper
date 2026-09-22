@@ -6,7 +6,7 @@ function apiError(status: number): APIError {
   return new APIError(status, {}, `upstream ${status}`, undefined);
 }
 
-describe('isOpenAiRetryable(架构文档 §6)', () => {
+describe('isOpenAiRetryable', () => {
   it('429 与 5xx 可重试', () => {
     expect(isOpenAiRetryable(apiError(429))).toBe(true);
     expect(isOpenAiRetryable(apiError(500))).toBe(true);

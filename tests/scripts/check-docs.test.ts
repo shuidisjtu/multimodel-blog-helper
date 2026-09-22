@@ -21,7 +21,7 @@ describe('checkMdLinks', () => {
     const text = [
       '[官网](https://biomejs.dev)',
       '[锚点](#sec)',
-      '[架构](docs/architecture/architecture-design.md)',
+      '[架构](docs/architecture/architecture.md)',
       '[坏链接](docs/architecture/does-not-exist.md)',
     ].join('\n');
     const issues = checkMdLinks(text, 'README.md');

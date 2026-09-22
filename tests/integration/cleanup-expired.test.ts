@@ -1,5 +1,5 @@
 /**
- * CleanupExpired 集成测试(架构文档 §9): 真实 FileJobRepository + LocalFileStore + mkdtemp。
+ * CleanupExpired 集成测试: 真实 FileJobRepository + LocalFileStore + mkdtemp。
  * 覆盖: 终态(succeeded/failed)过期 → 文件删除 + tombstone 最小化 / 非终态过期跳过(文件保留) /
  * tombstone 二次清理(保留期内保留, 超期元数据与幂等占位一并删除) / 连续两次 run 幂等。
  */
@@ -117,7 +117,7 @@ function sha256Of(key: string): string {
   return createHash('sha256').update(key).digest('hex');
 }
 
-describe('CleanupExpired 集成(架构文档 §4.2/§5/§9)', () => {
+describe('CleanupExpired 集成', () => {
   it('终态(succeeded)过期: 输入/输出文件删除, tombstone 最小化(无 input/result/failure/idempotencyKey)', async () => {
     await createJobWithFiles({ id: 'done-1', status: 'succeeded' });
     expect(existsSync(join(tempDir, 'uploads', 'done-1'))).toBe(true);
@@ -130,7 +130,7 @@ describe('CleanupExpired 集成(架构文档 §4.2/§5/§9)', () => {
     expect(existsSync(join(tempDir, 'outputs', 'done-1'))).toBe(false);
     const tombstone = await repo.get('done-1');
     expect(tombstone).not.toBeNull();
-    // tombstone 最小化(§4.2): 只保留核心字段
+    // tombstone 最小化: 只保留核心字段
     expect(tombstone?.status).toBe('expired');
     expect(tombstone?.id).toBe('done-1');
     expect(tombstone?.requestId).toBe('req-done-1');
@@ -175,7 +175,7 @@ describe('CleanupExpired 集成(架构文档 §4.2/§5/§9)', () => {
     const keyPath = join(tempDir, 'jobs', 'by-key', `${sha256Of('cleanup-key-1')}.json`);
     await cleanup.run(); // → tombstone(updatedAt = 2026-08-12T08:00:00.000Z)
     expect((await repo.get('old-1'))?.status).toBe('expired');
-    expect(existsSync(keyPath)).toBe(true); // 二次清理前幂等占位保留(§5)
+    expect(existsSync(keyPath)).toBe(true); // 二次清理前幂等占位保留
 
     // 未超过保留期(30 天) → 保留
     clockValue = '2026-08-17T08:00:00.000Z';
@@ -186,7 +186,7 @@ describe('CleanupExpired 集成(架构文档 §4.2/§5/§9)', () => {
     // 混入损坏占位: 清理扫描需容忍, 不中断
     await writeFile(join(tempDir, 'jobs', 'by-key', 'deadbeef.json'), '{broken', 'utf8');
 
-    // 超过保留期 → 元数据与占位一并删除(§5: key 随 tombstone 清理)
+    // 超过保留期 → 元数据与占位一并删除(key 随 tombstone 清理)
     clockValue = '2026-09-13T08:00:00.000Z';
     result = await cleanup.run();
     expect(result).toEqual({ expiredCount: 0, removedTombstones: 1 });

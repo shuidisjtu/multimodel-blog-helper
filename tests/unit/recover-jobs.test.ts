@@ -1,5 +1,5 @@
 /**
- * RecoverJobs 用例测试(架构文档 §4.2 启动恢复): fake 仓储 + 真实 MemoryJobQueue。
+ * RecoverJobs 用例测试: fake 仓储 + 真实 MemoryJobQueue。
  * 覆盖: queued 全部重入队 / 进行中标记 failed(PROCESS_INTERRUPTED)且不重入队 /
  * QUEUE_FULL 跳过不抛错 / 单任务异常记录日志继续 / 仓储不可用(列表失败)抛错。
  */
@@ -128,7 +128,7 @@ function setup(queue: JobQueue = new MemoryJobQueue(10, 1)) {
   return { repo, queue, logger, useCase };
 }
 
-describe('RecoverJobs(架构文档 §4.2 启动恢复)', () => {
+describe('RecoverJobs', () => {
   it('queued 任务全部重新入队: 计数/队列 size/日志正确, 不触碰进行中任务', async () => {
     const { repo, queue, logger, useCase } = setup();
     for (const id of ['q-1', 'q-2', 'q-3']) repo.jobs.set(id, makeJob({ id }));

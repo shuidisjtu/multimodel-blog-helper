@@ -176,7 +176,7 @@ function setup(overrides?: {
   };
 }
 
-describe('ProcessJob(架构文档 §4.1/§6.3-§6.4)', () => {
+describe('ProcessJob', () => {
   it('完整成功: queued→transcribing→summarizing→succeeded, 结果/产物/日志正确', async () => {
     const { repo, files, transcriber, summarizer, logger, useCase } = setup();
     repo.jobs.set('job-1', makeJob());

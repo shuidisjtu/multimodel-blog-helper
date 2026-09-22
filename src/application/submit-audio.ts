@@ -1,12 +1,12 @@
 /**
- * SubmitAudio 用例(架构文档 §5/§6.1-§6.2):受理上传并创建 queued 任务。
- * - 队列预检: 仅对新建任务——创建成功、入队前检查容量, 满则回滚删除 Job 与文件后抛 QUEUE_FULL(§6.2);
- *   幂等重放/冲突不占队列, 不受队列满影响(§6.2)
- * - 幂等: createOrGetByIdempotencyKey 三态, replayed/conflict 落败者清理本次上传文件(§5)
- * - 创建回滚: 输入落盘后 create/createOrGet 异常同样清理输入文件, 不留孤儿目录(§6.2)
- * - 入队回滚: 持久化后入队异常删除 Job 记录与输入文件(§6.2)
- * - 时长校验: 落盘后探针解析时长, 超限回滚清理后抛 AUDIO_TOO_LONG; 探针降级(null)视为未校验放行(§5)
- * 纯编排: 文件系统/外部 API 全部经端口注入; 未知错误转换为 INTERNAL_ERROR 传播(§6.4/§8.1)。
+ * SubmitAudio 用例:受理上传并创建 queued 任务。
+ * - 队列预检: 仅对新建任务——创建成功、入队前检查容量, 满则回滚删除 Job 与文件后抛 QUEUE_FULL;
+ *   幂等重放/冲突不占队列, 不受队列满影响
+ * - 幂等: createOrGetByIdempotencyKey 三态, replayed/conflict 落败者清理本次上传文件
+ * - 创建回滚: 输入落盘后 create/createOrGet 异常同样清理输入文件, 不留孤儿目录
+ * - 入队回滚: 持久化后入队异常删除 Job 记录与输入文件
+ * - 时长校验: 落盘后探针解析时长, 超限回滚清理后抛 AUDIO_TOO_LONG; 探针降级(null)视为未校验放行
+ * 纯编排: 文件系统/外部 API 全部经端口注入; 未知错误转换为 INTERNAL_ERROR 传播。
  */
 import { DomainError } from '../domain/errors.js';
 import type { BlogJob } from '../domain/job.js';
@@ -25,7 +25,7 @@ export interface SubmitAudioParams {
   requestId: string;
   originalName: string;
   mimeType: string;
-  /** 服务端受信扩展名: 由调用方在 validateAudioUpload 通过后传入, 存储名依据(§5)。 */
+  /** 服务端受信扩展名: 由调用方在 validateAudioUpload 通过后传入, 存储名依据。 */
   extension: string;
   bytes: Buffer;
   idempotencyKey?: string;
@@ -43,10 +43,10 @@ export class SubmitAudio {
       ids: IdGenerator;
       logger: Logger;
       jobTtlHours: number;
-      /** 与队列实例的 maxLength 一致; 预检用 size 判断, 真满员由 enqueue 兜底(§6.2)。 */
+      /** 与队列实例的 maxLength 一致; 预检用 size 判断, 真满员由 enqueue 兜底。 */
       queueMaxLength: number;
       durationProbe: AudioDurationProbe;
-      /** 受理时最大音频时长(秒, 架构文档 §5); 探针降级(null)时不拦截。 */
+      /** 受理时最大音频时长(秒); 探针降级(null)时不拦截。 */
       maxAudioDurationSeconds: number;
     },
   ) {}
@@ -56,7 +56,7 @@ export class SubmitAudio {
       return await this.createJob(params);
     } catch (err) {
       if (err instanceof DomainError) throw err;
-      // 未知错误: 不向客户端泄漏原始报错(§8.1), 仅记录
+      // 未知错误: 不向客户端泄漏原始报错, 仅记录
       this.deps.logger.error({
         event: 'job.submit.failed',
         errorCode: 'INTERNAL_ERROR',
@@ -80,7 +80,7 @@ export class SubmitAudio {
       extension: params.extension,
       bytes: params.bytes,
     });
-    // 3.5 时长校验(§5): 落盘文件交给探针解析; 超长回滚清理后拒绝; 降级(null)视为未校验放行
+    // 3.5 时长校验: 落盘文件交给探针解析; 超长回滚清理后拒绝; 降级(null)视为未校验放行
     const durationSec = await this.deps.durationProbe.probe(path);
     if (durationSec !== null && durationSec > this.deps.maxAudioDurationSeconds) {
       await this.deps.files.deleteJobFiles(jobId).catch((cleanupErr) => {
@@ -117,7 +117,7 @@ export class SubmitAudio {
           idempotencyKey: params.idempotencyKey,
         });
         if (outcome.outcome !== 'created') {
-          // 落败者清理其本次上传的临时文件, 不再入队(§5)
+          // 落败者清理其本次上传的临时文件, 不再入队
           await this.deps.files.deleteJobFiles(jobId);
           return { outcome: outcome.outcome, job: outcome.job };
         }
@@ -126,19 +126,19 @@ export class SubmitAudio {
         job = await this.deps.jobs.create(createParams);
       }
     } catch (err) {
-      // 创建失败: 清理本次已上传文件后重抛原始错误(§6.2); 清理失败不掩盖原始错误, 仅记录
+      // 创建失败: 清理本次已上传文件后重抛原始错误; 清理失败不掩盖原始错误, 仅记录
       await this.deps.files.deleteJobFiles(jobId).catch((cleanupErr) => {
         this.deps.logger.error({ event: 'job.submit.cleanup_failed', jobId, error: cleanupErr });
       });
       throw err;
     }
-    // 5. 入队预检(同步); 只对新建任务预检——幂等重放/冲突不占队列, 不受队列满影响(§6.2)
+    // 5. 入队预检(同步); 只对新建任务预检——幂等重放/冲突不占队列, 不受队列满影响
     if (this.deps.queue.size() >= this.deps.queueMaxLength) {
       await this.deps.jobs.remove(job.id);
       await this.deps.files.deleteJobFiles(jobId);
       throw new DomainError('QUEUE_FULL', 'Queue is full, retry later');
     }
-    // 6. 入队(同步临界区); 异常回滚刚创建的 Job 记录与输入文件(§6.2)
+    // 6. 入队(同步临界区); 异常回滚刚创建的 Job 记录与输入文件
     try {
       this.deps.queue.enqueue(job.id);
     } catch (err) {

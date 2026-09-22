@@ -8,7 +8,7 @@ import { MESSAGE_BY_CODE } from './error-handler.js';
 export const RATE_LIMIT_WINDOW_MS = 60_000;
 
 /**
- * 取 X-Forwarded-For 最左侧地址(客户端直连代理的地址, B6 计划 §限流)。
+ * 取 X-Forwarded-For 最左侧地址(客户端直连代理的地址, B6 限流)。
  * 链式代理场景可被伪造, 但仅在显式配置 TRUST_PROXY 后启用(部署方负责代理边界)。
  */
 export function firstForwardedIp(headerValue: string | undefined): string | undefined {

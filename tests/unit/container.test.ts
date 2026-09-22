@@ -42,7 +42,7 @@ afterAll(async () => {
   await rm(tempDir, { recursive: true, force: true });
 });
 
-describe('buildContainer(架构文档 §3.1 bootstrap 职责)', () => {
+describe('buildContainer', () => {
   it('组装全部用例与基础设施, 注入配置', () => {
     const deps = buildContainer(fakeConfig());
     expect(deps.submitAudio).toBeDefined();

@@ -1,6 +1,6 @@
 # 核心技术说明与答辩材料
 
-> 日期：2026-08-21 ｜ 适用：项目答辩 ｜ 证据索引见 §9 ｜ 配套：docs/architecture/architecture-design.md、docs/adr/ADR-0001~0004
+> 日期：2026-08-21 ｜ 适用：项目答辩 ｜ 证据索引见 §9 ｜ 配套：docs/architecture/architecture.md、docs/adr/ADR-0001~0004
 
 > **实现状态**：任务完成状态以任务清单（[docs/project-division/task-list.md](../project-division/task-list.md)）为唯一权威，本文档不重复维护状态快照。正文未加标注的机制为已实现（截至 B3 完成：端口与 OpenAI 适配器、任务用例与状态机、重试/超时、上传校验与文件安全、过期清理/tombstone、日志脱敏）；标注 **（设计）** 的 HTTP 层行为（§1 闭环、§2 `503`、§5 响应码、§7 限流、§8 错误边界）为 B 系列接口落地后的目标形态，按架构文档 §5 语义描述。
 
@@ -204,4 +204,4 @@ sequenceDiagram
 
 **分阶段证据**：A2（Transcriber/Summarizer 端口与 OpenAI 适配器）14 个测试；A3（音频转录与摘要任务用例）107 个测试，当时语句覆盖率 94.52%（CLAUDE.md 重构进度记录）；A4（模型调用重试/超时策略）以 `withRetry` 重试行为测试覆盖——仅网络错误/429/5xx 重试、退避序列、4xx 不重试等用例，随 2026-08-21 全量验证一并通过；B3（上传校验与临时文件策略）新增 16 个测试（校验器 8 + 时长探针 4 + 编排 4），并重写文件存储测试钉死"用户文件名不参与路径"，随 2026-08-22 全量验证（`npm run verify`）通过。
 
-**文档**：架构设计 v1.3（[docs/architecture/architecture-design.md](../architecture/architecture-design.md)）；任务清单 v1.4（[docs/project-division/task-list.md](../project-division/task-list.md)）；决策记录 ADR-0001~0004（[docs/adr/](../adr/)，分别覆盖 Responses API 迁移、temp/ 文件任务仓储、wttr.in 天气适配、异步任务处理）。
+**文档**：架构设计（[docs/architecture/architecture.md](../architecture/architecture.md)）；任务清单 v1.4（[docs/project-division/task-list.md](../project-division/task-list.md)）；决策记录 ADR-0001~0004（[docs/adr/](../adr/)，分别覆盖 Responses API 迁移、temp/ 文件任务仓储、wttr.in 天气适配、异步任务处理）。

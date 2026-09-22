@@ -1,5 +1,5 @@
 /**
- * HTTP 响应信封(架构文档 §5 / openapi.yaml): 成功 { data, requestId }; 失败 { error: { code, message }, requestId }。
+ * HTTP 响应信封(openapi.yaml): 成功 { data, requestId }; 失败 { error: { code, message }, requestId }。
  * error 的 details 为契约可选字段, 本服务暂不对外输出(安全默认)。
  */
 export function successEnvelope(
@@ -31,7 +31,7 @@ export function submissionData(
 }
 
 /** 任务查询响应 data(契约 JobView): 必填 id/requestId(创建时)/时间/queryUrl; 可选字段按状态包含。
- * 内部字段(input/路径/哈希/幂等 key)绝不进入响应(架构文档 §8.1)。 */
+ * 内部字段(input/路径/哈希/幂等 key)绝不进入响应。 */
 export interface JobView {
   id: string;
   requestId: string;
