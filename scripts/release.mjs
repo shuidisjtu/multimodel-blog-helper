@@ -78,6 +78,13 @@ function listFiles(directory, prefix = '') {
   return files.sort();
 }
 
+/** 制品不得含凭据、依赖或运行期数据: 检查单把它列为必过项, 这里做自动门禁。 */
+function forbiddenEntry(path) {
+  const segments = path.split('/');
+  if (segments.includes('node_modules') || segments.includes('temp')) return true;
+  return segments.some((name) => name.startsWith('.env') && name !== '.env.example');
+}
+
 function fileRecord(directory, path) {
   const bytes = readFileSync(join(directory, ...path.split('/')));
   return {
@@ -101,6 +108,11 @@ function check(directory, referencePath) {
     assert(manifest.commit === process.env.GITHUB_SHA, 'CI SHA does not match manifest');
   }
   const actualPaths = listFiles(directory);
+  const forbidden = actualPaths.find(forbiddenEntry);
+  assert(
+    forbidden === undefined,
+    `Release must not contain credentials, dependencies, or runtime data: ${forbidden}`,
+  );
   assert(
     requiredFiles.every((file) => actualPaths.includes(file)),
     'Required release file is missing',
@@ -196,6 +208,11 @@ try {
     if (options.length === 3 && options[1] === '--expect') {
       referencePath = resolve(root, options[2]);
       assert(existsSync(referencePath), `Reference manifest not found: ${referencePath}`);
+      // 锚点必须来自制品之外, 否则与制品自身清单比对是同义反复, 却输出与真锚点相同的成功文案。
+      assert(
+        !referencePath.startsWith(`${directory}${sep}`),
+        'Reference manifest must come from outside the artifact',
+      );
     } else if (options.length !== 1) {
       throw new Error(usage);
     }

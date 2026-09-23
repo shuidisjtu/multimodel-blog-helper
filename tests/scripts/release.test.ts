@@ -66,9 +66,9 @@ function writeManifest(directory: string, commit: string, dirty: boolean): void 
   writeFileSync(join(directory, 'manifest.json'), `${JSON.stringify(manifest, null, 2)}\n`);
 }
 
-/** 可信清单的存放位置; 它不参与制品自洽校验, 只作为 --expect 的外部锚点。 */
+/** 可信清单的存放位置(绝对路径, 不依赖 cwd); 它不参与制品自洽校验, 只作为 --expect 的外部锚点。 */
 function referencePath(): string {
-  return relative(REPO_ROOT, join(WORKSPACE, 'reference.json')).replace(/\\/g, '/');
+  return join(WORKSPACE, 'reference.json');
 }
 
 function runCheck(
@@ -151,6 +151,28 @@ describe('release.mjs check', () => {
     const result = runCheck(directory, referencePath());
     expect(result.status, result.stderr).toBe(0);
   });
+
+  it('--expect 指向制品自身时拒绝(否则是与自身清单比对, 同义反复)', () => {
+    const directory = createArtifact();
+    const result = runCheck(directory, `${directory}/manifest.json`);
+    expect(result.stderr).toContain('must come from outside the artifact');
+    expect(result.status).toBe(1);
+  });
+
+  it.each(['.env', 'node_modules/left-pad/index.js', 'temp/uploads/sample.mp3'])(
+    '制品含 %s 时拒绝(检查单的必过项不能只靠人工)',
+    (path) => {
+      const directory = createArtifact();
+      const target = join(REPO_ROOT, directory, ...path.split('/'));
+      mkdirSync(join(target, '..'), { recursive: true });
+      writeFileSync(target, 'secret\n');
+      writeManifest(join(REPO_ROOT, directory), COMMIT, false);
+
+      const result = runCheck(directory);
+      expect(result.stderr).toContain('must not contain credentials');
+      expect(result.status).toBe(1);
+    },
+  );
 
   it('参考清单不存在时拒绝', () => {
     const directory = createArtifact();

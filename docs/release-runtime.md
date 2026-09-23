@@ -6,9 +6,13 @@
 
 1. 检出 `manifest.json` 中的完整 `commit`。要求 Node.js ≥ 24。
 2. 在仓库根目录执行 `npm ci`、`npm ci --prefix web`、`npm run verify`。
-3. 在**仓库根目录**执行 `npm run release:build`（制品生成到 `.release/release-<sha>/`），再执行 `npm run release:check -- .release/release-<sha>` 校验清单与磁盘自洽。
-4. 要证明「两次构建字节一致」，把一份可信来源的 `manifest.json` 作为外部锚点逐项比对：`npm run release:check -- .release/release-<sha> --expect <可信 manifest.json 路径>`。只做第 3 步的自洽校验无法发现「篡改文件后重算清单」的伪造。请在同一操作系统与 Node 24 环境下比较构建输出。
-5. GitHub Actions 的 `Reproducible release candidate` 仅在 `main` 推送的静态检查、测试与覆盖率、依赖审计、Secret Scan 全部成功后上传同名 artifact，随后依次：下载并校验文件清单与 SHA-256、本地重建并与下载的清单比对（`--expect`）、用 `npm run release:smoke -- <制品目录>` 安装生产依赖并启动制品确认其能响应 HTTP。
+3. 在**仓库根目录**执行 `npm run release:build`（制品生成到 `.release/release-<sha>/`），再执行 `npm run release:check -- .release/release-<sha>` 校验清单与磁盘自洽。该校验同时拒绝含 `.env`（`.env.example` 除外）、`node_modules/` 或 `temp/` 的制品。
+4. 要证明「两次构建字节一致」，把一份可信来源的 `manifest.json` 作为外部锚点逐项比对：`npm run release:check -- .release/release-<sha> --expect <可信 manifest.json 路径>`。锚点必须来自制品之外——指向制品自身的清单是与自己比对，会被拒绝。只做第 3 步的自洽校验无法发现「篡改文件后重算清单」的伪造。请在同一操作系统与 Node 24 环境下比较构建输出。
+5. GitHub Actions 的 `Reproducible release candidate` 仅在 `main` 推送的静态检查、测试与覆盖率、依赖审计、Secret Scan 全部成功后上传同名 artifact，随后依次：下载并校验文件清单与 SHA-256、本地重建并与下载的清单比对（`--expect`）、用 `npm run release:smoke -- <制品目录>` 安装生产依赖、启动制品并断言业务路由返回预期错误码。
+
+> **CI 那一步 `--expect` 的证明边界**：被比对的重建产物与下载的 artifact 出自同一个 job、同一次 checkout，所以它证明的是「上传/下载往返无损 + 同环境构建确定」，**不**证明跨机器可复现，也发现不了构建链本身被污染。跨机器复现要靠检查单里「在另一台机器上从同一 SHA 重建后比对哈希」那一条。
+
+> **顺序契约**：`release:smoke` 会往制品目录写入 `.env` 与 `node_modules`，因此必须排在所有 `release:check` **之后**；冒烟过的目录不再是可校验的制品（再次 `check` 会因其含凭据/依赖被拒）。
 
 ## 运行
 

@@ -5,17 +5,27 @@ import { copyFileSync, existsSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 
 const STARTUP_TIMEOUT_MS = 20_000;
+const REQUEST_TIMEOUT_MS = 2_000;
 const PORT = Number.parseInt(process.env.RELEASE_SMOKE_PORT ?? '3211', 10);
+// 命中真实路由而非未知路径: 只有应用装好了路由与错误信封才会返回该业务错误码,
+// 借此排除"express 起来了但业务没接上"以及"端口被别的进程占着"两种假通过。
+const PROBE_PATH = '/api/v1/audio-jobs/00000000-0000-4000-8000-000000000000';
+const PROBE_ERROR_CODE = 'JOB_NOT_FOUND';
 
 function assert(condition, message) {
   if (!condition) throw new Error(message);
 }
 
-async function waitForServer(url) {
+/** 轮询直到服务响应; 子进程若已退出则立即失败, 单次请求也必须有超时(否则对端静默时会挂死)。 */
+async function waitForServer(url, isServerAlive) {
   const deadline = Date.now() + STARTUP_TIMEOUT_MS;
   while (Date.now() < deadline) {
+    assert(
+      isServerAlive(),
+      `Packaged server exited with code ${server?.exitCode} before answering`,
+    );
     try {
-      return await fetch(url);
+      return await fetch(url, { signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS) });
     } catch {
       await new Promise((done) => setTimeout(done, 250));
     }
@@ -53,13 +63,17 @@ try {
     stdio: ['ignore', 'inherit', 'inherit'],
   });
 
-  const url = `http://127.0.0.1:${PORT}/not-found`;
-  const response = await waitForServer(url);
+  const url = `http://127.0.0.1:${PORT}${PROBE_PATH}`;
+  const response = await waitForServer(url, () => server.exitCode === null);
   assert(response, `Packaged server did not answer ${url} within ${STARTUP_TIMEOUT_MS}ms`);
-  assert(response.status === 404, `Expected 404 for an unknown path, received ${response.status}`);
+  const body = await response.json().catch(() => undefined);
+  assert(
+    body?.error?.code === PROBE_ERROR_CODE,
+    `Expected ${PROBE_PATH} to answer ${PROBE_ERROR_CODE}, received ${response.status} ${JSON.stringify(body)}`,
+  );
   assert(response.headers.get('x-request-id'), 'Response is missing the X-Request-Id header');
   console.log(
-    `Release smoke passed: ${artifact} answered ${response.status} with X-Request-Id on port ${PORT}`,
+    `Release smoke passed: ${artifact} answered ${PROBE_ERROR_CODE} with X-Request-Id on port ${PORT}`,
   );
 } catch (error) {
   console.error(error instanceof Error ? error.message : String(error));
