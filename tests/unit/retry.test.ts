@@ -29,7 +29,7 @@ function statusError(status: number): Error {
 const isRetryable = (err: unknown): boolean =>
   err instanceof Error && (err as { status?: number }).status === 429;
 
-describe('withRetry(架构文档 §6)', () => {
+describe('withRetry', () => {
   function setup() {
     const sleep = vi.fn(async (_ms: number) => undefined);
     const logger = new FakeLogger();

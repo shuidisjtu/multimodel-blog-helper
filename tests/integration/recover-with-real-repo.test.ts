@@ -1,5 +1,5 @@
 /**
- * RecoverJobs 集成测试(架构文档 §4.2/§9): 真实 FileJobRepository + MemoryJobQueue。
+ * RecoverJobs 集成测试: 真实 FileJobRepository + MemoryJobQueue。
  * 验证启动恢复与真实仓储文件布局协同: queued 任务重入队, transcribing 标记 failed(PROCESS_INTERRUPTED)。
  */
 
@@ -44,7 +44,7 @@ afterAll(async () => {
   await rm(tempDir, { recursive: true, force: true });
 });
 
-describe('RecoverJobs 集成(架构文档 §4.2/§9)', () => {
+describe('RecoverJobs 集成', () => {
   it('真实仓储: queued 重入队, transcribing 标记 failed(PROCESS_INTERRUPTED)', async () => {
     const clockValue = '2026-08-12T08:00:00.000Z';
     const clock: Clock = { now: () => clockValue };

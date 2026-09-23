@@ -28,7 +28,7 @@ async function waitUntil(cond: () => boolean, timeoutMs = 1000): Promise<void> {
   }
 }
 
-describe('MemoryJobQueue(架构文档 §6 流程 2/3)', () => {
+describe('MemoryJobQueue', () => {
   it('FIFO:按入队顺序消费', async () => {
     const queue = new MemoryJobQueue(10, 1);
     const consumed: string[] = [];

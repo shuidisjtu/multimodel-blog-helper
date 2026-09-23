@@ -51,7 +51,7 @@ afterAll(async () => {
   await rm(tmpDir, { recursive: true, force: true });
 });
 
-describe('MusicMetadataDurationProbe(架构文档 §5 时长探测)', () => {
+describe('MusicMetadataDurationProbe', () => {
   it('真实 mp3 fixture: 解析出正时长', async () => {
     const probe = new MusicMetadataDurationProbe(new FakeLogger());
     const duration = await probe.probe(MP3_FIXTURE);

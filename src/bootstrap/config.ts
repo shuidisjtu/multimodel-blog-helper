@@ -1,6 +1,6 @@
 /**
- * 环境配置加载与校验(架构文档 §7.2):启动时校验失败即退出。
- * 所有 process.env 读取集中在此,禁止散落读取(架构文档 §11.2)。
+ * 环境配置加载与校验:启动时校验失败即退出。
+ * 所有 process.env 读取集中在此,禁止散落读取。
  */
 import dotenv from 'dotenv';
 import type { LogLevel } from '../shared/logger.js';

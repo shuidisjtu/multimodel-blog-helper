@@ -23,7 +23,7 @@ const STATUS_BY_CODE: Record<ErrorCode, number> = {
   INTERNAL_ERROR: 500,
 };
 
-/** 客户端可见稳定消息(openapi.yaml example 文案); 领域错误原始 message 只进日志(§8.1)。 */
+/** 客户端可见稳定消息(openapi.yaml example 文案); 领域错误原始 message 只进日志。 */
 export const MESSAGE_BY_CODE: Record<ErrorCode, string> = {
   INVALID_FILE: 'Invalid audio file',
   AUDIO_TOO_LONG: 'Audio duration exceeds limit',
@@ -63,7 +63,7 @@ function sendError(res: Response, code: ErrorCode, requestId: string): void {
 }
 
 /**
- * 统一错误边界(架构文档 §8.1): 挂载在路由末尾。
+ * 统一错误边界: 挂载在路由末尾。
  * Express 5 自动将 async handler 的 rejection 转发到本中间件, 无需逐路由包装器。
  * 未知错误以 500 INTERNAL_ERROR 兜底并记录(不向客户端泄漏堆栈/原始报错)。
  */

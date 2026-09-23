@@ -1,5 +1,5 @@
 /**
- * ProcessJobWorker 测试(架构文档 §6.3): 真实 MemoryJobQueue + fake ProcessJob。
+ * ProcessJobWorker 测试: 真实 MemoryJobQueue + fake ProcessJob。
  * 覆盖: 订阅消费 / handler 抛错不影响后续任务 / start 幂等(重复订阅被 MemoryJobQueue 拒绝)。
  */
 import { describe, expect, it } from 'vitest';
@@ -53,7 +53,7 @@ function setup(queue = new MemoryJobQueue(10, 1)) {
   return { queue, process, logger, worker };
 }
 
-describe('ProcessJobWorker(架构文档 §6.3)', () => {
+describe('ProcessJobWorker', () => {
   it('start 后订阅队列并消费任务', async () => {
     const { queue, process, worker } = setup();
 

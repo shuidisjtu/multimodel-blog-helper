@@ -1,5 +1,5 @@
 /**
- * ProcessJobWorker(架构文档 §6.3): 订阅任务队列并消费的 worker。
+ * ProcessJobWorker: 订阅任务队列并消费的 worker。
  * - 并发度由队列实例自身控制(workerConcurrency), 本类不做二次限制
  * - ProcessJob.run 契约不向外抛错(Task 3), 但 handler 仍兜底 try/catch, 未知错误仅记录, 不中断队列循环
  * - start 幂等: 重复调用无副作用(队列只允许一次订阅)

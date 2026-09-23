@@ -1,6 +1,6 @@
 /**
  * OpenAITranscriber:通过 OpenAI 转录 API(whisper-1)实现 Transcriber 端口。
- * 重试策略(架构文档 §6): withRetry 仅重试网络错误/429/5xx, 共 maxRetries+1 次尝试, 4xx 不重试;
+ * 重试策略: withRetry 仅重试网络错误/429/5xx, 共 maxRetries+1 次尝试, 4xx 不重试;
  * SDK 内置重试关闭(maxRetries: 0)避免双重叠加。
  */
 import { openAsBlob } from 'node:fs';

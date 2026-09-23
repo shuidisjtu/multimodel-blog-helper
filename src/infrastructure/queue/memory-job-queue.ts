@@ -1,5 +1,5 @@
 /**
- * MemoryJobQueue:有界 FIFO 内存任务队列(架构文档 §6 流程 2/3)。
+ * MemoryJobQueue:有界 FIFO 内存任务队列(流程 2/3)。
  * - 同步入队: 容量检查与入队在同一同步临界区, 满则 QUEUE_FULL(容量满时根本不写 Job, 磁盘不残留可恢复任务)。
  * - drain 消费循环: 并发受 workerConcurrency 限制; 单个 handler 失败只经 finally 回收槽位, 不阻塞其他任务。
  * - 错误不在此吞掉也不扩散: 由订阅方(worker 层)负责处理。

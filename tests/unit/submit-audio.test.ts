@@ -208,7 +208,7 @@ function setup(
   return { repo, files, queue, logger, useCase, probe };
 }
 
-describe('SubmitAudio(架构文档 §5/§6.1-§6.2)', () => {
+describe('SubmitAudio', () => {
   it('成功路径: created + queued + 文件已保存 + 入队 size=1', async () => {
     const { repo, files, queue, logger, useCase } = setup();
     const outcome = await useCase.run(makeParams());
@@ -217,7 +217,7 @@ describe('SubmitAudio(架构文档 §5/§6.1-§6.2)', () => {
     expect(outcome.job.status).toBe('queued');
     expect(outcome.job.id).toBe('job-1');
     expect(outcome.job.requestId).toBe('req-1');
-    // BlogJob.input 在 tombstone 最小化后为可选(§4.2), 新建任务必然存在
+    // BlogJob.input 在 tombstone 最小化后为可选, 新建任务必然存在
     const createdInput = outcome.job.input as NonNullable<typeof outcome.job.input>;
     expect(createdInput.originalName).toBe('demo.mp3');
     expect(createdInput.mimeType).toBe('audio/mpeg');
@@ -372,7 +372,7 @@ describe('SubmitAudio(架构文档 §5/§6.1-§6.2)', () => {
     expect(files.deletedJobIds).toEqual(['job-1']);
   });
 
-  it('队列满时同 key 同文件重放: 仍返回 replayed, 不受队列满影响(§6.2)', async () => {
+  it('队列满时同 key 同文件重放: 仍返回 replayed, 不受队列满影响', async () => {
     const queue = new MemoryJobQueue(1, 1);
     queue.enqueue('filler-1'); // 队列占满(无订阅, 仅占容量)
     const { repo, files, useCase } = setup({ queue, queueMaxLength: 1 });
@@ -404,7 +404,7 @@ describe('SubmitAudio(架构文档 §5/§6.1-§6.2)', () => {
     expect(repo.removeCalls).toHaveLength(0); // 既有 job 不被删除
   });
 
-  it('队列满时同 key 不同文件: 仍返回 conflict, 不受队列满影响(§6.2)', async () => {
+  it('队列满时同 key 不同文件: 仍返回 conflict, 不受队列满影响', async () => {
     const queue = new MemoryJobQueue(1, 1);
     queue.enqueue('filler-1'); // 队列占满
     const { repo, files, useCase } = setup({ queue, queueMaxLength: 1 });
@@ -456,7 +456,7 @@ describe('SubmitAudio(架构文档 §5/§6.1-§6.2)', () => {
   });
 
   it('队列预检满(queueMaxLength=0): 新建任务落盘建库后预检回滚(remove + deleteJobFiles), 抛 QUEUE_FULL', async () => {
-    // 预检位置为"创建成功之后、入队之前"(§6.2): 新建任务先落盘建库, 再被预检回滚;
+    // 预检位置为"创建成功之后、入队之前": 新建任务先落盘建库, 再被预检回滚;
     // 幂等重放/冲突不占队列, 不受队列满影响(见上文两个"队列满时"用例)
     const { repo, files, useCase } = setup({
       queue: new MemoryJobQueue(0, 1),

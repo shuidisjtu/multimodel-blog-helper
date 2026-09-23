@@ -1,5 +1,5 @@
 /**
- * LocalFileStore 集成测试(架构文档 §9):真实临时目录(mkdtemp)验证落盘/读取/删除。
+ * LocalFileStore 集成测试:真实临时目录(mkdtemp)验证落盘/读取/删除。
  * 测试结束统一清理临时目录(afterAll)。
  */
 
@@ -22,7 +22,7 @@ afterAll(async () => {
   await rm(tempDir, { recursive: true, force: true });
 });
 
-describe('LocalFileStore(架构文档 §4.2/§7.1)', () => {
+describe('LocalFileStore', () => {
   it('saveInput: 文件落盘、内容一致、返回绝对路径与手工计算一致的 64 位 hex sha256', async () => {
     const bytes = Buffer.from('fake mp3 content');
     const { path, sha256 } = await store.saveInput({

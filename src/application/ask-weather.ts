@@ -1,5 +1,5 @@
 /**
- * AskWeather 用例(架构文档 §3.1/§7.1): 通过 WeatherProvider 查询当前天气。
+ * AskWeather 用例: 通过 WeatherProvider 查询当前天气。
  * HTTP 与 wttr.in 均位于外层；本用例只编排端口、错误语义和可关联日志。
  */
 import { DomainError } from '../domain/errors.js';

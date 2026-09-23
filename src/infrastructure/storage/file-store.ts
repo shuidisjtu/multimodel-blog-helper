@@ -1,7 +1,7 @@
 /**
- * LocalFileStore:基于临时目录的文件存储(架构文档 §4.2/§7.1)。
+ * LocalFileStore:基于临时目录的文件存储。
  * 布局: <tempDir>/uploads/<jobId>/input.<ext> 与 <tempDir>/outputs/<jobId>/transcript.txt|summary.txt。
- * 扩展名安全断言防止路径注入(架构文档 §5); 所有 mkdir 幂等(recursive: true)。
+ * 扩展名安全断言防止路径注入; 所有 mkdir 幂等(recursive: true)。
  */
 import { createHash } from 'node:crypto';
 import { mkdirSync } from 'node:fs';
@@ -49,7 +49,7 @@ export class LocalFileStore implements FileStore {
     const dirs = [join(this.uploadsDir, jobId), join(this.outputsDir, jobId)];
     let count = 0;
     for (const dir of dirs) {
-      // 先递归统计文件数, 再整目录删除(§4.2: 清理幂等并记录数量)
+      // 先递归统计文件数, 再整目录删除(清理幂等并记录数量)
       try {
         const entries = await readdir(dir, { recursive: true, withFileTypes: true });
         count += entries.filter((e) => e.isFile()).length;
@@ -64,7 +64,7 @@ export class LocalFileStore implements FileStore {
 
 /**
  * 扩展名安全断言(小写字母/数字, 1-8 字符): 正常值由 domain 校验器保证,
- * 此处为契约失效的预防性防御(架构文档 §5: 拒绝路径分隔符/注入进路径)。
+ * 此处为契约失效的预防性防御(拒绝路径分隔符/注入进路径)。
  */
 function assertSafeExtension(extension: string): string {
   if (!/^[a-z0-9]{1,8}$/.test(extension)) {

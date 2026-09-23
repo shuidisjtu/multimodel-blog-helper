@@ -83,6 +83,7 @@ if (toolMessages.length > 0) {
         model: "gpt-4o",
         previous_response_id: response.id,
         input: toolMessages,
+        tools,
     });
     stream.on("response.output_text.delta", (event) => process.stdout.write(event.delta));
     response = await stream.finalResponse();

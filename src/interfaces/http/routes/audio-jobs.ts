@@ -7,11 +7,11 @@ import { submissionData, successEnvelope } from '../envelope.js';
 import { parseIdempotencyKey } from '../schemas/idempotency-key.js';
 
 /**
- * POST /api/v1/audio-jobs(架构文档 §5/§6.1/§8.1 + openapi.yaml submitAudioJob):
+ * POST /api/v1/audio-jobs(openapi.yaml submitAudioJob):
  * 路由级限流(处于入口, 无效请求也计数) → multer 内存暂存(显式大小限制) →
  * validateAudioUpload(MIME/大小/魔数, 纯函数) → SubmitAudio 用例(落盘/时长/幂等/入队) →
  * 202(created) / 200(replayed) / 409(conflict)。
- * 路由层不落盘、不直接读文件系统(§3.1); 429 限流响应由 rateLimiter 统一输出(B6)。
+ * 路由层不落盘、不直接读文件系统; 429 限流响应由 rateLimiter 统一输出(B6)。
  */
 export function createAudioJobsRouter(deps: {
   submitAudio: SubmitAudio;
@@ -31,7 +31,7 @@ export function createAudioJobsRouter(deps: {
     if (file === undefined) {
       throw new DomainError('INVALID_FILE', 'Uploaded file is empty');
     }
-    // 内容校验失败先返回其对应错误, 不进入幂等判定(架构文档 §5)
+    // 内容校验失败先返回其对应错误, 不进入幂等判定
     const check = validateAudioUpload({
       mimeType: file.mimetype,
       bytes: file.buffer,

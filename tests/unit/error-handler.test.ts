@@ -42,7 +42,7 @@ function makeRes() {
   return res;
 }
 
-describe('errorHandler(架构文档 §8.1 错误边界, openapi.yaml 错误码表)', () => {
+describe('errorHandler(openapi.yaml 错误码表)', () => {
   it('DomainError: 按 openapi.yaml 映射状态码与稳定消息', () => {
     const logger = new FakeLogger();
     const handler = errorHandler(logger);

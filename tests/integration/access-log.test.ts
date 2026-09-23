@@ -92,7 +92,7 @@ function accessLines(logger: FakeLogger): Array<LogFields & { level: string }> {
   >;
 }
 
-describe('访问日志(架构文档 §8.2 / B6a: http.access 记录方法/脱敏路径/状态/耗时/requestId)', () => {
+describe('访问日志(B6a: http.access 记录方法/脱敏路径/状态/耗时/requestId)', () => {
   let ctx: Context;
 
   beforeAll(async () => {

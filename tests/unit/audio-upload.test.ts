@@ -43,7 +43,7 @@ function mp4BoxBytes(): Buffer {
   return buf;
 }
 
-describe('validateAudioUpload(架构文档 §5 上传限制)', () => {
+describe('validateAudioUpload', () => {
   it('白名单 MIME + 对应魔数通过, 返回按 MIME 推断的扩展名', () => {
     expect(
       validateAudioUpload({ mimeType: 'audio/mpeg', bytes: id3Mp3Bytes(), maxBytes: MAX }),

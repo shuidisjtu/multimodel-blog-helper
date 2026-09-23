@@ -11,7 +11,7 @@
 
 - 上传接口只负责受理：校验通过后创建 `queued` Job 并原子持久化，入队后立即返回 `202`（带 job id 与查询 URL）。
 - 内存队列 + 固定并发 worker（`WORKER_CONCURRENCY`，默认 1）消费任务，状态按 `queued → transcribing → summarizing → succeeded/failed` 迁移；每次迁移写结构化日志。
-- 队列语义：容量检查、Job 持久化、入队在同一同步临界区内完成；容量满时返回 `503 QUEUE_FULL` 且磁盘不残留可恢复任务；持久化后入队异常则回滚删除记录与文件（架构文档 §6）。
+- 队列语义：容量检查、Job 持久化、入队在同一同步临界区内完成；容量满时返回 `503 QUEUE_FULL` 且磁盘不残留可恢复任务；持久化后入队异常则回滚删除记录与文件。
 - 幂等语义：`Idempotency-Key` + O_EXCL 占位互斥，`created | replayed | conflict` 三态；`replayed` 不再次入队；落败者清理已上传临时文件。
 - 启动恢复：`queued` 重新入队；进行中标记 `PROCESS_INTERRUPTED`（不自动重试，避免不确定的重复转录计费）。
 - 优雅关闭：SIGTERM/SIGINT 停止接收新任务，等待在途任务完成或 60 秒超时后退出。
@@ -26,7 +26,7 @@
 ## 后果
 
 - 接口契约与客户端交互模式（轮询）被确定，任务状态机成为核心领域模型。
-- 队列、恢复、幂等、清理的全部并发语义由本项目文档（§4/§5/§6）规定，实现必须逐条落实。
+- 队列、恢复、幂等、清理的全部并发语义由本 ADR 规定，实现必须逐条落实。
 
 ## 不可做事项
 
@@ -38,7 +38,7 @@
 
 - `MemoryJobQueue`（有界 FIFO，同步 enqueue 使容量检查/持久化/入队在单线程内原子）、`SubmitAudio`/`ProcessJob`/`QueryJob`、`RecoverJobs`/`ProcessJobWorker`/`CleanupExpired` 已实现，状态机与幂等三态（created/replayed/conflict）落地。
 - **启动顺序契约**：`RecoverJobs.run()` 必须在 `ProcessJobWorker.start()` 之前执行——先启 worker 会立即消费恢复重入队的任务并迁到进行中，随后恢复阶段会将其标记 `PROCESS_INTERRUPTED`，造成同一任务既被处理又被标记失败（重复转录计费）。
-- 失败任务保留安全错误码（`failure.code`），未知错误统一转 `INTERNAL_ERROR`，原始错误仅写日志（架构文档 §8.1）；仓储 DomainError message 中性化，内部路径仅存在于 `details`。
+- 失败任务保留安全错误码（`failure.code`），未知错误统一转 `INTERNAL_ERROR`，原始错误仅写日志；仓储 DomainError message 中性化，内部路径仅存在于 `details`。
 
 ## 触发复审的条件
 

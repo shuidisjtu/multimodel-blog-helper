@@ -1,5 +1,5 @@
 /**
- * CleanupExpired 用例单元测试(架构文档 §4.2/§5): fake 端口。
+ * CleanupExpired 用例单元测试: fake 端口。
  * 覆盖集成测试难以构造的错误路径与竞态: 列表失败抛错 / 单任务删除/更新/移除失败继续 /
  * update 竞态(以仓储最终状态为准) / tombstone 二次清理的保留期判定。
  */
@@ -138,7 +138,7 @@ function setup() {
   return { repo, files, logger, useCase };
 }
 
-describe('CleanupExpired 单元(架构文档 §4.2/§5)', () => {
+describe('CleanupExpired 单元', () => {
   it('listExpired 失败(仓储不可用): 向外抛错, 调度方应感知', async () => {
     const { repo, useCase } = setup();
     repo.listExpiredError = new Error('repo down');
@@ -208,7 +208,7 @@ describe('CleanupExpired 单元(架构文档 §4.2/§5)', () => {
     const result = await useCase.run();
 
     expect(result).toEqual({ expiredCount: 1, removedTombstones: 0 });
-    // 删除先于 update 执行(§4.2 顺序), 但任务未被迁移为 expired
+    // 删除先于 update 执行(顺序), 但任务未被迁移为 expired
     expect(files.deletedJobIds).toContain('a');
     expect(repo.jobs.get('a')?.status).toBe('succeeded');
     expect(repo.jobs.get('b')?.status).toBe('expired');
@@ -235,7 +235,7 @@ describe('CleanupExpired 单元(架构文档 §4.2/§5)', () => {
 
     expect(result).toEqual({ expiredCount: 0, removedTombstones: 0 }); // 未实际置 tombstone 不计数
     expect(repo.jobs.get('x')?.status).toBe('queued'); // 终态以仓储为准
-    // 按 §4.2 顺序删除先于 update, 竞态窗口内的文件已删(任务元数据未被破坏)
+    // 按顺序删除先于 update, 竞态窗口内的文件已删(任务元数据未被破坏)
     expect(files.deletedJobIds).toEqual(['x']);
   });
 
@@ -255,7 +255,7 @@ describe('CleanupExpired 单元(架构文档 §4.2/§5)', () => {
     expect(repo.removedIds).toEqual(['old-1']);
   });
 
-  it('未传 tombstoneRetentionDays 时使用默认 30 天(§4.2 建议)', async () => {
+  it('未传 tombstoneRetentionDays 时使用默认 30 天(建议)', async () => {
     const repo = new FakeRepo();
     const files = new FakeFiles();
     const logger = new FakeLogger();

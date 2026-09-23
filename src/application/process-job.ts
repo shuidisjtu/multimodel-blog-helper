@@ -1,5 +1,5 @@
 /**
- * ProcessJob 用例(架构文档 §4.1/§6.3-§6.4):推进单个任务的状态机直至完成。
+ * ProcessJob 用例:推进单个任务的状态机直至完成。
  * 迁移顺序: queued→transcribing→summarizing→succeeded; 每一步以 assertCanTransition 校验
  * 并持久化; 任一处理错误转 failed(保留安全错误码), 本方法不向外抛错(worker 不需要 catch)。
  */
@@ -36,7 +36,7 @@ export class ProcessJob {
       return;
     }
     if (isTerminal(job.status)) {
-      // 终态保护: 不重复处理(§4.1)
+      // 终态保护: 不重复处理
       this.deps.logger.warn({
         event: 'job.skipped',
         jobId,
@@ -47,7 +47,7 @@ export class ProcessJob {
     }
     const input = job.input;
     if (input === undefined) {
-      // tombstone 最小化后无 input; 非终态任务在仓储校验下必有 input, 此处仅防御端口违约(§11.2)
+      // tombstone 最小化后无 input; 非终态任务在仓储校验下必有 input, 此处仅防御端口违约
       this.deps.logger.warn({
         event: 'job.skipped',
         jobId,
@@ -94,7 +94,7 @@ export class ProcessJob {
     }
   }
 
-  /** 读-改-写迁移(assertCanTransition 以仓储当前状态为准)并记录迁移日志(§4.1)。 */
+  /** 读-改-写迁移(assertCanTransition 以仓储当前状态为准)并记录迁移日志。 */
   private async transition(jobId: string, from: JobStatus, to: JobStatus): Promise<void> {
     await this.deps.jobs.update(jobId, (j) => {
       assertCanTransition(j.status, to);
@@ -103,7 +103,7 @@ export class ProcessJob {
     this.deps.logger.info({ event: 'job.status', jobId, from, to });
   }
 
-  /** 转录并记录模型与耗时(§6: 转录请求携带 jobId 并记录模型/耗时)。 */
+  /** 转录并记录模型与耗时(转录请求携带 jobId 并记录模型/耗时)。 */
   private async transcribe(jobId: string, path: string, mimeType: string): Promise<Transcript> {
     const started = Date.now();
     const transcript = await this.deps.transcriber.transcribe({ jobId, path, mimeType });
@@ -116,7 +116,7 @@ export class ProcessJob {
     return transcript;
   }
 
-  /** 处理错误转 failed(§6.4): 仅当前状态非终态时应用; 未知错误保留安全文案, 原始错误仅记录。 */
+  /** 处理错误转 failed: 仅当前状态非终态时应用; 未知错误保留安全文案, 原始错误仅记录。 */
   private async markFailed(jobId: string, err: unknown): Promise<void> {
     const failure: JobFailure =
       err instanceof DomainError

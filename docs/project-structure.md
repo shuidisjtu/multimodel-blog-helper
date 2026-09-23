@@ -1,7 +1,7 @@
 # 工程目录结构
 
 > 定位：记录仓库内代码、测试、文档与运行产物的实际组织方式（"东西放在哪"）。
-> 架构分层、职责边界与依赖规则属架构设计范畴，见 [`docs/architecture/architecture-design.md`](architecture/architecture-design.md) §3.1/§11；两处描述同一分层，本文件只说明物理位置与落地状态。
+> 架构分层、职责边界与依赖规则属架构设计范畴，见 [`architecture.md`](architecture/architecture.md) 与 [`architecture-principles.md`](architecture/architecture-principles.md)；本文件只说明物理位置与落地状态。
 
 ## 目录总览
 
@@ -64,7 +64,7 @@ src/
         idempotency-key.ts # Idempotency-Key 空白归一化与 255 字符上限(B5)
         job-id.ts # UUID jobId 校验(非法 ID 统一映射为 JOB_NOT_FOUND)
         weather-request.ts # weather 请求对象校验，原始值检查后 trim
-      envelope.ts # HTTP 响应信封(成功 data/requestId; 失败 error/requestId, 契约 §5)
+      envelope.ts # HTTP 响应信封(成功 data/requestId; 失败 error/requestId, 契约)
       app.ts # Express 应用组装(requestId→路由→错误边界, async rejection 自动转发)
 tests/
   unit/ # 模块级单测
@@ -87,7 +87,7 @@ tests/
     music-metadata-duration-probe.test.ts # 时长探针单测(真实 mp3 + 损坏文件降级)
     envelope.test.ts # 响应信封与 submissionData 单测(openapi.yaml §components.schemas)
     error-handler.test.ts # 错误中间件单测(领域/multer/未知错误 → 状态码+信封+Retry-After)
-    container.test.ts # buildContainer 组装单测(依赖注入完整性, §3.1)
+    container.test.ts # buildContainer 组装单测(依赖注入完整性)
     get-transcript.test.ts # GetTranscript 用例单测(成功/不存在/过期/未就绪/IO 错误)
     ask-weather.test.ts # AskWeather 用例单测(委派、日志与未知错误归一)
     wttr-weather-provider.test.ts # wttr.in 适配器单测(映射、超时与错误脱敏)
@@ -128,7 +128,7 @@ temp/               uploads/, outputs/      # 运行期文件(gitignored, 启动
 
 | 路径 | 内容 | 状态 |
 | --- | --- | --- |
-| `src/bootstrap/` | 环境配置集中加载与校验 + 容器组装 + 服务启停(架构文档 §3.1) | ✅ A2/B1/B4 |
+| `src/bootstrap/` | 环境配置集中加载与校验 + 容器组装 + 服务启停(见 architecture.md) | ✅ A2/B1/B4 |
 | `src/domain/` | Job 状态机、领域错误、端口接口;不导入 SDK | ✅ A1–A2 |
 | `src/application/` | 用例编排(只依赖 domain + shared) | ✅ A3–A4 |
 | `src/infrastructure/` | OpenAI/队列/仓储/文件系统/天气实现(适配器) | ✅ A2–A4/B4 |
@@ -144,5 +144,5 @@ temp/               uploads/, outputs/      # 运行期文件(gitignored, 启动
 ## 变更规则
 
 - 新增目录或调整结构时，同步更新本文件。
-- 涉及架构（分层、依赖规则、端口）的变更，同时按架构文档 §11.1 更新 ADR。
+- 涉及架构（分层、依赖规则、端口）的变更，同时按 architecture-principles.md §2.1 更新 ADR。
 - 教材示例代码位于 `book-examples/chapter-*`，保持独立，不并入 `src/`。
