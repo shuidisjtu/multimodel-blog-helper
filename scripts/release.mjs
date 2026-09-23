@@ -22,7 +22,7 @@ const requiredFiles = [
   'README.md',
   'package.json',
   'package-lock.json',
-  'server/bootstrap/server.js',
+  'dist/server/bootstrap/server.js',
   'web/dist/index.html',
 ];
 
@@ -87,7 +87,7 @@ function fileRecord(directory, path) {
   };
 }
 
-function check(directory) {
+function check(directory, referencePath) {
   const manifest = JSON.parse(readFileSync(join(directory, 'manifest.json'), 'utf8'));
   assert(manifest.schemaVersion === 1, 'Unsupported release manifest version');
   assert(/^[0-9a-f]{40}$/.test(manifest.commit), 'Invalid commit SHA in manifest');
@@ -111,8 +111,23 @@ function check(directory) {
       JSON.stringify(actualPaths.map((path) => fileRecord(directory, path))),
     'Release file list or SHA-256 checksums do not match',
   );
+  // 外部锚点: 仅凭 manifest 自洽无法发现"篡改文件后重算清单"的伪造,
+  // 与一份可信来源的清单逐项比对才能证明两次构建的字节一致(可复现)。
+  if (referencePath) {
+    const reference = JSON.parse(readFileSync(referencePath, 'utf8'));
+    assert(
+      reference.schemaVersion === manifest.schemaVersion,
+      'Reference manifest version differs',
+    );
+    assert(reference.commit === manifest.commit, 'Reference manifest commit differs');
+    assert(reference.dirty === manifest.dirty, 'Reference manifest dirty flag differs');
+    assert(
+      JSON.stringify(reference.files) === JSON.stringify(manifest.files),
+      `Artifact does not match the reference manifest: ${referencePath}`,
+    );
+  }
   console.log(
-    `Release verified: ${directory} (${actualPaths.length} files, commit ${manifest.commit}${manifest.dirty ? ', dirty preview' : ''})`,
+    `Release verified: ${directory} (${actualPaths.length} files, commit ${manifest.commit}${manifest.dirty ? ', dirty preview' : ''}${referencePath ? `, matches ${referencePath}` : ''})`,
   );
 }
 
@@ -151,7 +166,8 @@ function build(allowDirty) {
     copyFileSync(join(root, name), join(directory, name));
   }
   copyFileSync(join(root, 'docs', 'release-runtime.md'), join(directory, 'README.md'));
-  copyTree(serverOutput, join(directory, 'server'));
+  // 制品沿用与仓库一致的 dist/server 布局, 使 package.json 的 start 在仓库与制品中指向同一路径。
+  copyTree(serverOutput, join(directory, 'dist', 'server'));
   copyTree(webOutput, join(directory, 'web', 'dist'));
   const manifest = {
     schemaVersion: 1,
@@ -163,19 +179,29 @@ function build(allowDirty) {
   check(directory);
 }
 
-const [command, option] = process.argv.slice(2);
+const usage =
+  'Usage: node scripts/release.mjs build [--allow-dirty] | check .release/release-<sha> [--expect <manifest.json>]';
+const [command, ...options] = process.argv.slice(2);
 try {
-  if (command === 'build' && (option === undefined || option === '--allow-dirty')) {
-    build(option === '--allow-dirty');
-  } else if (command === 'check' && option) {
-    const directory = resolve(root, option);
+  if (
+    command === 'build' &&
+    (options.length === 0 || (options.length === 1 && options[0] === '--allow-dirty'))
+  ) {
+    build(options[0] === '--allow-dirty');
+  } else if (command === 'check' && options.length > 0) {
+    const directory = resolve(root, options[0]);
     assert(directory.startsWith(`${releaseRoot}${sep}`), 'Release path must be inside .release');
     assert(lstatSync(directory).isDirectory(), 'Release path must be a directory');
-    check(directory);
+    let referencePath;
+    if (options.length === 3 && options[1] === '--expect') {
+      referencePath = resolve(root, options[2]);
+      assert(existsSync(referencePath), `Reference manifest not found: ${referencePath}`);
+    } else if (options.length !== 1) {
+      throw new Error(usage);
+    }
+    check(directory, referencePath);
   } else {
-    throw new Error(
-      'Usage: node scripts/release.mjs build [--allow-dirty] | check .release/release-<sha>',
-    );
+    throw new Error(usage);
   }
 } catch (error) {
   console.error(error instanceof Error ? error.message : String(error));

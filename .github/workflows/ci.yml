@@ -125,4 +125,11 @@ jobs:
         with:
           name: release-${{ github.sha }}
           path: .release/downloaded/release-${{ github.sha }}/
-      - run: npm run release:check -- .release/downloaded/release-${{ github.sha }}
+      - name: Verify the downloaded artifact
+        run: npm run release:check -- .release/downloaded/release-${{ github.sha }}
+      - name: Rebuild and compare against the downloaded manifest
+        run: |
+          npm run release:build
+          npm run release:check -- .release/release-${{ github.sha }} --expect .release/downloaded/release-${{ github.sha }}/manifest.json
+      - name: Smoke test the downloaded artifact
+        run: npm run release:smoke -- .release/downloaded/release-${{ github.sha }}

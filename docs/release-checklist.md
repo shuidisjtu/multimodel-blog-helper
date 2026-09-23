@@ -18,7 +18,8 @@
 - [ ] `npm run test:b7` 的上传→状态迁移→摘要查询→转录下载通过；记录错误与防护场景结果，附测试输出或实跑证据。
 - [ ] `npm run release:build` 生成 `release-<sha>`，`npm run release:check -- .release/release-<sha>` 通过。
 - [ ] Actions 的 Static quality gates、Tests and coverage、Dependency audit、Secret scan、Reproducible release candidate 均成功；PR 的 Dependency review 结果如适用也已记录。
-- [ ] 下载的 artifact 文件清单和 SHA-256 与 `manifest.json` 一致；本地按相同 SHA 重建后文件哈希一致。
+- [ ] 下载的 artifact 文件清单和 SHA-256 与 `manifest.json` 一致；本地按相同 SHA 重建后用 `npm run release:check -- .release/release-<sha> --expect <下载的 manifest.json>` 比对通过。
+- [ ] `npm run release:smoke -- <制品目录>` 通过：按锁文件装生产依赖、启动编译后端、未知路径返回 404 且带 `X-Request-Id`。
 - [ ] `.env`、密钥、`node_modules`、运行期 `temp/` 不在制品中。
 
 ## 结论

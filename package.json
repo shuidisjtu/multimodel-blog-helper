@@ -16,7 +16,8 @@
     "check:security-exceptions": "node ./scripts/run-tsx.mjs scripts/check-security-exceptions.ts",
     "structure:update": "node ./scripts/run-tsx.mjs scripts/generate-structure.ts --update",
     "verify": "npm run lint && npm run lint:openapi && npm run typecheck && npm run check:docs && npm run check:structure && npm run check:security-exceptions && npm test && npx vitest run --coverage && npm run web:verify",
-    "start": "node server/bootstrap/server.js",
+    "build": "tsc -p tsconfig.build.json",
+    "start": "node dist/server/bootstrap/server.js",
     "dev": "node ./scripts/run-tsx.mjs watch src/bootstrap/server.ts",
     "lint:openapi": "redocly lint src/interfaces/http/openapi.yaml",
     "web:lint": "npm --prefix web run lint",
@@ -25,7 +26,8 @@
     "web:build": "npm --prefix web run build",
     "web:verify": "npm run web:lint && npm run web:typecheck && npm run web:build && npm run web:test",
     "release:build": "node scripts/release.mjs build",
-    "release:check": "node scripts/release.mjs check"
+    "release:check": "node scripts/release.mjs check",
+    "release:smoke": "node scripts/release-smoke.mjs"
   },
   "engines": {
     "node": ">=24"

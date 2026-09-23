@@ -113,6 +113,7 @@ tests/
   scripts/ # 脚本测试
     generate-structure.test.ts # 结构生成器测试
     check-docs.test.ts # 文档一致性检查
+    release.test.ts # 制品清单校验测试(自洽校验/篡改拦截/--expect 外部锚点)
   contract/ # OpenAPI 驱动的真实 HTTP 响应契约测试(B5)
     openapi-contract.test.ts # 读取 OpenAPI 并校验状态/头/媒体类型/JSON Schema
 web/                package.json, vite.config.ts # 独立 React + Vite 答辩工作台(D2)
