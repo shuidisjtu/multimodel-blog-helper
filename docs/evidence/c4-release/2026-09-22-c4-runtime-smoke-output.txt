@@ -1,0 +1,12 @@
+C4 local release-preview runtime smoke — 2026-09-22 +08:00
+Base HEAD: fe699f5cdbee267740cdd72caaae39dc50802df4
+Artifact: .release/release-preview-fe699f5cdbee267740cdd72caaae39dc50802df4 (dirty preview)
+
+Copied artifact to ignored .release/runtime-smoke.
+Command: npm ci --omit=dev --prefix .release/runtime-smoke --cache .release/npm-cache --no-audit --no-fund
+Result: added 98 packages; exit 0.
+Copied .env.example to the smoke copy as placeholder configuration; no real credential was used.
+Started: node server/bootstrap/server.js (hidden local process, test port)
+Request: GET /not-found at 127.0.0.1
+Result: HTTP 404; X-Request-Id present.
+Process stopped; smoke copy and temporary npm cache removed.

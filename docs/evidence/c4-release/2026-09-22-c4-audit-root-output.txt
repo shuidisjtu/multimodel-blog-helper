@@ -1,0 +1,20 @@
+# npm audit report
+
+@vitest/mocker  2.1.0 - 4.1.10
+Severity: moderate
+Vitest: Path Traversal / Arbitrary File Read via @vitest/mocker Redirect Mock - https://github.com/advisories/GHSA-82fw-gwwq-j7x9
+fix available via `npm audit fix`
+node_modules/@vitest/mocker
+  vitest  2.1.0-beta.1 - 4.1.10
+  Depends on vulnerable versions of @vitest/coverage-v8
+  Depends on vulnerable versions of @vitest/mocker
+  node_modules/vitest
+    @vitest/coverage-v8  2.1.0-beta.1 - 4.1.10
+    Depends on vulnerable versions of vitest
+    node_modules/@vitest/coverage-v8
+
+
+3 moderate severity vulnerabilities
+
+To address all issues, run:
+  npm audit fix

@@ -36,7 +36,7 @@
 | C1 | 格式化、Lint、类型检查 CI | — | 全部为必过项，失败不放行 | ✅ 已完成 |
 | C2 | 测试与覆盖率 CI（含契约测试） | C1、B5 | 保持覆盖率阈值 ≥80%；契约测试进入 CI；当前 291 项测试与覆盖率基线持续通过 | ✅ 已完成 2026-08-31 / ym-hello（CI 执行 OpenAPI lint、契约测试与覆盖率） |
 | C3 | 安全与 secret 扫描 CI | C1 | 依赖漏洞与 secret 扫描为必过项；临时豁免有 issue 链接、责任人、失效日期 |✅ 已完成 2026-09-04 / dorotheaqxq-code（根项目与 Web 依赖审计、Dependency Review、Gitleaks 全历史扫描及过期豁免校验已接入 CI；已通过负向测试，`qs` 已升级至 6.16.0）|
-| C4 | 可复现制品与发布检查 | C2、B7 | 制品带 commit SHA；CI 全绿且本地可复现；发布检查单记录执行人、时间和核心闭环证据 | 待办/dorotheaqxq-code |
+| C4 | 可复现制品与发布检查 | C2、B7 | 制品带 commit SHA；CI 全绿且本地可复现；发布检查单记录执行人、时间和核心闭环证据 | 🚧 本地实现待检验；正式 CI 与制品待提交后确认 / dorotheaqxq-code（[检查单](../evidence/c4-release/2026-09-22-c4-release-checklist-dorotheaqxq-code.md)） |
 | C5 | 健康与指标（长期增强） | B6a | `/health/live`、`/health/ready` 与独立 `/metrics`；Prometheus/Grafana 仅在实际部署需要时实施 | ⏸️ 延期，不阻塞单机答辩 / shuidisjtu |
 | C7 | 轻量故障运行手册 | B6a、B7 | 包含失败判定、日志定位、任务恢复、临时文件清理和重启后验证 | 待办/ym-hello |
 

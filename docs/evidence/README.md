@@ -51,6 +51,20 @@
 | `2026-09-04-main-b7-verify-summary.txt` | 独立 main 基线最终复验与 C3 双分支合并兼容性摘要 | 2026-09-04 本机 |
 | `2026-09-04-b7-live-guide.md` | 可选真实 OpenAI/wttr.in 实跑步骤和证据规则 | 2026-09-04 |
 | `2026-09-04-b7-live-check.ps1` | 可选真实上传/轮询/下载/天气 smoke check；未作为 CI 门禁 | 2026-09-04 |
+
+## c4-release/(C4 制品与发布检查，2026-09-22)
+
+> 当前为基线 `fe699f5` 上的未提交工作树预览；正式 `release-<sha>` 和 Actions 成功记录待项目成员检验、提交后归档。
+
+| 文件 | 内容 | 来源 |
+| --- | --- | --- |
+| `2026-09-22-c4-release-checklist-dorotheaqxq-code.md` | 本地执行人、时间、基线 SHA、制品双次构建及防篡改检查、待完成的 CI/正式发布项 | 2026-09-22 本机 |
+| `2026-09-22-c4-verify-output.txt` | 当前工作树 `npm run verify` 原始输出 | 2026-09-22 本机 |
+| `2026-09-22-c4-b7-output.txt` | 当前工作树 `npm run test:b7` 核心闭环输出 | 2026-09-22 本机 |
+| `2026-09-22-c4-runtime-smoke-output.txt` | 制品副本安装生产依赖、启动编译后端并检查 HTTP 响应 | 2026-09-22 本机 |
+| `2026-09-22-c4-audit-root-output.txt` | 根目录依赖审计：high 阈值通过，报告 3 个中危开发依赖项 | 2026-09-22 本机 |
+| `2026-09-22-c4-audit-web-output.txt` | Web 依赖审计：无漏洞 | 2026-09-22 本机 |
+
 ## release-cbafff1/(功能演示:B1 上传受理 + B2 查询/转录下载,2026-08-24 实跑)
 
 > 对应版本:main `cbafff1`(两个演示修复合并提交:transcriber File 上传 1ff7665 + rename EPERM 重试 0d9eca2)。演示素材与版本号一并归档,符合 task-list §5。
