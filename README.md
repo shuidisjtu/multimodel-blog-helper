@@ -48,6 +48,14 @@ npm --prefix web run dev
 
 等待前端终端显示 `Local: http://localhost:5173/` 后，在浏览器打开 <http://localhost:5173/>。音频上传与天气查询需要两个窗口中的服务同时运行；只查看页面布局时可以只启动前端。开发期均由 Vite `/api` proxy 转发到本地后端。
 
+需要按**编译产物**运行后端时（例如核对发布制品的行为），先构建再启动——`npm start` 读的是 `dist/server/`，未构建就执行会报模块找不到：
+
+```bash
+npm run build   # tsc 编译 src -> dist/server
+npm start       # 等价于 node dist/server/bootstrap/server.js
+```
+
+
 ### 环境要求与已知坑
 
 - **Node ≥ 24**——`openAsBlob` 等内置 API 依赖新版本；启动时也会校验,版本过低直接报 `ConfigError`。版本不符用 `nvm install 24` / 官网安装包
@@ -113,5 +121,7 @@ node index.js
 - [`docs/adr/`](docs/adr/) — 决策记录(ADR-0001~0006)
 - [`docs/records/`](docs/records/) — 过程记录与答辩材料
 - [`docs/evidence/`](docs/evidence/) — 验收证据归档(运行命令输出、覆盖率记录)
+- [`docs/release-checklist.md`](docs/release-checklist.md) — C4 正式发布检查单模板
+- [`docs/release-runtime.md`](docs/release-runtime.md) — C4 制品复现与运行说明
 - [`CLAUDE.md`](CLAUDE.md) — 开发协作约定(SDK v2 差异、运行注意事项、中转站限制等),供 Claude Code 读取,该文件未上传到 GitHub
 - 本书配套文档与示例细节见各 chapter 目录

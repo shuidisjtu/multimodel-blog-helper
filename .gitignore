@@ -13,6 +13,7 @@ temp/
 # --- 测试与构建产物 ---
 coverage/
 dist/
+.release/
 *.tsbuildinfo
 
 # --- 本地开发专用(仅本地使用, 不进仓库/不上 GitHub) ---
