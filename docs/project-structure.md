@@ -45,6 +45,8 @@ src/
       file-store.ts # 临时目录文件存储
     weather/
       wttr-weather-provider.ts # wttr.in j1 适配器(超时/错误映射/Weather DTO)
+    metrics/
+      file-metrics-recorder.ts # 用量指标 JSONL 落盘(转录字数/时长、摘要 token、端到端延迟)
   shared/
     logger.ts # 结构化 JSON 日志
     ids.ts # jobId/requestId 生成
@@ -97,6 +99,7 @@ tests/
     weather-request-schema.test.ts # weather DTO 单测(对象边界/原始长度/trim)
     rate-limit.test.ts # 限流纯函数单测(XFF 首段解析/动态 Retry-After 边界)
     cleanup-scheduler.test.ts # 调度器单测(fake timers: 周期触发/错误继续/stop)
+    file-metrics-recorder.test.ts # 用量指标落盘单测(JSONL 追加/可选字段省略/多次顺序)
   integration/ # 跨模块集成测试
     cleanup-expired.test.ts
     file-job-repository.test.ts

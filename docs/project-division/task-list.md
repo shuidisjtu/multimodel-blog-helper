@@ -1,72 +1,71 @@
 # OpenAI 多模态博客助手：任务清单
 
-> 版本：v1.7 ｜ 用途：展示项目需要完成的工作与验收标准 ｜ 更新：2026-09-01
+> 版本：v1.8 ｜ 用途：展示项目需要完成的工作与验收标准 ｜ 更新：2026-09-24
 >
-> 分工说明：A 系列与 C1、C2 的覆盖率 CI 部分已完成。以下清单按 2026-08-30 的实际实现、单机答辩标准和四周倒排重排；health/metrics 与完整运维治理明确延期。分工与时序见 §2。
+> 分工说明：A/B/C 系列已全部完成。**中期答辩聚焦后端与核心功能**（音频转录为带时间戳文本 + 摘要生成），配可观测指标可视化；前端页面展示与 health/metrics 端点明确滞后。
 
 > **范围与非目标**：整合教材第 3、4 章示例为可部署的学习研究型 HTTP 服务（音频转录/摘要 + 天气）。永久非目标：账户、付费、多租户、长期对象存储、数据库集群。部署边界：仅本地/演示单机部署，提供 CI 与健康监测，不承诺 CD 与 staging。
 >
-> **已知差异**：`/health/*`、`/metrics` 契约已声明但未实现（C5 延期）。
+> **已知差异**：`/health/*`、`/metrics` 契约已声明但未实现（C6 延期，答辩不需要实时监控面板）。
 
 ## 1. 任务清单
 
-### 架构与 AI 核心
+### 已完成（架构与 AI 核心 · HTTP/文件/天气 · 质量交付 · 可观测指标）
+
+> A/B/C 系列已全部完成，验收证据归档于 `docs/evidence/`。下表仅保留结果摘要，验收细节见各证据链接。
+
+| 编号 | 任务 | 验收结果 |
+| --- | --- | --- |
+| A1 | 架构 ADR | 背景/决策/替代方案/后果/复审条件齐备（`docs/adr/`） |
+| A2 | Transcriber/Summarizer 端口与 OpenAI 适配器 | 领域层不导入 SDK |
+| A3 | 转录与摘要任务用例 | 状态机 `queued→transcribing→summarizing→succeeded/failed` + 启动恢复 |
+| A4 | 模型调用重试/超时策略 | 仅网络/429/5xx 重试，≤3 次 |
+| A5 | 核心技术说明 | Assistants API→Responses API 迁移说明 |
+| B1 | 上传受理接口 | `202` / 幂等 / `409` / 队列满 `503` |
+| B2 | 查询与转录下载 | 全状态查询 + `410 JOB_EXPIRED` tombstone |
+| B3 | 上传校验与临时文件策略 | MIME/大小/时长校验 + tombstone 二次清理 |
+| B4 | 天气接口 | wttr.in 稳定错误映射（[证据](../evidence/release-b4-20260829/2026-08-29-weather-demo-guide.md)） |
+| B5 | 接口 DTO 与契约测试 | OpenAPI 驱动契约测试（[证据](../evidence/api-contract/2026-08-30-b5-dto-contract-tests.md)） |
+| B6a | 错误边界与访问日志 | `X-Request-Id` + 脱敏访问日志 |
+| B6b | 限流与 CORS | `429` / `Retry-After` / 白名单（[证据](../evidence/b6b-rate-limit-cors/2026-09-01-b6b-rate-limit-cors-shuidisjtu.md)） |
+| B7 | 核心闭环集成验证 | 上传→状态迁移→查询→下载全场景（`docs/evidence/b7-core-flow`） |
+| C1 | 格式化/Lint/类型检查 CI | 必过项 |
+| C2 | 测试与覆盖率 CI | 阈值 ≥80% |
+| C3 | 安全与 secret 扫描 CI | 依赖审计 / Gitleaks / 过期豁免校验 |
+| C4 | 可复现制品与发布检查 | commit SHA 制品 + 检查单（[证据](../evidence/release-ea9979b332f73638f10e684e74fdf71ad9015736/2026-09-24-c4-release-checklist-shuidisjtu.md)） |
+| C5 | 模型调用用量指标采集与落盘 | 每次成功任务落盘一行用量指标（摘要 token、转录字数/时长、端到端延迟）到 `<tempDir>/metrics/usage.jsonl`；有单元测试；PPT 阶段据此出图 |
+
+### 待办与延期
 
 | 编号 | 任务 | 前置 | 验收标准 | 状态/认领人 |
 | --- | --- | --- | --- | --- |
-| A1 | 架构 ADR（Responses API、任务异步化、文件存储边界） | — | 每项包含背景、决策、替代方案、后果、复审条件 | ✅ 已完成 |
-| A2 | `Transcriber`、`Summarizer` 端口与 OpenAI 适配器 | A1 | 领域层不导入 SDK；可用 fake 实现通过集成测试 | ✅ 已完成 |
-| A3 | 音频转录与摘要任务用例 | A1、A2 | Job 状态按 `queued→transcribing→summarizing→succeeded/failed` 迁移；失败可查询；启动恢复（queued 重入队、进行中标记 `PROCESS_INTERRUPTED`） | ✅ 已完成 |
-| A4 | 模型调用重试/超时策略 | A1 | 仅网络、429、5xx 重试；最多 3 次；4xx 不重试 | ✅ 已完成 |
-| A5 | 核心技术说明与答辩材料 | A2、A3、A4 | 可说明 Assistants API 迁移为 Responses API 的原因与影响 | ✅ 已完成 |
+| A6 | 千问 ASR 替代 whisper-1 + 带时间戳转录 | A2、A3 | 接入阿里云 DashScope Paraformer/SenseVoice；转录返回带时间戳文本（句级/词级），领域模型 `Transcript` 扩展 segments；替换已不可用的 whisper-1（issue #16） | 🆕 待规划，实施计划另议 / shuidisjtu |
+| C6 | 健康与指标端点（长期增强） | B6a | `/health/live`、`/health/ready` 与 `/metrics`；Prometheus/Grafana 仅实际部署需要时实施 | ⏸️ 延期，不阻塞答辩 / shuidisjtu |
+| C7 | 轻量故障运行手册 | B6a、B7 | 失败判定、日志定位、任务恢复、临时文件清理和重启后验证 | 待办 / ym-hello |
 
-### HTTP 服务、文件与天气能力
-
-| 编号 | 任务 | 前置 | 验收标准 | 状态/认领人 |
-| --- | --- | --- | --- | --- |
-| B1 | 上传受理接口（`POST /api/v1/audio-jobs`） | A3、B3 | 上传返回 `202`；`Idempotency-Key` 幂等（同 key 同文件返回原 Job，同 key 不同文件 `409`）；队列满返回 `503` | ✅ 已完成 2026-08-24（`npm run verify` 全绿：lint/typecheck/check:docs/check:structure/184 测试/覆盖率 ≥89.7%；幂等重放不受队列满抑制，见提交 e422626） |
-| B2 | 任务查询与转录下载（`GET /audio-jobs/{id}`、`/transcript`） | B1 | 可查询状态、摘要并下载转录文本；过期返回 `410 JOB_EXPIRED`（tombstone） | ✅ 已完成 2026-08-24（`npm run verify` 全绿：lint/typecheck/check:docs/check:structure/207 测试/覆盖率 ≥89.7%；jobId 路径注入防御见提交 e9133f2；转录下载实跑见 docs/evidence） |
-| B3 | 上传校验与临时文件策略 | A1、A3 | 仅允许约定音频类型；≤25 MB；时长上限（解析失败时降级并记录）；随机存储名；`temp/` Git 忽略；tombstone 二次清理 | ✅ 已完成 |
-| B4 | `WeatherProvider` 与天气接口 | — | wttr.in 超时、异常或无效地点返回稳定业务错误，不泄漏上游细节 | ✅ 已完成 2026-08-29（真实 wttr.in 成功/无效地点/超时验证，237 测试与门禁全绿；证据见 [`release-b4-20260829`](../evidence/release-b4-20260829/2026-08-29-weather-demo-guide.md)） |
-| B5 | 接口 DTO 与契约测试 | B1、B2、B4 | 对现有 `/api/v1` 路由校验请求/响应 DTO、状态码、错误 envelope 与媒体类型；OpenAPI 与实际响应一致 | ✅ 已完成 2026-08-31 / ym-hello（共享 HTTP schemas、OpenAPI lint 与 OpenAPI 驱动的 263 项测试；证据见 [`2026-08-30-b5-dto-contract-tests.md`](../evidence/api-contract/2026-08-30-b5-dto-contract-tests.md)） |
-| B6a | 错误边界与访问日志 | B1、B2、B4 | async 路由统一进入错误边界；响应有 `X-Request-Id`；访问日志记录脱敏路径、方法、状态、耗时与 requestId | ✅ 已完成 2026-09-01(`npm run verify` 全绿：lint/lint:openapi/typecheck/check:docs/check:structure/270 测试/覆盖率 92.18%；递归日志脱敏(嵌套对象/数组/循环引用安全)与 `http.access` 每请求一行,已合入 main(PR #5)) |
-| B6b | 限流与 CORS | B5 | 上传/天气接口 IP 限流（`429`、动态 `Retry-After`）；默认同源，跨域仅白名单；有自动化测试 | ✅ 已完成 2026-09-01(`npm run verify` 全绿:291 测试/覆盖率 92.61%,已合入 main(PR #6),ADR 见 docs/adr/0006；详情 [`docs/evidence/b6b-rate-limit-cors/2026-09-01-b6b-rate-limit-cors-shuidisjtu.md`](../evidence/b6b-rate-limit-cors/2026-09-01-b6b-rate-limit-cors-shuidisjtu.md)) |
-| B7 | 核心闭环集成验证 | B5、B6a、B6b | 覆盖上传→异步状态迁移→查询摘要→下载转录；并覆盖非法文件、幂等冲突、队列满、限流、天气成功/失败与 CORS | ✅ 已完成 2026-09-04（证据见 docs/evidence/b7-core-flow）/dorotheaqxq-code） |
-
-### 质量与交付
-
-| 编号 | 任务 | 前置 | 验收标准 | 状态/认领人 |
-| --- | --- | --- | --- | --- |
-| C1 | 格式化、Lint、类型检查 CI | — | 全部为必过项，失败不放行 | ✅ 已完成 |
-| C2 | 测试与覆盖率 CI（含契约测试） | C1、B5 | 保持覆盖率阈值 ≥80%；契约测试进入 CI；当前 291 项测试与覆盖率基线持续通过 | ✅ 已完成 2026-08-31 / ym-hello（CI 执行 OpenAPI lint、契约测试与覆盖率） |
-| C3 | 安全与 secret 扫描 CI | C1 | 依赖漏洞与 secret 扫描为必过项；临时豁免有 issue 链接、责任人、失效日期 |✅ 已完成 2026-09-04 / dorotheaqxq-code（根项目与 Web 依赖审计、Dependency Review、Gitleaks 全历史扫描及过期豁免校验已接入 CI；已通过负向测试，`qs` 已升级至 6.16.0）|
-| C4 | 可复现制品与发布检查 | C2、B7 | 制品带 commit SHA；CI 全绿且本地可复现；发布检查单记录执行人、时间和核心闭环证据 | ✅ 已完成 2026-09-24 / dorotheaqxq-code（实现）· shuidisjtu（验收收尾）；`main` push 首次真实执行 `Reproducible release candidate` 成功，[正式检查单](../evidence/release-ea9979b332f73638f10e684e74fdf71ad9015736/2026-09-24-c4-release-checklist-shuidisjtu.md) |
-| C5 | 健康与指标（长期增强） | B6a | `/health/live`、`/health/ready` 与独立 `/metrics`；Prometheus/Grafana 仅在实际部署需要时实施 | ⏸️ 延期，不阻塞单机答辩 / shuidisjtu |
-| C7 | 轻量故障运行手册 | B6a、B7 | 包含失败判定、日志定位、任务恢复、临时文件清理和重启后验证 | 待办/ym-hello |
-
-### Web 工作台与答辩展示（D）
+### Web 工作台与答辩展示（D，中期聚焦后端，前端滞后）
 
 | 编号 | 任务 | 前置 | 验收标准 | 状态/优先级 |
 | --- | --- | --- | --- | --- |
-| D1 | 展示目标与叙事设计 | A5、B1、B2、B4 | 明确产品场景、三项已实现能力、技术主线、当前边界和后续方向；确定 PPT 结构与必展示证据 | 🔶 初始设计已完成，答辩 storyboard 待收口 / shuidisjtu |
-| D2 | 最小 Web 工作台 | B1、B2、B4、D1 | 独立 `web/` 前端真实调用现有 API；音频上传、Job 轮询、摘要/转录展示、下载和天气查询；关键交互有 mock 测试；第 2 周末未完成真实联调时降级为 API 真实证据 | 🚧 进行中/共享骨架 + 天气/DTO：ym-hello（天气展示细化已完成 2026-09-12）；音频主流程与本地：dorotheaqxq-code（真实 Express/Vite/文件/队列/Worker，本地确定性 OpenAI 兼容上游；证据见 `docs/evidence/d2-web-audio/`）集成验收：shuidisjtu |
-| D3 | PPT 汇报材料与证据整合 | D1 | PPT 为唯一正式展示物，嵌入 Web 画面或真实 API 截图/录屏、架构图、状态机、测试数据、问题解决与后续方向；无运行环境时仍可完成展示 | 待办/P0；主责 shuidisjtu，全员提供证据 |
+| D1 | 展示目标与叙事设计 | A5、B1、B2、B4 | 聚焦后端与核心功能（带时间戳转录 + 摘要）与指标可视化；确定 PPT 结构与必展示证据 | 🔶 storyboard 待收口 / shuidisjtu |
+| D2 | 最小 Web 工作台 | B1、B2、B4、D1 | 独立 `web/` 前端真实调用现有 API（音频上传、Job 轮询、摘要/转录、天气） | 🚧 滞后（中期不展示前端，降级为 API 真实证据） |
+| D3 | PPT 汇报材料与证据整合 | D1 | PPT 唯一正式展示物，嵌入真实 API 截图/录屏、架构图、状态机、指标图表、测试数据 | 待办/P0；主责 shuidisjtu，全员提供证据 |
 
-> D2 的现场实时启动和离线 replay 均不是硬性验收条件。离线 replay 仅作为可选备用；PPT 中必须明确区分真实运行结果与离线展示。D2 若在第 2 周结束时未完成真实联调，D3 使用真实 API 截图/录屏完成正式展示。
+> 中期答辩不展示前端页面；D3 用真实 API 截图/录屏 + 指标落盘数据出图完成展示。现场实时启动与离线 replay 均非硬性验收条件，PPT 中须明确区分真实运行结果与离线展示。
 
-## 2. 分工与时序（2026-08-21 分配）
+## 2. 分工与时序（2026-09-24 调整）
 
-| 成员 | 任务链 | 定位 |
+| 成员 | 当前任务链 | 定位 |
 | --- | --- | --- |
-| shuidisjtu | B6a → B6b → D1 → D2 集成 → D3 | 后端防护、展示叙事、前端集成与最终验收 |
-| ym-hello | B5 → C2 → C7 → D2 天气/DTO | OpenAPI 契约、CI 收口、运行手册与天气前端 |
-| dorotheaqxq-code | C3 → C4 → B7 → D2 音频主流程 | 安全/制品、核心闭环验证与音频前端 |
+| shuidisjtu | C5 指标落盘（已完成）→ A6 千问 ASR → D1 → D3 | 指标可视化、核心功能增强、展示叙事与最终验收 |
+| ym-hello | C7 运行手册 → D2 天气（滞后） | 运维文档与天气前端 |
+| dorotheaqxq-code | C4 收尾（已完成）→ D2 音频主流程（滞后） | 制品/发布与音频前端 |
 
-- **OpenAPI 契约已先行**：`src/interfaces/http/openapi.yaml` 已定义现有 v1 API 与后续 health/metrics 规划；B1/B2/B4 的实际实现与 C2 契约测试必须以该文件中标为已实现的接口为准。health/metrics 标为 planned，不得作为当前功能宣称。
+- **中期答辩重心**：后端与核心功能（带时间戳转录 + 摘要），天气简单展示，配可观测指标可视化。
+- **前端（D2）滞后**：不阻塞答辩，降级为 API 真实证据。
+- **OpenAPI 契约已先行**：`src/interfaces/http/openapi.yaml` 已定义现有 v1 API 与后续 health/metrics 规划；health/metrics 标为 planned，不得作为当前功能宣称。
 
 **协作约定**：独立分支 `feature/b*-*` + PR；CI 门禁（C1）为必过项，失败不放行；B5 契约（OpenAPI yaml）先于接口实现评审；任务完成附验收证据（测试/运行记录，见 §3）。
-
-- **四周倒排**：第 1 周完成清单校准、B5、D1 收口和 D2 骨架/mock 联调；第 2 周完成 B6a/B6b、D2 音频/天气模块和 B7 主场景；第 3 周完成 D2 真实联调、C2、C3/C4/C7 以及 D3 初稿；第 4 周完成 D3 定稿、全量验证、真实录屏/截图、风险修复和缓冲。第 2 周末 D2 未能真实联调时，立即按 API 证据降级。
 
 ## 3. 执行原则（通用协作底线）
 
@@ -92,6 +91,7 @@
 | 架构图、ADR、接口文档 | `docs/architecture/`、`docs/adr/` |
 | API 测试与异常处理截图 | `docs/evidence/` |
 | CI 成功记录、覆盖率与安全扫描 | Actions artifact + `docs/evidence/` |
+| 可观测指标落盘与出图脚本 | `<tempDir>/metrics/` + `docs/evidence/` |
 | 健康检查与告警记录（长期增强） | `docs/runbooks/`、`docs/evidence/` |
 | 功能演示视频/截图与版本号 | `docs/evidence/release-<sha>/` |
 

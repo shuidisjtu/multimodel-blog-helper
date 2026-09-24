@@ -6,10 +6,22 @@ import type { BlogJob, JobInput, JobResult } from './job.js';
 
 export interface Transcript {
   text: string;
+  /** 转录文本字数(码点数), 由适配器填充; 缺省时为 undefined。 */
+  characterCount?: number;
+  /** 音频时长(秒), 上游返回时填充; whisper json 格式不返回, 为 undefined。 */
+  durationSeconds?: number;
 }
 
 export interface Summary {
   text: string;
+  /** 摘要生成 token 用量, 上游返回 usage 时填充。 */
+  usage?: TokenUsage;
+}
+
+/** 一次模型调用的 token 用量(答辩可视化用)。 */
+export interface TokenUsage {
+  inputTokens: number;
+  outputTokens: number;
 }
 
 export interface Weather {
@@ -119,3 +131,25 @@ export interface JobQueue {
 
 /** 用例层的 Job 查询结果聚合(避免领域层依赖 HTTP DTO)。 */
 export type { JobResult };
+
+/** 单任务成功后的模型调用用量指标(JSONL 落盘, 用于答辩可视化)。 */
+export interface UsageMetric {
+  jobId: string;
+  /** 完成时刻(ISO 8601)。 */
+  completedAt: string;
+  transcribeModel: string;
+  transcribeCharacterCount?: number;
+  transcribeDurationSeconds?: number;
+  transcribeDurationMs: number;
+  summaryModel: string;
+  summaryInputTokens?: number;
+  summaryOutputTokens?: number;
+  summaryDurationMs: number;
+  /** 端到端总耗时(queued→succeeded), 毫秒。 */
+  totalDurationMs: number;
+}
+
+/** 指标落盘端口: 追加一条用量记录; 失败不应影响主流程。 */
+export interface MetricsRecorder {
+  record(metric: UsageMetric): Promise<void>;
+}

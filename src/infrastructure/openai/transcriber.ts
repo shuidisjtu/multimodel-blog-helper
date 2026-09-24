@@ -46,6 +46,13 @@ export class OpenAITranscriber implements Transcriber {
       durationMs: Date.now() - started,
       retryCount,
     });
-    return { text: value.text };
+    const text = value.text;
+    // whisper json 格式不含 duration, 千问等上游可能返回; 字数按码点计数(中文一字一码点)
+    const duration = (value as { duration?: number }).duration;
+    return {
+      text,
+      characterCount: [...text].length,
+      durationSeconds: typeof duration === 'number' ? duration : undefined,
+    };
   }
 }
