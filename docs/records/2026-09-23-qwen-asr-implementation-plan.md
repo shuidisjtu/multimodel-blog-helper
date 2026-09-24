@@ -1,55 +1,89 @@
 # Qwen-ASR 接入实施计划
 
 > 日期：2026-09-23  
-> 修订：**v2 / 2026-09-24**（依据阿里云百炼官方文档评审后修订，逐条依据见 §1.1 与文末参考资料）  
-> 状态：**待定选型**（streaming / filetrans 二选一，见 §1.1）/ 尚未实施  
-> 目标模型：`qwen-audio-3.1-asr-flash-streaming`（streaming 方案）或 `qwen-audio-3.1-asr-flash-filetrans`（filetrans 方案）  
+> 修订：**v3 / 2026-09-24**（v2 依据官方文档评审；v3 依据需求优先级声明重排选型）  
+> 状态：**待定选型**（首选最小改动路径，见 §1.0 与 §1.1）/ 尚未实施  
+> 目标模型：**待选型确定**——首选 `qwen3-asr-flash` 类的 HTTP 同步接口（最小改动），备选 `qwen-audio-3.1-asr-flash-filetrans` / `-streaming`  
 > 计划分支：`feature/qwen-asr-migration`
 
 ## 1. 目标与决策
 
 将当前转录实现从 OpenAI Whisper (`whisper-1`) 切换为 Qwen-ASR，同时保留项目既有的异步任务体验：用户上传完整音频，服务端后台识别，用户通过现有 Job API 查询最终转录与摘要。
 
+> **⚠️ 首要事实**：`whisper-1` 已不可用（issue #16），**本项目当前没有任何可用的转录能力**。因此本次改造的 P0 目标是「恢复转录可用」，而非「叠加新能力」。
+
+### 1.0 需求优先级（v3 决策原则）
+
+**2026-09-24 需求方声明**：
+
+> 如果出现**对现有项目模块改动最小、且能实现转录功能**、唯独不支持时间戳的模型接入方式，**应采用该方案**；不必要为了时间戳这一个功能显著增加项目的工作量和复杂度。
+
+据此确立本次选型的判据，**按顺序满足**：
+
+1. **能转录**（P0，硬性）——当前完全不可用，必须先恢复。
+2. **对现有模块改动最小**（P1，硬性）——不引入新协议栈、不引入新基建依赖、不改变安全边界。
+3. **时间戳**（P2，**机会性**）——若所选方案恰好支持则一并交付；**若需为此显著增加工作量或复杂度，则放弃**，转为后续增强。
+
+> **对答辩叙事的影响（需知悉）**：老师原话中「核心功能展示以**音频转录为带时间戳文本**和摘要生成为主」。按本优先级若最终不交付时间戳，**答辩话术需相应调整**（改为「转录 + 摘要」为核心，时间戳列为已知边界与后续方向）。此项为需求方已知情的选择，记录在此以备答辩时口径一致。
+
+**v3 修订要点**（相对 v2，1 项重排）：
+
+| # | 修订 | 依据 |
+| --- | --- | --- |
+| 5 | **选型判据重排**：以「改动最小 + 能转录」为首选，时间戳降为机会性目标；据此把 v2 排除的 base64 同步路径**重新列为首选** | §1.0、§1.1 |
+
 **v2 修订要点**（4 项，依据见各小节）：
 
 | # | 修订 | 依据 |
 | --- | --- | --- |
-| 1 | **时间戳纳入本次范围**（v1 锁定 `Transcript` 不变 → 答辩核心需求缺交付） | §1.2 |
+| 1 | ~~时间戳纳入本次范围~~ → **v3 下调为机会性目标**（见 §1.0、§1.2） | §1.2 |
 | 2 | 模型版本 `3.0` → `3.1` | §1.1 |
 | 3 | **取消双 provider 回滚设计**，改单 provider 并删除 `OpenAITranscriber` | §1.3 |
-| 4 | 选型改为 **streaming / filetrans 二选一待定**，不再默认 streaming | §1.1 |
+| 4 | 选型改为待定，不再默认 streaming | §1.1 |
 
 本计划**不做前端实时字幕**。若最终选方案 A（streaming），当前应用仍是在上传完成后才开始处理：服务端将已落盘音频分块送入 WebSocket 会话，收集并合并最终识别结果后返回 `Transcript`。这不是「用户说话时实时看到字幕」的产品能力。所选模型与协议以阶段 0 的选型结论为准（§1.1）。
 
-### 1.1 模型选型：streaming 与 filetrans 待定（v2 修订）
+### 1.1 模型选型（v3 重排：以最小改动为首选）
 
-Qwen-ASR 不是当前 `client.audio.transcriptions.create({ file, model })` 的直接模型名替换。官方提供三种接入形态，本项目的合理候选是前两种：
+Qwen-ASR 不是当前 `client.audio.transcriptions.create({ file, model })` 的直接模型名替换。按 §1.0 判据评估三种接入形态：
 
-| 方案 | 模型 ID | API | 时长上限 | 时间戳 | 说话人分离 | 本地文件 | 协议成本 |
-| --- | --- | --- | --- | --- | --- | --- | --- |
-| **A. 实时流式** | `qwen-audio-3.1-asr-flash-streaming` | WebSocket | 无限制 | 见 §1.2 | ✗ | 可分块发送 | **高** |
-| **B. 文件转写** | `qwen-audio-3.1-asr-flash-filetrans` | HTTP 异步 | 12 小时 / 2GB | ✅ 句级 + 词级 | ✅ | **疑需公网 URL** | 中 |
-| C. 同步识别 | `qwen-audio-3.1-asr-flash` | HTTP 同步 | ≤ 5 分钟 | 待核实 | ✗ | 支持 | 低 |
+| 方案 | 接口形态 | 本地文件 | 时间戳 | 新增协议/基建 | 工程量 | 排序 |
+| --- | --- | --- | --- | --- | --- | --- |
+| **C. HTTP 同步 + base64**<br>`qwen3-asr-flash` 类 | OpenAI 兼容 `/compatible-mode/v1/chat/completions` | ✅ **base64 内联** | ❌ **无** | **无**（沿用 openai SDK） | **~1–1.5 人日** | **首选** |
+| B. HTTP 异步（filetrans）<br>`qwen-audio-3.1-asr-flash-filetrans` | DashScope 异步 + 轮询 | ❌ | ✅ 句级 + 词级 | 需**音频公网托管**（OSS/隧道） | ~2–3 人日 + 基建 | 备选 |
+| A. WebSocket 实时流式<br>`qwen-audio-3.1-asr-flash-streaming` | WebSocket 双向协议 | ✅ 分块发送 | ✅ VAD 事件 | **整套 WebSocket 协议栈** | ~4.5–8.5 人日 | 末选 |
 
-**依据（官方迁移对照表）**：阿里云百炼《语音识别概述》给出闭源模型迁移建议，其中「非实时 / 文件转写」场景明确列出闭源代表为 **OpenAI gpt-4o-transcribe、Whisper**，推荐百炼模型为 `qwen-audio-3.1-asr-flash-filetrans`、`qwen-audio-3.1-asr-flash`；「实时识别」才推荐 streaming。本项目的业务场景是「播客 / 访谈录音转写」，与该表「非实时」的定位描述一致。见参考资料 [1]。
+**方案 C 为首选（v3 变更）**——它正是 §1.0 所述的「改动最小 + 能转录、唯独无时间戳」的路径：沿用现有 `openai` SDK，仅新增一个适配器、改配置，**不引入新协议、不引入新基建、不改变安全边界**。其代价是**无时间戳**，按 §1.0 优先级可接受。
 
-**但 streaming 仍可能是正确选择**：filetrans 走异步提交，据官方文档**需要可访问的音频 URL**，而本项目是本地单机部署、音频落在本地 `temp/`，没有公网地址。**这正是 v1 选择 streaming 的实质理由，v1 未写明。** 该约束必须由阶段 0 实测确认：
+**关键事实（均已由官方 API 参考确认，非推测）**：
 
-- 若 filetrans 确实要求公网 URL → **方案 A 成立**，并把该理由写入本计划；
-- 若 filetrans 可接受其他提交方式 → **方案 B 更优**：省掉整个 WebSocket 协议栈，且额外获得说话人分离（对播客场景是加分项）。
+- **filetrans 必须公网 URL**：`input.file_url` 官方描述为 "Must be accessible over the Internet"，"Audio formats" 一节亦写明 "Audio file URLs must be publicly accessible." → 本地 `temp/` 文件不可用，**除非引入音频公网托管**。见参考资料 [6]。
+- **同步/base64 路径无时间戳**：其 `asr_options` 仅有 `language` 与 `enable_itn` 两个参数（对比 filetrans 有 `enable_words` 控制句级/词级），响应体仅含 `content[].text` 与 `annotations`（language、emotion），**无任何时间字段**。见参考资料 [7][8]。
+- **base64 有 10 MB 上限**：官方明确 "Keep the encoded audio within the 10 MB limit"，且 base64 膨胀约 33% → 原始音频约 **≤ 7.5 MB**。见参考资料 [7]。**该约束与项目当前 `MAX_UPLOAD_BYTES=25MB` 冲突，必须处理（见 §1.6）。**
 
-**版本号**：v1 使用的 `qwen-audio-3.0-asr-flash-streaming` 仍是有效模型，但官方当前推荐为 `3.1`（支持更多语种与方言）。除明确需要复现 v1 结果外，一律用 `3.1`。见参考资料 [1]。
+**平台命名差异（实测前必查）**：官方文档存在两套命名——阿里云百炼（国内）用 `qwen-audio-3.1-asr-flash-*`，QwenCloud（国际）用 `qwen3-asr-flash*`。本计划的结构性结论两站一致，但**模型 ID 必须以阶段 0 实测的账号可见值为准**。
 
-### 1.2 时间戳必须纳入本次范围（v2 修订）
+**版本号**：v1 使用的 `qwen-audio-3.0-asr-flash-streaming` 仍是有效模型，但官方当前推荐为 `3.1`。若选方案 C，以其对应模型 ID 为准。见参考资料 [1]。
 
-中期答辩的核心功能是**「音频转录为带时间戳文本」**。v1 计划 §1 要求「保持 `Transcriber.transcribe` 端口不变」、§2 要求「`ports.ts` 不因本次改造改变」、§4 再列「不应变化」——即锁定现有 `Transcript = { text }` **纯文本**。**按 v1 实施完毕后，答辩核心需求仍然缺失。**
+### 1.2 时间戳：机会性目标（v2 提出，v3 下调）
 
-Qwen 三种形态均具备时间戳能力，本可一次交付：
+v1 计划 §1/§2/§4 三处锁定现有 `Transcript = { text }` **纯文本**，即完全不产出时间戳。v2 曾要求把时间戳纳入本次范围。
 
-- **filetrans**：返回 `sentence` 对象数组，含 `sentence_id` / `begin_time` / `end_time`（毫秒）。DashScope 异步调用**时间戳永久启用**，并支持按 `timestamp_granularities` 选择句级或词级。见参考资料 [4]。
-- **streaming**：VAD 模式下发送 `input_audio_buffer.speech_started`（含 `audio_start_ms`）与 `input_audio_buffer.speech_stopped`（含 `audio_end_ms`），可据此切分语句边界。见参考资料 [3]。
+**v3 按下调为机会性目标**（§1.0 第 3 条）：首选方案 C 不支持时间戳，但因其改动最小，**不为此改用更重的方案**。执行口径：
 
-**因此本次改造需同步扩展领域模型**（例如 `Transcript` 增加 `segments: { beginMs, endMs, text }[]`），并据此调整产物落盘格式与查询/下载接口。该扩展应写入 §5 验收标准——否则 A6 会拆成两次改造，第二次仍需再动端口与存储格式。
+- **不做**：不为时间戳扩展 `Transcript`、不改产物落盘格式、不改查询/下载接口（这些正是 v2 曾要求的）。
+- **要查**：阶段 0 顺带确认所选模型**是否恰好支持时间戳**（参数或响应字段）。若恰好支持则免费获得，直接交付；若需换模型或加协议才支持，则放弃。
+- **要记**：放弃时间戳后，答辩口径需相应调整（见 §1.0 的影响说明）。
+
+**各形态的时间戳能力（已核实）**：
+
+| 形态 | 时间戳 | 可得方式 |
+| --- | --- | --- |
+| 方案 C 同步/base64 | ❌ **无** | —（官方响应无可返回字段） |
+| 方案 B filetrans | ✅ 句级 + 词级 | `sentence.begin_time` / `end_time`（毫秒）；`enable_words` 或 `timestamp_granularities` 切句级/词级；DashScope 异步**时间戳永久启用**。见参考资料 [4] |
+| 方案 A streaming | ✅ | VAD 事件 `input_audio_buffer.speech_started.audio_start_ms` / `speech_stopped.audio_end_ms`。见参考资料 [3] |
+
+> 注：v2 曾写「Qwen 三种形态均具备时间戳能力」——**该表述有误**，方案 C 不具备，此处已更正。
 
 ### 1.3 取消双 provider 回滚设计（v2 修订）
 
@@ -69,9 +103,10 @@ v1 阶段 1/3 设计 `TRANSCRIBE_PROVIDER=openai|qwen-streaming`，为「回滚�
 
 **目标**
 
-- 以 Qwen-ASR 替换现有 Whisper 转录适配器（删旧适配器，单 provider）。
-- **转录结果携带时间戳**（§1.2），据此扩展 `Transcript` 领域模型。
+- **恢复转录可用**（P0，当前 whisper-1 已失效、转录完全不可用）。
+- 以 Qwen-ASR 替换现有 Whisper 转录适配器（删旧适配器，单 provider），**优先选改动最小的方案 C**（§1.0、§1.1）。
 - 保持 Job 状态机、HTTP API、OpenAPI 与 Web 前端行为不变。
+- **不扩展 `Transcript` 领域模型、不改产物格式**（v3：时间戳为机会性目标，见 §1.2）。
 - 保留任务级超时、可恢复错误重试、结构化日志和安全错误映射。
 - 以 fake 协议客户端测试作为 CI 基础，不让自动化测试依赖真实 Qwen 网络或密钥。
 
@@ -94,6 +129,23 @@ v1 阶段 1/3 设计 `TRANSCRIBE_PROVIDER=openai|qwen-streaming`，为「回滚�
 
 **风险缓解已由架构提供**：`Summarizer` 端口已隔离上游实现，若中转站 `gpt-4o` 后续也失效，只需新增一个 chat-completions 适配器 + 改配置，**不需改动 domain**。因此无需预先实现，记录为 Plan B 即可。
 
+### 1.6 方案 C 的硬约束：base64 10 MB 上限（v3 新增）
+
+选方案 C 必须先处理一个与现有配置的冲突，**不得静默放过**（项目原则「不可假装可用」）：
+
+| 项 | 当前值 | 方案 C 要求 | 冲突 |
+| --- | --- | --- | --- |
+| `MAX_UPLOAD_BYTES` | 25 MB | base64 编码后 ≤ **10 MB**（原音频 ≈ **≤7.5 MB**） | ✅ 会超限 |
+| `MAX_AUDIO_DURATION_SECONDS` | 3600（1 小时） | 同步接口实测约 **≤5 分钟**（待确认） | ✅ 会超限 |
+| 文件读取方式 | `openAsBlob` **流式**（不整文件进内存） | base64 需**整文件进内存**（∝ 33% 膨胀） | ✅ 内存模型变化 |
+
+**必须做的处理（择一，建议 1）**：
+
+1. **下调上传上限**：把 `MAX_UPLOAD_BYTES` 调到 ≤7.5 MB、`MAX_AUDIO_DURATION_SECONDS` 调到实测时长上限，并把限制写进 `.env.example` 与 OpenAPI 的 413/422 描述。用户超限时得到**明确业务错误**而非上游失败。
+2. **分层校验**：保留 25 MB 上传上限，但在转录前按方案 C 的实际上限校验，超限返回明确的不可处理错误。
+
+同时需确认：`DurationProbe` 已解析的音频时长可直接复用于该校验（避免重复解析）。
+
 ## 2. 当前架构与改造边界
 
 当前链路：
@@ -102,49 +154,49 @@ v1 阶段 1/3 设计 `TRANSCRIBE_PROVIDER=openai|qwen-streaming`，为「回滚�
 HTTP 上传
   → 本地文件与 queued Job
   → Worker / ProcessJob
-  → QwenAsrTranscriber（新建）
-  → DashScope Qwen-ASR（streaming 或 filetrans）
-  → Transcript（含时间戳 segments）
+  → QwenAsrTranscriber（新建，首选方案 C）
+  → Qwen-ASR 兼容接口（chat completions + base64）
+  → Transcript（v3：结构不变，仍为纯文本）
   → 保存 transcript.txt
   → Summarizer
 ```
 
 现有 `Transcriber` 端口已隔离上游实现，主要接入位置如下（**v2 已按实际代码校正路径**）：
 
-- `src/domain/ports.ts`：`Transcriber` 接口；**本次需扩展 `Transcript` 以携带时间戳**（§1.2，v1 曾误述为「不改变」）。同文件还有 `UsageMetric` / `MetricsRecorder`（见下方指标一节）。
+- `src/domain/ports.ts`：`Transcriber` 接口；**v3：不改动**（v1 说「不改变」是对的，v2 曾要求加时间戳 `segments`，v3 已撤销）。同文件另有 `UsageMetric` / `MetricsRecorder`（见下方指标一节）。
 - `src/infrastructure/openai/transcriber.ts`：现有 Whisper 适配器，**v2 决定删除**（§1.3），仅作迁移参考。
 - `src/bootstrap/container.ts`：**真正的依赖组装处**——`buildContainer()` 在此 `new OpenAITranscriber(...)`（`container.ts:70`）。v1 误写为 `server.ts`；`server.ts` 只在 `server.ts:23` 调用 `buildContainer(config)`。
 - `src/bootstrap/config.ts` 与 `.env.example`：上游凭证、模型、超时等配置。
-- `src/application/process-job.ts`：依赖端口执行转录；**需把新适配器产出的时间戳与用量指标接入**（v1 未覆盖，见下）。
+- `src/application/process-job.ts`：依赖端口执行转录；**需确认新适配器产出的用量指标被正确接入**（v3：不涉时间戳）。
 - `tests/unit/openai-transcriber.test.ts`（删除）、`tests/unit/process-job.test.ts`、`tests/e2e/core-flow.test.ts`：适配器、用例与端到端 fake 覆盖。
 
 **v2 新增：与已落地的指标采集（C5）对接。** 2026-09-24 已合入 `main`（`9b5b9e5`）的可观测指标能力，v1 计划成文于其前、未覆盖：
 
-- `Transcript` 现含 `characterCount`（转录字数，码点）与 `durationSeconds`（音频时长）两个可选字段。**新适配器须填充二者**；streaming 方案的 VAD 事件（`audio_start_ms` / `audio_end_ms`）或 filetrans 的句级时间戳均可推导出 `durationSeconds`，否则 `metrics.jsonl` 该列恒为空。
+- `Transcript` 现含 `characterCount`（转录字数，码点）与 `durationSeconds`（音频时长）两个可选字段。**方案 C 须填充 `characterCount`**；`durationSeconds` 因该路径响应无时长字段，保持 `undefined`（不得伪造），由既有 `DurationProbe` 的时长覆盖。备选方案 A/B 则可从 VAD 事件或句级时间戳推导该值。
 - `ProcessJob` 会把 `transcribeModel`、`transcribeCharacterCount`、`transcribeDurationSeconds`、`transcribeDurationMs` 写入指标落盘。
 
 预期新建 Qwen 专用 infrastructure adapter 和协议/客户端封装。**v2 已定：单 provider，不引入 `TRANSCRIBE_PROVIDER` 开关**（§1.3），但 DashScope 配置仍须独立于 `OPENAI_*` 命名空间，**不得把 DashScope 端点错塞进 `OPENAI_BASE_URL`**。
 
 ## 3. 实施阶段
 
-### 阶段 0：API 可行性 Spike（0.5–1.5 人日）
+### 阶段 0：可行性确认（0.5–1 人日，v3 大幅缩减）
 
-先实现最小隔离原型，不直接改主流程。**v2 调整：把「选型决策」提为第 1 项**——它决定后续工作量是 4.5–8.5 人日还是 2–3 人日（§6），必须最先回答。
+**v3 变更有两点**：(1) 原「第 1 项判定 filetrans 是否需公网 URL」**已由官方文档直接确认，无需 spike**（§1.1 依据）；(2) 首选方案 C 不需新建协议栈，spike 从「协议探险」降级为「跑通一次调用」。
 
-1. **【v2 前置】判定 filetrans 是否可行**：`qwen-audio-3.1-asr-flash-filetrans` 走 HTTP 异步提交，需确认它是否要求**公网可访问的音频 URL**（据官方文档，同类异步文件转写模型有此要求）。本项目音频存于本地 `temp/`、单机部署无公网地址：
-   - **要求公网 URL** → 采用方案 A（streaming），把此约束写入本计划作为选型依据；
-   - **可接受其他提交方式**（如直传文件、oss:// 路径）→ 采用方案 B（filetrans），可省掉整个 WebSocket 协议栈，且额外获得说话人分离。
-   同时确认 `qwen-audio-3.1-asr-flash-filetrans` 与同步型 `qwen-audio-3.1-asr-flash`（≤5 分钟）是否覆盖本项目音频时长（当前上限 3600 秒）。
-2. 核对阿里云百炼当前账号可用地域、Workspace ID、API Key、模型权限和计费额度。
-3. **若选方案 A**：使用官方支持的 WebSocket URL、`model=qwen-audio-3.1-asr-flash-streaming` 和 Authorization 握手，验证会话初始化、音频追加、结束事件和最终结果事件。注意 URL 形态为 `wss://{WorkspaceId}.<region>.maas.aliyuncs.com/api-ws/v1/realtime?model=<model_name>`，模型名走查询参数、鉴权走请求头（见参考资料 [2]）。
-4. 用项目 `fixtures/audio-sample.mp3` 及至少一个项目允许上传的其它音频格式，验证分块/提交、格式标注与服务端响应。若选方案 A，官方支持 `pcm`、`wav`、`mp3`、`opus`、`speex`、`aac`、`amr` 音频流。
-5. **确认时间戳的可得性与粒度**（§1.2 的核心验收依据）：方案 A 验证 VAD 事件 `input_audio_buffer.speech_started.audio_start_ms` / `speech_stopped.audio_end_ms` 能否切出语句边界；方案 B 验证 `sentence` 数组的 `begin_time` / `end_time`（毫秒）及 `timestamp_granularities` 的句级/词级切换。**该结果决定 `Transcript.segments` 的字段设计。**
-6. 确认适配器可从本地文件流式读取而非一次性把整文件读入内存；验证背压、结束事件、超时和断连行为。
-7. 明确识别结果事件是增量文本还是最终片段；制定不重复拼接中间修订文本的聚合规则。
-8. 验证较短音频和长音频的吞吐、总耗时、连接上限、最大分块大小与关闭顺序。
-9. 记录调用成功/失败、账户配额/价格信息及采用的服务端接入域名；不将真实音频或凭证提交到仓库。
+**已确认、无需再测**（依据见 §1.1 与参考资料 [6][7][8]）：
 
-**Spike 通过条件：**选型已定且有依据；官方协议可稳定完成至少一次真实识别；支持现有音频样本格式；**时间戳可稳定获得**；最终 transcript 可无重复、无漏段地拼合；能确定可靠的超时/取消/关闭语义。若均失败，暂停主实现，评估引入受控转码或降低音频时长上限以适配同步接口。
+- ❌ ~~filetrans 是否需公网 URL~~ → **是，官方明确要求**（`file_url` "Must be accessible over the Internet"）
+- ❌ ~~base64 路径是否支持时间戳~~ → **否**（`asr_options` 无时间戳参数，响应无时间字段）
+
+**待实测项（按序）**：
+
+1. **核对账号实际模型 ID 与权限**：登录所用平台（阿里云百炼 / QwenCloud），确认可见的模型 ID、地域、Key 权限与计费额度。**两站命名不同**（`qwen-audio-3.1-asr-flash-*` vs `qwen3-asr-flash*`），以账号实际可见值为准。
+2. **跑通方案 C 最小调用**：用 OpenAI SDK 对 `/compatible-mode/v1/chat/completions` 发一次请求，音频以 base64 Data URL 内联（`data:audio/mpeg;base64,...`）。用项目 `fixtures/audio-sample.mp3` 与官方示例音频各跑一次，**先跑小文件**。确认：鉴权通、能返回文本、`usage` 字段形态（供 C5 指标）。
+3. **顺带确认上限（决定 §1.6 的配置改法）**：实测 base64 10 MB 限制与音频时长上限的真实边界（同步接口文档口径约 ≤5 分钟）。**同时确认该校验与既有 `DurationProbe` 能否复用。**
+4. **顺带查时间戳（零成本）**：检查所选模型是否**恰好**存在时间戳参数或响应字段。若有则免费获得（§1.2）；若需换模型或加协议才支持，**按 §1.0 放弃**，不追加投入。
+5. **仅当方案 C 跑不通时**才进入备选评估：方案 B 需额外验证音频公网托管（OSS 签名 URL）通路；方案 A 需按 v2 原文验证 WebSocket 会话、事件与清理语义（URL 形态 `wss://{WorkspaceId}.<region>.maas.aliyuncs.com/api-ws/v1/realtime?model=<model_name>`，模型名走查询参数、鉴权走请求头，见参考资料 [2]）。
+
+**通过条件**：方案 C 能稳定返回正确文本；上限边界已实测；选型结论写入本计划。若方案 C 失败，再按第 5 项降级评估，并把失败原因记录到证据目录。
 
 ### 阶段 1：配置与依赖边界（0.5 人日）
 
@@ -161,21 +213,22 @@ HTTP 上传
 - 核实协议客户端依赖是否已由 Node 24 内置能力满足：方案 A 看 WebSocket（Node 内置 `WebSocket`），方案 B 看 HTTP/上传。只有 spike 证明需要时才添加依赖，并固定安全版本、更新 lockfile 与供应链检查（C3 门禁）。
 - 禁止自动根据某个凭证「猜测」服务商：单 provider 下直接使用 Qwen 配置，缺失即启动失败。
 
-### 阶段 2：Qwen 转录适配器（1.5–2.5 人日，方案 B 可降至 1–1.5 人日）
+### 阶段 2：Qwen 转录适配器（v3：首选方案 C，**约 0.5–1 人日**）
 
-新增 `src/infrastructure/qwen/` 下的协议客户端与 `Transcriber` 实现，继续实现现有 `Transcriber` 接口：
+新增 `src/infrastructure/qwen/` 下的 `Transcriber` 实现（可命名为 `QwenAsrTranscriber`），继续实现现有 `Transcriber` 接口。**方案 C 路径下无需协议客户端**——它是一次普通的 HTTP 调用。
 
-1. **（方案 A）** 用只读流按协议允许的大小读取文件，建立 WebSocket 会话并按协议发送会话配置与音频数据。**（方案 B）** 按 filetrans 要求提交音频并轮询/等待结果。
-2. 按模型文档标注音频格式；不得仅依赖用户文件名，使用已校验的 MIME/存储扩展名信息。
-3. 处理协议事件：ready/会话建立、增量识别、稳定/最终片段、完成、上游错误、close/error、心跳或 idle timeout。**方案 A 注意**：VAD 模式下必须**先发送 `session.finish` 再关闭连接**，否则服务端丢弃 in_progress item、`conversation.item.input_audio_transcription.completed` 不会到达（官方警告，见参考资料 [3]）。
-4. 根据 Spike 的事件语义聚合 transcript：若服务端发送「整句修订」，以最终句子替换中间结果；若发送独立最终片段，按顺序拼接。禁止简单拼接所有 interim 文本造成重复。
-5. 发送完文件后显式结束音频/会话，等待明确的最终完成事件后再 resolve；**不得把 socket close 当作成功结果**。
-6. **【v2 新增】产出时间戳**：按 Spike 确认的形态构造 `Transcript.segments`（`{ beginMs, endMs, text }[]`）。方案 B 直接映射 `sentence.begin_time` / `sentence.end_time`；方案 A 用 VAD 事件的 `audio_start_ms` / `audio_end_ms` 切分。同时保持 `text` 字段为纯文本（兼容现有下载接口）。
-7. **【v2 新增】填充指标字段**：填充 `Transcript.characterCount`（按码点计数）与 `Transcript.durationSeconds`（由句级时间戳末值或 VAD 结束时间推导），供 `metrics.jsonl` 落盘（C5）。
-8. 空 transcript 是否视为合法结果或上游失败，要以现有业务约定及真实协议验证后确定，并增加测试。
-9. 将连接、提交、等待结果整体纳入单次转录超时；在超时、任务失败和进程关闭时关闭 socket/连接、停止文件流并释放监听器。
-10. 将协议错误映射为内部安全错误类别；日志只记 `jobId`、model、耗时、重试次数、错误类别，不记音频内容、文本、API Key 或完整 URL query。
-11. 对网络/限流/服务端可恢复错误使用受控重试；鉴权、格式、参数等不可恢复错误不重试。确认重试前会话和资源完全关闭，且一次任务重试不会遗留后台 socket。
+1. **（方案 C，首选）** 用 OpenAI SDK 调 `/compatible-mode/v1/chat/completions`：读取音频文件 → 按 MIME 构造 base64 Data URL（`data:<mediatype>;base64,<data>`）→ 作为 `input_audio` 内容发送 → 取 `choices[0].message.content` 作为文本。
+2. 按已校验的 MIME 构造 Data URL 的 `mediatype`；不得仅依赖用户文件名，使用现有上传校验产出的 MIME/存储扩展名。
+3. **【v3 关键】超限处理（§1.6）**：编码前/后校验大小上限，超限时抛**明确的业务错误**（沿用 `DomainError`，不得让上游报错穿透、也不得静默失败）。同时确认 §1.6 选定的上限改法已生效。
+4. **【v3】内存与流式取舍**：方案 C 需整文件读入内存做 base64，与现有 `openAsBlob` 流式读取不同。需在适配器内注释说明该取舍，并在 §1.6 的下调上限保护下确认内存占用可接受。
+5. **【v3 保留 v2 精神】填充指标字段**：填充 `Transcript.characterCount`（按码点计数）；`durationSeconds` 若上游未返回（方案 C 响应无时长字段）则保持 `undefined`，由既有 `DurationProbe` 的时长覆盖，不得伪造（C5 指标）。
+6. **不产出时间戳**（§1.2）：方案 C 下**不改** `Transcript` 结构、**不改**产物落盘格式。若阶段 0 第 4 项发现免费时间戳，再单独评估，不在本阶段预设。
+7. 空 transcript 是否视为合法结果或上游失败，要以现有业务约定及实测结果确定，并增加测试。
+8. 将单次调用纳入既有超时配置（`QWEN_ASR_TIMEOUT_MS`）；失败时释放资源。
+9. 将上游错误映射为内部安全错误类别；日志只记 `jobId`、model、耗时、重试次数、错误类别，不记音频内容、文本、API Key 或完整 URL query。
+10. 复用既有 `infrastructure/common/retry.ts` 的重试语义：网络/限流/服务端可恢复错误受控重试；鉴权、格式、参数等不可恢复错误不重试。
+
+**（备选路径，仅当方案 C 失败时启用）** 方案 B 需按 filetrans 提交并轮询、映射 `sentence` 时间戳；方案 A 需实现完整 WebSocket 会话、事件聚合、`session.finish` 顺序与 socket 清理（见参考资料 [2][3]）。两条备选路径的工作量见 §6。
 
 ### 阶段 3：依赖注入与切换（0.5 人日）
 
@@ -184,12 +237,12 @@ HTTP 上传
 - 在 **`src/bootstrap/container.ts`** 的组合根（`buildContainer()`，`container.ts:70` 处）把 `OpenAITranscriber` 替换为 Qwen 适配器。v1 误写为 `server.ts`。
 - **删除 `OpenAITranscriber`** 及其 import/实例化（§1.3），同步移除 `.env.example` 中 `OPENAI_TRANSCRIBE_MODEL` / `OPENAI_TRANSCRIBE_TIMEOUT_MS`。
 - **保留 `transcribeModel` 依赖项**：它改为传 Qwen 模型名，仍写入 Job `result.model` 与 `metrics.jsonl`。
-- `ProcessJob` 与 `Transcriber` 契约除新增时间戳字段外不变；Worker 队列、Job API 和前端轮询不变。
+- `ProcessJob` 与 `Transcriber` 契约**不变**（v3：不新增时间戳字段）；Worker 队列、Job API 和前端轮询不变。
 - **日志事件命名 v2 调整**：v1 建议改为 provider 中立 `transcriber.completed`。该改名会波及现有测试与 `docs/architecture/architecture.md`，且 C5 已通过 `UsageMetric.transcribeModel` 解决中立性诉求。**v2 决定拆为独立小改**，不在本次迁移中一并做，避免混淆迁移与重构的 diff。
 - 更新 mock system / e2e test factory，使其仍能通过 fake transcriber 跑完整链路。
 - **同步更新文档引用**：`docs/architecture/architecture.md`（28/61/98/150 行提及 `OpenAITranscriber` / `whisper-1`）、`docs/project-structure.md`（33 行）。注意架构文档实际文件名为 `architecture.md`——v1 写的 `architecture-design.md` **不存在**。
 
-### 阶段 4：自动化测试（1–1.5 人日）
+### 阶段 4：自动化测试（v3：方案 C 约 0.5–1 人日；方案 B/A 为 1–1.5 人日）
 
 **v2 明确测试策略：区分「重构复用」与「必须新增」。** 删除 `OpenAITranscriber` 时，其测试不应被简单删掉，而应**重构搬运**为 Qwen 适配器测试；但协议专属行为在 whisper 适配器中无对应物，**无法靠重构得到，必须新增**。
 
@@ -201,20 +254,21 @@ HTTP 上传
 - 4xx 参数错误立即抛、不重试。
 - 上游失败向上抛错，由错误边界处理（**不伪造结果**）。
 
-**B. 必须新增**（协议专属 / v2 新增字段，无既有对应物）：
+**B. 必须新增**（方案 C 专属，无既有对应物）：
 
-- **interim → final 聚合不重复**：interim 内容被最终修订替换；多段最终文本按序合并。（本计划自列的头号正确性风险，无对应物可复用）
-- **音频按流分块读取**，未整文件 Buffer 化；异常/空文件路径的安全行为。
-- **资源清理**：连接/识别超时、背压、文件流错误、任务取消/进程关闭时连接与流正确清理，无遗留后台 socket。
-- **协议错误映射**：握手失败、401/403、429、5xx、连接突然关闭、协议 error 事件 → 安全错误类别；日志不含 key、音频文本、原始路径、上游错误全文或 URL query 中的凭证。
-- **【v2】时间戳产出**：`segments` 的边界正确（句级）、`text` 仍为纯文本；空/无语音片段的边界行为。
-- **【v2】指标字段**：`characterCount` 与 `durationSeconds` 被正确填充（含缺省时的 undefined 行为），保证 `metrics.jsonl` 该列不为空。
+- **【v3 核心】base64 Data URL 构造**：MIME → `data:<mediatype>;base64,...` 的映射正确；中文/特殊格式音频编码后仍可解码。
+- **【v3 核心】超限分支**：超过 §1.6 上限时抛**明确业务错误**（不是上游报错穿透、不是静默失败、不是截断）；边界值（恰好等于上限）行为正确。
+- **【v3】响应解析**：从 `choices[0].message.content` 取文本；非预期响应形状（缺字段、空 choices）的安全失败行为。
+- **【v3】指标字段**：`characterCount` 正确（按码点）；`durationSeconds` 在该路径保持 `undefined`，**不得伪造**。
+- **错误映射**：401/403、429、5xx、超时 → 安全错误类别；日志不含 key、音频内容、原始路径或上游错误全文。
 - **配置测试**：缺失 Qwen key 时启动即失败；`OPENAI_TRANSCRIBE_*` 移除后 `OPENAI_*` 校验不误伤摘要配置。
 - `ProcessJob` 成功与失败测试、B7 E2E fake 全部保持通过；HTTP API 与 OpenAPI contract 不需要变化。
 
-> 配比参考：**复用约 5 项 + 新增约 7 项**。只做重构复用的是不够的——新协议实现若没有上表 B 部分，等于「未验证就宣称可用」，违反项目 CLAUDE.md「不可假装可用」原则，且覆盖率门禁（≥80%）也不会因此放宽。
+> **v3 说明**：v2 曾列出「interim → final 聚合」「WebSocket 资源清理」等协议专属测试——**方案 C 下这些不存在，已删除**。这也是方案 C 测试成本更低的原因（§6）。但上表 B 部分仍不可省：超限分支与 base64 构造是新引入的正确性风险，缺失即等于「未验证就宣称可用」，违反项目 CLAUDE.md「不可假装可用」原则。
+>
+> （若降级到方案 B/A，v2 原列的分块读取、事件聚合、socket 清理、`session.finish` 顺序等测试需重新补回。）
 
-所有 CI 测试均使用 fake 协议客户端，不访问 DashScope / 阿里云百炼，也不把生产密钥或音频 fixture 上传到 CI。
+所有 CI 测试均使用 fake 上游（方案 C 为 fake OpenAI client），不访问 DashScope / 阿里云百炼，也不把生产密钥上传到 CI。
 
 ### 阶段 5：真实服务联调与验收（0.5–1 人日）
 
@@ -223,8 +277,9 @@ HTTP 上传
 - 测试环境仅用 `.env`/密钥管理器提供 Qwen Key，禁止写入证据、日志或截图。
 - 用许可明确的短音频和长音频验证中文/英文、不同现有格式、识别失败、长耗时、网络断开与服务端重启情况。
 - 核对 Job 状态最终仍为 `succeeded` 或安全的 `failed`，成功结果可下载，摘要仍正常生成。
-- **【v2 修正】验证时间戳**：下载的转录文本携带句级时间戳且单调递增、覆盖完整音频、无重叠错乱；这是本次改造的核心验收项（§1.2）。
-- **核对指标落盘**：`metrics.jsonl` 中 `transcribeCharacterCount` / `transcribeDurationSeconds` / `transcribeDurationMs` 均非空且数值合理。
+- **【v3 修正】~~验证时间戳~~**：v2 曾列为核心验收项；v3 已放弃时间戳（§1.2），本项改为**确认转录文本完整、无截断**即可。
+- **核对指标落盘**：`metrics.jsonl` 中 `transcribeCharacterCount` / `transcribeDurationMs` 非空；`transcribeDurationSeconds` 允许为空（方案 C 无时长字段，由 `DurationProbe` 覆盖）。
+- **【v3 新增】核对上限行为**：上传一个超限音频，确认返回**明确的业务错误**（而非上游报错或静默失败）。
 - **【v2 修正】对照基线的方式**：v1 写「对照 Whisper 基线」，但 `whisper-1` **已不可用、无法现场复跑**，该对比不可执行。改为对照**归档证据中的历史记录**——`docs/evidence/` 存有 2026-08-24 的 whisper-1 实测（转录 9009ms / 摘要 3276ms，见 `docs/evidence/README.md`），可作历史参照。质量结论只基于同一批有授权的样本，不夸大为通用评测。
 - 检查 requestId/jobId 日志关联和错误响应不泄露 Qwen 原始异常。
 - 归档脱敏测试结果、模型/地域配置名称（不得包含 key）与运行步骤。
@@ -234,10 +289,11 @@ HTTP 上传
 | 区域 | 预计改动 |
 | --- | --- |
 | 配置 | `src/bootstrap/config.ts`（移除 `OPENAI_TRANSCRIBE_*`、新增 `QWEN_ASR_*`）、`tests/unit/config.test.ts`、`.env.example` |
-| 领域模型 | **`src/domain/ports.ts`**：`Transcript` 增加时间戳 `segments`（v1 曾列为「不应变化」，见 §1.2） |
-| 适配器 | 新增 `src/infrastructure/qwen/` 下协议客户端与 `Transcriber` 实现；**删除 `src/infrastructure/openai/transcriber.ts`** |
+| 领域模型 | **v3：`src/domain/ports.ts` 不变**（v2 曾要求加 `segments`；时间戳降为机会性目标，见 §1.2）。仅沿用既有 `characterCount` / `durationSeconds` 字段 |
+| 上传校验 | **`MAX_UPLOAD_BYTES` / `MAX_AUDIO_DURATION_SECONDS` 调整**（§1.6，方案 C 的 10 MB 约束），涉及 `src/bootstrap/config.ts` 与 `.env.example` |
+| 适配器 | 新增 `src/infrastructure/qwen/` 下 `Transcriber` 实现（**方案 C 无协议客户端**）；**删除 `src/infrastructure/openai/transcriber.ts`** |
 | 依赖组装 | **`src/bootstrap/container.ts`**（v1 误写为 `server.ts`）、`tests/unit/container.test.ts` |
-| 用例 | `src/application/process-job.ts`：接入时间戳产物与新增指标字段（§2 指标一节） |
+| 用例 | `src/application/process-job.ts`：仅填充指标字段（v3 不再改动时间戳产物） |
 | 通用日志/重试 | 复用既有 `infrastructure/common/retry.ts` 与错误分类；事件改名为独立小改，不在本次一并做（§3） |
 | 测试 | 删除 `tests/unit/openai-transcriber.test.ts` 并**重构搬运**为 Qwen adapter 单测；新增协议专属用例（§4 阶段 4 B 部分）；更新配置/DI/system fake |
 | 文档 | **`docs/architecture/architecture.md`**（v1 所写 `architecture-design.md` 不存在）、`docs/project-structure.md`、`.env.example`、必要时新增 ADR、本次实施证据 |
@@ -267,27 +323,31 @@ git diff --check
 
 ### 人工验收
 
-- 在 mock/fake 协议客户端上完成上传至摘要的全链路。
-- 在受控环境完成真实 Qwen 服务联调，证明最终文本完整、**时间戳正确**、Job 可下载、超时和错误行为安全。
-- **【v2】时间戳验收**：下载的转录文本含句级时间戳，覆盖完整音频、单调递增、无重叠（§1.2 为本次核心验收项）。
-- **【v2】指标验收**：`metrics.jsonl` 中转录字数/时长列非空且合理。
-- **【v2 修正】删除** v1 的「通过 `TRANSCRIBE_PROVIDER` 回滚到 Whisper」一项——回滚目标已不存在（§1.3）。
+- 在 mock/fake 上游上完成上传至摘要的全链路。
+- 在受控环境完成真实 Qwen 服务联调，证明最终文本完整、Job 可下载、超时和错误行为安全。
+- **【v3】~~时间戳验收~~**：v2 曾列为核心验收项；v3 已放弃（§1.2），改为确认**转录文本完整无截断**。
+- **【v3】上限验收**：超限音频返回明确业务错误（§1.6），不是上游报错穿透、也不是静默失败。
+- **【v3】指标验收**：`metrics.jsonl` 中转录字数与耗时列非空且合理。
+- **【已删除】** v1 的「通过 `TRANSCRIBE_PROVIDER` 回滚到 Whisper」——回滚目标已不存在（§1.3）。
 - 文档和证据清楚区分自动化 mock 结果与真实服务联调结果。
 
 ## 6. 工作量估算
 
 针对“继续使用现有上传后后台处理，不要求实时字幕”的 Qwen Streaming 适配：
 
-| 阶段 | 估算 |
-| --- | ---: |
-| 协议/账号 Spike（含选型决策） | 0.5–1.5 人日 |
-| 配置、DI、适配器和重试清理 | 2–3.5 人日 |
-| 自动化测试、文档和全量回归 | 1.5–2.5 人日 |
-| 真实联调与修正 | 0.5–1 人日 |
-| **合计（方案 A / streaming）** | **约 4.5–8.5 人日** |
-| **合计（方案 B / filetrans）** | **约 2–3 人日** |
+| 阶段 | 方案 C（首选） | 方案 B | 方案 A |
+| --- | ---: | ---: | ---: |
+| 可行性确认（阶段 0） | 0.5–1 | 0.5–1.5 | 0.5–1.5 |
+| 配置、DI、适配器 | 0.5–1 | 1–1.5 | 2–3.5 |
+| 自动化测试、文档、全量回归 | 0.5–1 | 1–1.5 | 1.5–2.5 |
+| 真实联调与修正 | 0.5 | 0.5–1 | 0.5–1 |
+| **合计** | **约 1.5–3 人日** | 约 2–3 人日 | 约 4.5–8.5 人日 |
 
-**v2 说明**：上表方案 A 若 WebSocket 协议与当前 Node 运行时集成顺利、音频可直接分块发送，可能接近 4–6 人日；若需容器格式转换、账号域名/权限排查或复杂的事件聚合/重连，则更接近 7–9 人日。**方案 B（HTTP）省去整个 WebSocket 协议栈，故显著更低**——这正是阶段 0 第 1 项要先做选型判定的原因。此估算包含测试与文档，**不包含**前端实时字幕，**也不包含**摘要模型切换（§1.5 已决定不在本次范围）。
+**v3 说明**：**方案 C 的估算显著低于 v2 原表**，原因是它不新建协议栈、不引入新基建、不改领域模型与产物格式——这正是 §1.0 判据的体现。方案 A 若 WebSocket 协议与当前 Node 运行时集成顺利可能接近 4–6 人日；若需容器格式转换、账号域名/权限排查或复杂的事件聚合/重连，则更接近 7–9 人日。
+
+> 若选方案 C，**放弃时间戳换来的就是这张表的差距**（1.5–3 人日 vs 4.5–8.5 人日）——按 §1.0 这是划算的。
+
+此估算包含测试与文档，**不包含**前端实时字幕，**不包含**摘要模型切换（§1.5 已决定不在本次范围），**不包含**方案 B 所需的 OSS 基建搭建成本。
 
 如后续另做浏览器实时语音输入、服务端双向转发及实时字幕 UI，属于独立功能，需另行估算（预计额外 4–8 人日，具体取决于浏览器采集、断线恢复和交互设计范围）。
 
@@ -301,21 +361,25 @@ git diff --check
 | WebSocket 吞吐/背压/长音频耗时 | worker 被占用、内存或连接耗尽 | 流式读取、限制 chunk、统一超时、并发控制、socket/流可靠关闭；确认服务限额 |
 | 错误格式和重试边界不同于 OpenAI | Job 失败被误判或重复扣费 | 适配器内映射安全错误类别；测试 4xx 与网络/429/5xx；避免 SDK 与自定义重试叠加 |
 | Qwen 配置与 OpenAI 配置耦合 | 启动需同时设置两家密钥 | **v2**：不再用 provider 开关，改为配置分域——转录只校验 `QWEN_ASR_*`，摘要只校验 `OPENAI_*`；凭证分域管理，日志禁止输出密钥 |
-| **时间戳缺失或错位**（v2 新增） | 答辩核心需求「带时间戳文本」不达标 | 阶段 0 先确认时间戳可得性与粒度；`Transcript.segments` 明确验收标准（单调递增、覆盖完整、无重叠）；阶段 4 与阶段 5 各有针对性验证 |
-| **选型误判**（v2 新增） | 选了 streaming 却发现 filetrans 可行，白做协议栈（或多花 2–5 人日） | 阶段 0 第 1 项先行判定 filetrans 是否需公网 URL；该结论直接决定 §6 工作量 |
+| **时间戳缺失**（v3 改写） | 与老师原话「带时间戳文本」的表述不一致 | **已由需求方接受**（§1.0）：不为此增加复杂度。缓解：答辩话术相应调整；阶段 0 零成本顺带确认是否有免费时间戳；若日后需要，方案 B/A 路径已在本计划中留档 |
+| **base64 上限导致大文件失败**（v3 新增） | 用户上传音频超 7.5 MB 时转录失败；若处理不当会出现上游报错穿透或静默失败 | 按 §1.6 下调/分层校验上限，返回**明确业务错误**；阶段 0 实测真实边界；写入 OpenAPI 与 `.env.example`。**不得静默截断或伪造成功** |
+| **整文件进内存**（v3 新增） | 方案 C 需 base64 编码，内存峰值升高，与现有流式读取不同 | §1.6 的上限下调即是保护；适配器内注释说明取舍；联调时观察内存 |
+| **选型误判**（v2 新增） | 高估/低估某方案的代价，多花数人日 | 判据已显式化（§1.0 三级优先级）+ 阶段 0 先跑通方案 C 再决定是否降级；工作量对照表见 §6 |
 | 无法稳定复现上游协议 | CI flaky、排障困难 | 协议 fake 驱动单测；真实联调独立手动运行并保存脱敏证据 |
 
 ## 8. 实施前需要确认的事项
 
-进入实现前明确（**v2 已把 v1 的第 1、2 项转化为阶段 0 的实测任务或已定决策**）：
+进入实现前明确（**v3 已把 v2 的第 1、2 项由官方文档直接确认，不再需要讨论**）：
 
-1. **【v2 重写 · 最高优先】** `qwen-audio-3.1-asr-flash-filetrans` 能否在不暴露公网 URL 的前提下使用？**答案决定选型**（§1.1），进而决定工作量是 4.5–8.5 还是 2–3 人日。v1 把该项框成「是否必须用确切模型」，未触及真正的技术约束。
-2. **【v2 重写】** 时间戳以何种粒度交付（句级 / 词级 / 两者）？决定 `Transcript.segments` 的字段设计（§1.2）。
-3. **【v2 已决策 · 无需再议】** 单 provider，直接替换并删除 `OpenAITranscriber`；不做双 provider 灰度（§1.3）。
-4. **【v2 已决策 · 无需再议】** 摘要模型保持 `gpt-4o`，本次不换千问（§1.5）。
-5. 阿里云百炼当前账号的可用地域、Workspace ID、Key 权限和测试额度是否已准备好。
-6. 是否允许为了格式兼容引入 FFmpeg 或其他外部进程；默认先不引入。
-7. 确认只验收「上传后最终转录（含时间戳）」，**不要求浏览器端实时文字**。
+1. **【v2 已澄清】** ~~filetrans 能否不用公网 URL~~ → **不能，官方明确要求**（§1.1）。
+2. **【v2 已澄清】** ~~时间戳粒度~~ → **v3 已决定放弃时间戳**（§1.0、§1.2），不再决策粒度。
+3. **【已决策 · 无需再议】** 单 provider，直接替换并删除 `OpenAITranscriber`；不做双 provider 灰度（§1.3）。
+4. **【已决策 · 无需再议】** 摘要模型保持 `gpt-4o`，本次不换千问（§1.5）。
+5. **【v3 · 待你确认】** **上传上限下调方案**（§1.6）：是把 `MAX_UPLOAD_BYTES` 直接降至 ≤7.5 MB，还是保留 25 MB 上传但转录前分层校验？这会影响 `.env.example`、OpenAPI 描述与前端提示。**建议前者**（口径统一、错误更早暴露）。
+6. **【v3 · 待实测】** 所用平台的**实际模型 ID**（`qwen-audio-3.1-asr-flash-*` 还是 `qwen3-asr-flash*`）与 base64 的真实上限——两站命名不同，以账号可见值为准。
+7. 当前账号的可用地域、Workspace ID、Key 权限和测试额度是否已准备好。
+8. 是否允许为了格式兼容引入 FFmpeg 或其他外部进程；默认先不引入。
+9. 确认只验收「上传后最终转录」，**不要求浏览器端实时文字**（v3：也不再要求时间戳）。
 
 ## 9. 官方参考资料
 
@@ -327,5 +391,8 @@ git diff --check
 4. [阿里云百炼：非实时语音识别用户指南](https://help.aliyun.com/zh/model-studio/non-realtime-speech-recognition-user-guide) — filetrans 的 `sentence` 结构（`sentence_id` / `begin_time` / `end_time`，毫秒）、`timestamp_granularities` 句级/词级切换、**DashScope 异步调用时间戳永久启用**；**§1.2 时间戳依据**。
 5. [阿里云百炼：语音识别 API 参考](https://help.aliyun.com/zh/model-studio/speech-recognition-api-reference/) — 实时 Streaming 与非实时 Filetrans 的 API 分类与接入方式。
 6. [阿里云百炼：实时语音识别用户指南](https://help.aliyun.com/zh/model-studio/real-time-speech-recognition-user-guide) — 模型介绍与完整示例代码。
+7. [Qwen-ASR — DashScope 异步（filetrans）API 参考](https://docs.qwencloud.com/api-reference/speech-recognition/qwen-asr/dashscope-async) — **§1.1 依据**：`input.file_url` 官方描述 "Must be accessible over the Internet"，"Audio formats" 一节 "Audio file URLs must be publicly accessible"；另有 `enable_words` 控制句级/词级时间戳。
+8. [Qwen-ASR — OpenAI 兼容（chat completions）API 参考](https://docs.qwencloud.com/api-reference/speech-recognition/qwen-asr/openai) — **§1.1 方案 C 依据**：支持 Base64-encoded audio 或公网 URL；"Keep the encoded audio within the 10 MB limit"；`asr_options` 仅 `language` / `enable_itn`，**无时间戳参数**；响应的 `usage` 含 token 明细可供 C5 指标。
+9. [Qwen-ASR — DashScope 同步 API 参考](https://docs.qwencloud.com/api-reference/speech-recognition/qwen-asr/dashscope) — **§1.1 补充依据**：`audio` 字段支持 URL / Base64 / 本地路径（**SDK only**）；响应仅 `content[].text` 与 `annotations`（language、emotion），**无时间字段**。
 
 > 官方文档和模型服务可能更新。阶段 0 必须以实际账号可见的当前模型 ID、地域端点、事件协议及限制为准；本计划中的估算不代表服务商 SLA 或费用承诺。
