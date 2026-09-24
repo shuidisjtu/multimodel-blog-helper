@@ -39,7 +39,7 @@
 
 | 编号 | 任务 | 前置 | 验收标准 | 状态/认领人 |
 | --- | --- | --- | --- | --- |
-| A6 | 千问 ASR 替代 whisper-1 + 带时间戳转录 | A2、A3 | 接入阿里云 DashScope Paraformer/SenseVoice；转录返回带时间戳文本（句级/词级），领域模型 `Transcript` 扩展 segments；替换已不可用的 whisper-1（issue #16） | 🆕 待规划，实施计划另议 / shuidisjtu |
+| A6 | 千问 ASR 替代 whisper-1 + 带时间戳转录 | A2、A3 | 接入阿里云百炼 **`qwen-audio-3.1-asr-flash-*`** 系列（streaming / filetrans 二选一，见 [实施计划](../records/2026-09-23-qwen-asr-implementation-plan.md) §1.1）；转录返回**带时间戳文本**（句级/词级），`Transcript` 扩展 `segments`；**单 provider，删除已不可用的 `OpenAITranscriber`**（计划 §1.3）；摘要模型保持 `gpt-4o` 不变（计划 §1.5） | 🔶 计划 v2 已评审（2026-09-24）；待阶段 0 spike 判定 filetrans 可行性后定选型 / shuidisjtu |
 | C6 | 健康与指标端点（长期增强） | B6a | `/health/live`、`/health/ready` 与 `/metrics`；Prometheus/Grafana 仅实际部署需要时实施 | ⏸️ 延期，不阻塞答辩 / shuidisjtu |
 | C7 | 轻量故障运行手册 | B6a、B7 | 失败判定、日志定位、任务恢复、临时文件清理和重启后验证 | 待办 / ym-hello |
 
