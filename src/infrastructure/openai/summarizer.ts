@@ -43,6 +43,12 @@ export class ResponsesSummarizer implements Summarizer {
       durationMs: Date.now() - started,
       retryCount,
     });
-    return { text: value.output_text };
+    const usage = value.usage;
+    return {
+      text: value.output_text,
+      usage: usage
+        ? { inputTokens: usage.input_tokens, outputTokens: usage.output_tokens }
+        : undefined,
+    };
   }
 }

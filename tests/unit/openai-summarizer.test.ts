@@ -23,7 +23,10 @@ class FakeLogger implements Logger {
 
 describe('ResponsesSummarizer', () => {
   it('通过 responses.create 生成摘要,输入包含转录文本', async () => {
-    const create = vi.fn().mockResolvedValue({ output_text: '摘要要点' });
+    const create = vi.fn().mockResolvedValue({
+      output_text: '摘要要点',
+      usage: { input_tokens: 120, output_tokens: 30 },
+    });
     const client = { responses: { create } } as unknown as OpenAI;
     const fakeLogger = new FakeLogger();
 
@@ -36,9 +39,23 @@ describe('ResponsesSummarizer', () => {
     const result = await summarizer.summarize({ jobId: 'job-1', text: '这是一段转录文本。' });
 
     expect(result.text).toBe('摘要要点');
+    expect(result.usage).toEqual({ inputTokens: 120, outputTokens: 30 });
     const [args] = create.mock.calls[0] as NonNullable<(typeof create.mock.calls)[0]>;
     expect(args).toMatchObject({ model: 'gpt-4o' });
     expect(args.input).toContain('这是一段转录文本。');
+  });
+
+  it('上游未返回 usage 时, result.usage 为 undefined', async () => {
+    const create = vi.fn().mockResolvedValue({ output_text: '摘要要点' });
+    const client = { responses: { create } } as unknown as OpenAI;
+    const summarizer = new ResponsesSummarizer(
+      client as unknown as OpenAI,
+      'gpt-4o',
+      { timeoutMs: 60000, maxRetries: 2 },
+      new FakeLogger(),
+    );
+    const result = await summarizer.summarize({ jobId: 'job-1', text: '文本' });
+    expect(result.usage).toBeUndefined();
   });
 
   it('上游 503 后重试成功: 重试 1 次, 成功日志含 retryCount', async () => {

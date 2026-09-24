@@ -5,11 +5,13 @@ import type { BlogJob } from '../../src/domain/job.js';
 import type {
   FileStore,
   JobRepository,
+  MetricsRecorder,
   SaveOutputParams,
   Summarizer,
   Summary,
   Transcriber,
   Transcript,
+  UsageMetric,
 } from '../../src/domain/ports.js';
 import type { LogFields, Logger } from '../../src/shared/logger.js';
 
@@ -109,7 +111,7 @@ class FakeTranscriber implements Transcriber {
     this.calls++;
     this.lastJobId = params.jobId;
     if (this.error !== undefined) throw this.error;
-    return { text: 'transcript text' };
+    return { text: 'transcript text', characterCount: 15, durationSeconds: 12.5 };
   }
 }
 
@@ -123,7 +125,16 @@ class FakeSummarizer implements Summarizer {
     this.calls++;
     this.lastJobId = params.jobId;
     if (this.error !== undefined) throw this.error;
-    return { text: 'summary text' };
+    return { text: 'summary text', usage: { inputTokens: 10, outputTokens: 5 } };
+  }
+}
+
+/** 记录型 fake 指标: 保存每次 record 的 metric。 */
+class FakeMetricsRecorder implements MetricsRecorder {
+  readonly records: UsageMetric[] = [];
+
+  async record(metric: UsageMetric): Promise<void> {
+    this.records.push(metric);
   }
 }
 
@@ -155,12 +166,14 @@ function setup(overrides?: {
   const files = overrides?.files ?? new FakeFileStore();
   const transcriber = overrides?.transcriber ?? new FakeTranscriber();
   const summarizer = overrides?.summarizer ?? new FakeSummarizer();
+  const metrics = new FakeMetricsRecorder();
   const logger = new FakeLogger();
   const useCase = new ProcessJob({
     jobs: repo,
     files,
     transcriber,
     summarizer,
+    metrics,
     logger,
     transcribeModel: 'whisper-1',
     summaryModel: 'gpt-4o',
@@ -171,6 +184,7 @@ function setup(overrides?: {
     files: files as FakeFileStore,
     transcriber: transcriber as FakeTranscriber,
     summarizer: summarizer as FakeSummarizer,
+    metrics,
     logger,
     useCase,
   };
@@ -178,7 +192,7 @@ function setup(overrides?: {
 
 describe('ProcessJob', () => {
   it('完整成功: queued→transcribing→summarizing→succeeded, 结果/产物/日志正确', async () => {
-    const { repo, files, transcriber, summarizer, logger, useCase } = setup();
+    const { repo, files, transcriber, summarizer, metrics, logger, useCase } = setup();
     repo.jobs.set('job-1', makeJob());
 
     await useCase.run('job-1');
@@ -209,6 +223,21 @@ describe('ProcessJob', () => {
     expect(summarizedLog?.model).toBe('gpt-4o');
     expect(transcriber.lastJobId).toBe('job-1');
     expect(summarizer.lastJobId).toBe('job-1');
+    // 指标落盘: 组装转录字数/时长与摘要 token 用量
+    expect(metrics.records).toHaveLength(1);
+    const metric = metrics.records[0] as UsageMetric;
+    expect(metric).toMatchObject({
+      jobId: 'job-1',
+      transcribeModel: 'whisper-1',
+      transcribeCharacterCount: 15,
+      transcribeDurationSeconds: 12.5,
+      summaryModel: 'gpt-4o',
+      summaryInputTokens: 10,
+      summaryOutputTokens: 5,
+    });
+    expect(typeof metric.totalDurationMs).toBe('number');
+    expect(typeof metric.transcribeDurationMs).toBe('number');
+    expect(typeof metric.summaryDurationMs).toBe('number');
   });
 
   it('转录失败(DomainError): 转 failed 且 failure.code 保留', async () => {

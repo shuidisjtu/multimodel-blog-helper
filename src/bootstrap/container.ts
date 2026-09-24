@@ -12,6 +12,7 @@ import { QueryJob } from '../application/query-job.js';
 import { RecoverJobs } from '../application/recover-jobs.js';
 import { SubmitAudio } from '../application/submit-audio.js';
 import { MusicMetadataDurationProbe } from '../infrastructure/common/music-metadata-duration-probe.js';
+import { FileMetricsRecorder } from '../infrastructure/metrics/file-metrics-recorder.js';
 import { ResponsesSummarizer } from '../infrastructure/openai/summarizer.js';
 import { OpenAITranscriber } from '../infrastructure/openai/transcriber.js';
 import { MemoryJobQueue } from '../infrastructure/queue/memory-job-queue.js';
@@ -84,11 +85,13 @@ export function buildContainer(config: AppConfig): AppDependencies {
     },
     logger,
   );
+  const metrics = new FileMetricsRecorder(config.storage.tempDir);
   const processJob = new ProcessJob({
     jobs,
     files,
     transcriber,
     summarizer,
+    metrics,
     logger,
     transcribeModel: config.openai.transcribeModel,
     summaryModel: config.openai.summaryModel,

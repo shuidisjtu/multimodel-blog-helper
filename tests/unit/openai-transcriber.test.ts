@@ -48,6 +48,8 @@ describe('OpenAITranscriber', () => {
     });
 
     expect(result.text).toBe('transcript text');
+    expect(result.characterCount).toBe('transcript text'.length);
+    expect(result.durationSeconds).toBeUndefined();
     const [args, opts] = client.create.mock.calls[0] as NonNullable<
       (typeof client.create.mock.calls)[0]
     >;
@@ -57,6 +59,23 @@ describe('OpenAITranscriber', () => {
     expect(args.file).toBeInstanceOf(Blob);
     expect((args.file as File).name).toBe('audio-sample.mp3');
     expect(opts).toMatchObject({ timeout: 60000, maxRetries: 0 });
+  });
+
+  it('上游返回 duration 时填充 durationSeconds', async () => {
+    const client = fakeClient();
+    client.create.mockResolvedValue({ text: 'transcript text', duration: 42 });
+    const transcriber = new OpenAITranscriber(
+      client as unknown as OpenAI,
+      'whisper-1',
+      { timeoutMs: 60000, maxRetries: 2 },
+      new FakeLogger(),
+    );
+    const result = await transcriber.transcribe({
+      jobId: 'job-1',
+      path: 'fixtures/audio-sample.mp3',
+      mimeType: 'audio/mpeg',
+    });
+    expect(result.durationSeconds).toBe(42);
   });
 
   it('上游失败时向上抛错,由错误边界处理(不伪造结果)', async () => {

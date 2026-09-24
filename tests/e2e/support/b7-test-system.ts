@@ -13,6 +13,7 @@ import { SubmitAudio } from '../../../src/application/submit-audio.js';
 import { DomainError } from '../../../src/domain/errors.js';
 import type {
   AudioDurationProbe,
+  MetricsRecorder,
   SummarizeParams,
   Summarizer,
   TranscribeParams,
@@ -186,11 +187,13 @@ export async function createB7TestSystem(options: B7TestSystemOptions = {}): Pro
   const queryJob = new QueryJob({ jobs, clock, logger });
   const getTranscript = new GetTranscript({ jobs, files, logger });
   const askWeather = new AskWeather({ weather, logger });
+  const metrics: MetricsRecorder = { record: async () => {} };
   const processJob = new ProcessJob({
     jobs,
     files,
     transcriber,
     summarizer,
+    metrics,
     logger,
     transcribeModel: 'b7-fake-transcriber',
     summaryModel: 'b7-fake-summarizer',

@@ -9,9 +9,12 @@ import { assertCanTransition, isTerminal } from '../domain/job.js';
 import type {
   FileStore,
   JobRepository,
+  MetricsRecorder,
   Summarizer,
+  Summary,
   Transcriber,
   Transcript,
+  UsageMetric,
 } from '../domain/ports.js';
 import type { LogFields, Logger } from '../shared/logger.js';
 
@@ -22,6 +25,7 @@ export class ProcessJob {
       files: FileStore;
       transcriber: Transcriber;
       summarizer: Summarizer;
+      metrics: MetricsRecorder;
       logger: Logger;
       transcribeModel: string;
       summaryModel: string;
@@ -57,15 +61,21 @@ export class ProcessJob {
       return;
     }
     try {
+      const totalStarted = Date.now();
       await this.transition(jobId, 'queued', 'transcribing');
-      const transcript = await this.transcribe(jobId, input.path, input.mimeType);
+      const { transcript, durationMs: transcribeDurationMs } = await this.transcribe(
+        jobId,
+        input.path,
+        input.mimeType,
+      );
       await this.transition(jobId, 'transcribing', 'summarizing');
       const summarizeStarted = Date.now();
       const summary = await this.deps.summarizer.summarize({ jobId, text: transcript.text });
+      const summaryDurationMs = Date.now() - summarizeStarted;
       this.deps.logger.info({
         event: 'job.summarized',
         jobId,
-        durationMs: Date.now() - summarizeStarted,
+        durationMs: summaryDurationMs,
         model: this.deps.summaryModel,
       });
       // 中间产物落盘(转录 + 摘要)
@@ -89,6 +99,14 @@ export class ProcessJob {
         },
       }));
       this.deps.logger.info({ event: 'job.status', jobId, from: 'summarizing', to: 'succeeded' });
+      await this.recordMetric(
+        jobId,
+        transcript,
+        transcribeDurationMs,
+        summary,
+        summaryDurationMs,
+        totalStarted,
+      );
     } catch (err) {
       await this.markFailed(jobId, err);
     }
@@ -104,16 +122,50 @@ export class ProcessJob {
   }
 
   /** 转录并记录模型与耗时(转录请求携带 jobId 并记录模型/耗时)。 */
-  private async transcribe(jobId: string, path: string, mimeType: string): Promise<Transcript> {
+  private async transcribe(
+    jobId: string,
+    path: string,
+    mimeType: string,
+  ): Promise<{ transcript: Transcript; durationMs: number }> {
     const started = Date.now();
     const transcript = await this.deps.transcriber.transcribe({ jobId, path, mimeType });
+    const durationMs = Date.now() - started;
     this.deps.logger.info({
       event: 'job.transcribed',
       jobId,
-      durationMs: Date.now() - started,
+      durationMs,
       model: this.deps.transcribeModel,
     });
-    return transcript;
+    return { transcript, durationMs };
+  }
+
+  /** 成功后落盘用量指标; 落盘失败仅记日志(指标不影响主流程)。 */
+  private async recordMetric(
+    jobId: string,
+    transcript: Transcript,
+    transcribeDurationMs: number,
+    summary: Summary,
+    summaryDurationMs: number,
+    totalStarted: number,
+  ): Promise<void> {
+    const metric: UsageMetric = {
+      jobId,
+      completedAt: new Date().toISOString(),
+      transcribeModel: this.deps.transcribeModel,
+      transcribeCharacterCount: transcript.characterCount,
+      transcribeDurationSeconds: transcript.durationSeconds,
+      transcribeDurationMs,
+      summaryModel: this.deps.summaryModel,
+      summaryInputTokens: summary.usage?.inputTokens,
+      summaryOutputTokens: summary.usage?.outputTokens,
+      summaryDurationMs,
+      totalDurationMs: Date.now() - totalStarted,
+    };
+    try {
+      await this.deps.metrics.record(metric);
+    } catch (err) {
+      this.deps.logger.warn({ event: 'metrics.record_failed', jobId, error: err });
+    }
   }
 
   /** 处理错误转 failed: 仅当前状态非终态时应用; 未知错误保留安全文案, 原始错误仅记录。 */
