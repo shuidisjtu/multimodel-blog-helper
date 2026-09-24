@@ -45,7 +45,13 @@ async function startApp(opts: Options = {}): Promise<Context> {
       summaryTimeoutMs: 1000,
       maxRetries: 0,
     },
-    storage: { tempDir: 'temp', maxUploadBytes: 1024, jobTtlHours: 24 },
+    storage: {
+      tempDir: 'temp',
+      maxUploadBytes: 1024,
+      jobTtlHours: 24,
+      tombstoneRetentionDays: 30,
+      cleanupIntervalMs: 3600000,
+    },
     weather: { baseUrl: 'https://wttr.in', timeoutMs: 1000 },
     queue: { maxLength: 10, workerConcurrency: 1 },
     limits: {

@@ -13,6 +13,7 @@ src/
     config.ts # 环境配置加载与校验(启动失败即退出)
     server.ts # HTTP 服务启动入口(RecoverJobs 先于 worker 的启动顺序契约)
     container.ts # 依赖组装(配置→基础设施→用例→worker/recover, 业务依赖单点注入)
+    cleanup-scheduler.ts # 过期清理周期调度(setInterval + 错误兜底 + unref)
   domain/
     job.ts # Job 状态机
     errors.ts # 领域错误
@@ -95,6 +96,7 @@ tests/
     job-id-schema.test.ts # jobId DTO 单测(UUID/非法格式/路径注入)
     weather-request-schema.test.ts # weather DTO 单测(对象边界/原始长度/trim)
     rate-limit.test.ts # 限流纯函数单测(XFF 首段解析/动态 Retry-After 边界)
+    cleanup-scheduler.test.ts # 调度器单测(fake timers: 周期触发/错误继续/stop)
   integration/ # 跨模块集成测试
     cleanup-expired.test.ts
     file-job-repository.test.ts

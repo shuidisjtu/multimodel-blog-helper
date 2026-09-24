@@ -20,7 +20,13 @@ function fakeConfig(): AppConfig {
       summaryTimeoutMs: 1000,
       maxRetries: 0,
     },
-    storage: { tempDir, maxUploadBytes: 1024, jobTtlHours: 24 },
+    storage: {
+      tempDir,
+      maxUploadBytes: 1024,
+      jobTtlHours: 24,
+      tombstoneRetentionDays: 30,
+      cleanupIntervalMs: 3600000,
+    },
     weather: { baseUrl: 'https://wttr.in', timeoutMs: 15000 },
     queue: { maxLength: 10, workerConcurrency: 1 },
     limits: {
@@ -49,6 +55,7 @@ describe('buildContainer', () => {
     expect(deps.processJob).toBeDefined();
     expect(deps.worker).toBeDefined();
     expect(deps.recover).toBeDefined();
+    expect(deps.cleanup).toBeDefined();
     expect(deps.queryJob).toBeDefined();
     expect(deps.getTranscript).toBeDefined();
     expect(deps.askWeather).toBeDefined();
