@@ -48,6 +48,10 @@ export interface AppConfig {
     tempDir: string;
     maxUploadBytes: number;
     jobTtlHours: number;
+    /** tombstone 二次清理保留天数, 默认 30。 */
+    tombstoneRetentionDays: number;
+    /** 过期清理周期(毫秒), 默认 3600000(1 小时)。 */
+    cleanupIntervalMs: number;
   };
   weather: {
     baseUrl: string;
@@ -125,6 +129,8 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
       tempDir: requireEnv(env, 'TEMP_DIR'),
       maxUploadBytes: intEnv(env, 'MAX_UPLOAD_BYTES', 25 * 1024 * 1024, 1),
       jobTtlHours: intEnv(env, 'JOB_TTL_HOURS', 24, 1),
+      tombstoneRetentionDays: intEnv(env, 'TOMBSTONE_RETENTION_DAYS', 30, 1),
+      cleanupIntervalMs: intEnv(env, 'CLEANUP_INTERVAL_MS', 3600000, 1000),
     },
     weather: {
       baseUrl: requireEnv(env, 'WEATHER_BASE_URL'),

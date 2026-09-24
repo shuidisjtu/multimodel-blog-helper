@@ -87,7 +87,7 @@ domain 只依赖这些端口接口（定义见 [`src/domain/ports.ts`](../../src
 | `GetTranscript` | 下载纯文本转录 | 未就绪→`JOB_NOT_READY`(409) |
 | `AskWeather` | 查询天气 | 未知失败统一 `WEATHER_UNAVAILABLE` |
 | `RecoverJobs` | 启动时恢复未完成任务 | `queued` 重入队；进行中标记 `PROCESS_INTERRUPTED` 不重试 |
-| `CleanupExpired` | 清理过期任务 | 删文件 + 保留 tombstone（**当前未接线**，见 §8） |
+| `CleanupExpired` | 清理过期任务 | 删文件 + 保留 tombstone（启动时清一次 + 周期调度） |
 
 ## 4. infrastructure 层：适配器
 
@@ -163,11 +163,10 @@ POST /api/v1/assistant/weather → AskWeather → WttrWeatherProvider（wttr.in�
 ### 7.3 后台流程
 
 - **启动恢复**：`RecoverJobs.run()`（`queued` 重入队；进行中态标记 `PROCESS_INTERRUPTED` 且不自动重试，防重复计费）**必须先于** `worker.start()`。
-- **过期清理**：`CleanupExpired`（终态过期 → 删文件 + 保留 tombstone）——接线状态见 §8。
+- **过期清理**：`CleanupExpired`（终态过期 → 删文件 + 保留 tombstone）——启动时执行一次 + 周期调度（`startCleanupScheduler`）。
 
 ## 8. 契约与实现的已知差异
 
 > 只列「读者易被误导」的差异；任务进度以 [`task-list.md`](../project-division/task-list.md) 为权威。
 
-- `CleanupExpired` 用例已实现并有测试，但**未在 `container.ts` 组装**，生产进程当前无调度器触发过期清理（见 issue #15）。
 - `openapi.yaml` 声明了 `/health/live`、`/health/ready`、`/metrics`，但 `src/` 内无实现；`config.metrics.port` 为无消费方的死配置。

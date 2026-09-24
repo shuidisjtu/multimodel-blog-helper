@@ -4,6 +4,7 @@
  */
 import OpenAI from 'openai';
 import { AskWeather } from '../application/ask-weather.js';
+import { CleanupExpired } from '../application/cleanup-expired.js';
 import { GetTranscript } from '../application/get-transcript.js';
 import { ProcessJob } from '../application/process-job.js';
 import { ProcessJobWorker } from '../application/process-job-worker.js';
@@ -37,6 +38,7 @@ export interface AppDependencies {
   processJob: ProcessJob;
   worker: ProcessJobWorker;
   recover: RecoverJobs;
+  cleanup: CleanupExpired;
 }
 
 export function buildContainer(config: AppConfig): AppDependencies {
@@ -93,6 +95,13 @@ export function buildContainer(config: AppConfig): AppDependencies {
   });
   const worker = new ProcessJobWorker({ queue, process: processJob, logger });
   const recover = new RecoverJobs({ jobs, queue, clock, logger });
+  const cleanup = new CleanupExpired({
+    jobs,
+    files,
+    clock,
+    logger,
+    tombstoneRetentionDays: config.storage.tombstoneRetentionDays,
+  });
   return {
     config,
     logger,
@@ -105,5 +114,6 @@ export function buildContainer(config: AppConfig): AppDependencies {
     processJob,
     worker,
     recover,
+    cleanup,
   };
 }
