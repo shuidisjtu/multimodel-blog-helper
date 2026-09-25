@@ -39,7 +39,7 @@
 
 | 编号 | 任务 | 前置 | 验收标准 | 状态/认领人 |
 | --- | --- | --- | --- | --- |
-| A6 | 千问 ASR 替代 whisper-1（**恢复转录可用**） | A2、A3 | **P0：whisper-1 已失效、转录完全不可用，首要目标是恢复转录能力。** 选定方案 C——国内百炼 `qwen-audio-3.1-asr-flash` 同步接口 + base64；单 provider，删除已不可用的 `OpenAITranscriber`；摘要保持 `gpt-4o`；须处理 base64 10 MB / 5 分钟与上传上限的冲突。已拆为 7 个有依赖关系的子任务：**A6-1 可行性确认 → A6-2 配置 ∥ A6-3 适配器 → A6-4 测试 → A6-5 注入与下线 ∥ A6-6 文档 → A6-7 联调**；各子任务的前置、说明、验收标准与预估见[实施计划](../records/2026-09-23-qwen-asr-implementation-plan.md) §4 与 §7（依据**仅限国内站官方文档**） | 🔶 计划已定稿（2026-09-24），合计约 3–5 人日；**待认领**，A6-1 无前置可立即开始 / 待认领 |
+| A6 | 千问 ASR 替代 whisper-1（**恢复转录 + 带时间戳**） | A2、A3 | **P0：whisper-1 已失效、转录完全不可用，首要目标是恢复转录能力。** 选定方案 C——国内百炼 `qwen-audio-3.1-asr-flash` 同步接口 + base64；**转录返回句级时间戳**（API 原生给词级，须按标点重组，§2.3）；单 provider，删除已不可用的 `OpenAITranscriber`；摘要保持 `gpt-4o`；上限按实测定为**时长 300s / 原始 15 MiB**（§2.5）。已拆为 7 个有依赖关系的子任务：**A6-1 可行性确认 ✅ → A6-2 配置 ∥ A6-3 适配器 → A6-4 测试 → A6-5 注入与下线 ∥ A6-6 文档 → A6-7 联调**；前置/说明/验收标准/预估见[实施计划](../records/2026-09-23-qwen-asr-implementation-plan.md) §4 与 §7（依据**仅限国内站官方文档** + [A6-1 实测](../evidence/a6-1-qwen-asr-feasibility/2026-09-25-a6-1-qwen-asr-feasibility-shuidisjtu.md)） | 🟡 A6-1 已完成（2026-09-25）；**A6-2 起待认领**，合计约 4–6.5 人日、剩余约 3.5–5.5 人日 / A6-1 shuidisjtu |
 | C6 | 健康与指标端点（长期增强） | B6a | `/health/live`、`/health/ready` 与 `/metrics`；Prometheus/Grafana 仅实际部署需要时实施 | ⏸️ 延期，不阻塞答辩 / shuidisjtu |
 | C7 | 轻量故障运行手册 | B6a、B7 | 失败判定、日志定位、任务恢复、临时文件清理和重启后验证 | 待办 / ym-hello |
 
