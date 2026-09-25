@@ -87,3 +87,4 @@ delete env.OPENAI_API_KEY;      // 断言消息精确等于 'Missing required en
 1. **本地 `.env` 仍是旧上限**：`MAX_UPLOAD_BYTES=26214400`、`MAX_AUDIO_DURATION_SECONDS=3600`。`.env` 优先级高于代码默认值，**未同步修改则新默认值不生效**，超限音频会重新变成上游报错。需手工改为 15728640 / 300（或删除这两行以采用默认值）。
 2. **`qwen` 域在 A6-3 前无消费者**：属分阶段交付的预期状态（A6-2 ∥ A6-3 本就允许并行），A6-5 完成组合根接线后消除。
 3. **启动新增一道要求**：A6-2 起 `DASHSCOPE_API_KEY` 为必填，缺失则启动失败。这是「缺失所需 key 时启动即失败」的预期行为，但也意味着未配置该 key 的环境（含 CI 中直接调用 `loadConfig` 的路径）会立即失败。
+4. **`QWEN_ASR_ENDPOINT` 默认值为通用域名，且该域名有时效性**：本任务将默认值定为 `dashscope.aliyuncs.com`（A6-1 实测可用、无需业务空间 ID）。但阿里云公告该域名**自 2026-09-30 起停止新特性**（存量业务兼容），正式与演示环境应改用业务空间专属域名 `{WorkspaceId}.{region}.maas.aliyuncs.com`。**默认值有意保留通用域名**（否则使用者需先填入自己的 WorkspaceId 才能启动），迁移只需改这一个环境变量、无需改代码。详见[实施计划 §2.6](../../records/2026-09-23-qwen-asr-implementation-plan.md)。

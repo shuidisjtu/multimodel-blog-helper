@@ -69,7 +69,7 @@ Qwen-ASR 不是当前 `client.audio.transcriptions.create({ file, model })` 的�
 
 实测确认的关键事实（详见 A6-1 证据）：
 
-- 通用域名 `dashscope.aliyuncs.com` **可用**，无需业务空间专属域名
+- 通用域名 `dashscope.aliyuncs.com` **可用**（开通阶段用它快速验证即可；该域名有时效性，正式环境改用业务空间专属域名，见 §2.6）
 - 响应**无 `choices` 字段**，文本在 `output.text`（`output.output.text` 为冗余副本）
 - 端点：`POST /api/v1/services/aigc/multimodal-generation/generation`；`parameters.format` **必填**
 - `usage` 返回 `{duration, input_tokens, output_tokens, total_tokens}`，直接供 C5 指标
@@ -143,6 +143,35 @@ A6-1 实测推翻了原计划「因 base64 10MB 限制而须把上传上限降�
 > 换算关系：base64 膨胀 4/3，故「原始 ≤15 MiB」等价于「编码后 ≤20 MiB」。设为上传上限可让超限在**上传阶段**即被拒（413），而不是等到转录时才由上游拒绝。
 
 **内存取舍**：base64 需整文件读入内存，与现有 `openAsBlob` 流式读取不同。上限下调即是保护；适配器内需注释说明该取舍。
+
+### 2.6 接入域名：DashScope 域名自 2026-09-30 起停止新特性
+
+**官方公告**：[【产品变更】百炼 DashScope 域名进入维护状态通知](https://www.aliyun.com/notice/118679)（2026-09-20 发布，影响时间 2026-09-30）。官方帮助文档对应表述见参考资料 [8]：
+
+> DashScope 域名（`dashscope.aliyuncs.com`）自 2026 年 9 月 30 日起**不再支持新特性**。存量业务兼容，建议迁移至业务空间专属域名。
+
+**这不是下线。** 官网明确「存量业务兼容」，既有调用继续可用。因此 §2.1 的三种接入形态选型**全部不变**——它们走同一套域名规则，本次不需要重做选型。
+
+**两种接入域名的差异**（官方对照表，仅列影响本项目的项）：
+
+| 对比项 | 业务空间专属域名（推荐） | DashScope 域名（现有） |
+| --- | --- | --- |
+| 域名格式 | `{WorkspaceId}.{region}.maas.aliyuncs.com` | `dashscope.aliyuncs.com` |
+| 鉴权范围 | 仅访问当前业务空间 | 可访问所有业务空间 |
+| 请求超时 | 3600 秒 | **600 秒** |
+| 新特性 | 持续支持 | **2026-09-30 起不再支持** |
+| SLA | 99.9% | 99.9% |
+
+**迁移代价对本项目几乎为零**：官方迁移指引为「替换 Base URL 中的域名，**无需修改业务逻辑代码**」。DashScope 接口从 `https://dashscope.aliyuncs.com/api/v1` 换为 `https://llm-xxx.cn-beijing.maas.aliyuncs.com/api/v1`——**路径完全不变**，故只需改 `QWEN_ASR_ENDPOINT` 一个配置项（A6-2 已预留），无需改任何代码。同一把 API Key 可继续使用，迁移指引未要求换 Key。
+
+**对本项目的处置**：
+
+- `QWEN_ASR_ENDPOINT` **默认值保留通用域名**。理由：业务空间专属域名必须填入使用者自己的 `WorkspaceId`，做成必填会让任何人 clone 后无法直接启动；通用域名当前仍可用，作为开箱默认更合适。
+- **A6-7 联调与答辩演示环境必须使用业务空间专属域名**。不是赌旧域名会挂，而是不应把一个即将停止演进、且超时上限只有 600 秒的域名放在答辩现场（该要求已写进 A6-7 验收标准）。
+- `QWEN_ASR_TIMEOUT_MS` 默认 300000 ms 低于两种域名的超时上限，无需随域名调整。
+- 迁移后须在真实环境重新验证一次转录（A6-7 已含该环节）。
+
+**时效风险（本次真正需要关注的）**：`qwen-audio-3.1-asr-flash` 与 `speaker_diarization_enabled` 在旧域名上于 2026-09-25 实测可用（A6-1），但旧域名自此冻结——**后续 ASR 的新模型与新参数不会再落到该域名**。今天的可用性不等于答辩当天及之后的可用性，故按上述处置迁移。
 
 ## 3. 当前架构与改造边界
 
@@ -266,7 +295,9 @@ HTTP 上传（MAX_UPLOAD_BYTES 收敛到 15 MiB）
 
 **对照基线的方式**：`whisper-1` 已不可用、无法现场复跑，不能做实时 A/B。改为对照 `docs/evidence/` 中归档的历史记录（2026-08-24 的 whisper-1 实测：转录 9009ms / 摘要 3276ms）。质量结论只基于同一批有授权的样本。
 
-**验收标准**：全链路真实跑通并留存脱敏证据；时间戳正确；超限行为明确；证据中区分 fake 与真实联调结果。
+**域名的要求（§2.6）**：联调**必须使用业务空间专属域名**（`QWEN_ASR_ENDPOINT=https://<WorkspaceId>.cn-beijing.maas.aliyuncs.com/api/v1/services/aigc/multimodal-generation/generation`），而非通用 DashScope 域名。原因是后者自 2026-09-30 起停止新特性、请求超时上限 600 秒，不适合作为答辩演示环境。同时确认该业务空间下 `qwen-audio-3.1-asr-flash` 可用。通用域名的联调结果**不能**作为答辩环境的可用性依据。
+
+**验收标准**：全链路真实跑通并留存脱敏证据；时间戳正确；超限行为明确；**联调在业务空间专属域名下完成且证据中记录所用域名（不含 WorkspaceId 等敏感值）**；证据中区分 fake 与真实联调结果。
 
 **预估** 0.5 人日。
 
@@ -349,6 +380,7 @@ git diff --check
 | **错误格式和重试边界不同于原上游** | Job 失败被误判或重复扣费 | 适配器内映射安全错误类别；测试 4xx 与网络/429/5xx；避免双重重试 |
 | **凭证域混淆** | 启动需同时设置两家密钥 | 配置分域——转录只校验 `DASHSCOPE_API_KEY`，摘要只校验 `OPENAI_*`；日志禁止输出密钥 |
 | **对照基线不可得** | 无法与 Whisper 做实时 A/B | 用 `docs/evidence/` 中归档的历史记录作参照（§4 A6-7） |
+| **接入域名将于 2026-09-30 停止新特性** | 旧域名冻结后，后续 ASR 新模型/新参数不会落到该域名；答辩环境若仍用旧域名存在不确定性 | §2.6：`QWEN_ASR_ENDPOINT` 可一键切到业务空间专属域名（路径不变、无需改代码）；A6-7 验收标准已要求联调使用专属域名 |
 | **本地 node_modules 易被装坏** | `tsx` 无法加载，`check:docs`/`verify` 全线失败 | 已记录于 A6-1 遗留提醒：报 `Cannot find module 'esbuild'` 时重跑 `npm ci` |
 
 ## 9. 待确认事项
@@ -373,6 +405,7 @@ git diff --check
 5. [阿里云百炼：Qwen-ASR-Realtime WebSocket 接入指南](https://help.aliyun.com/zh/model-studio/qwen-asr-realtime-interaction-process) — WebSocket URL 形态、请求头鉴权、VAD 与 Manual 两种模式；「推完音频必须先发 `session.finish` 再关连接」的官方警告。
 6. [阿里云百炼：Qwen-ASR-Realtime 服务端事件](https://help.aliyun.com/zh/model-studio/qwen-asr-realtime-server-events) — `input_audio_buffer.speech_started`（`audio_start_ms`）/ `speech_stopped`（`audio_end_ms`）/ `.text`（中间结果）/ `.completed`（最终结果）。
 7. [阿里云百炼：实时语音识别用户指南](https://help.aliyun.com/zh/model-studio/real-time-speech-recognition-user-guide) — 实时模型介绍与完整示例代码。
-8. [阿里云百炼：业务空间专属域名与地域](https://help.aliyun.com/zh/model-studio/regions) — `{WorkspaceId}` 域名迁移说明与各地域差异（实测通用域名仍可用，见 A6-1 证据）。
+8. [阿里云百炼：选择地域、服务部署范围和接入域名](https://help.aliyun.com/zh/model-studio/regions) — **§2.6 的核心依据**：三种接入域名（业务空间专属 / DashScope / 试用）的对照表；「DashScope 域名自 2026-09-30 起不再支持新特性」；两步迁移指引（替换域名、不改业务代码）；各地域域名与限制；各地域功能支持矩阵。
+9. [阿里云公告：【产品变更】百炼 DashScope 域名进入维护状态通知](https://www.aliyun.com/notice/118679)（2026-09-20 发布，影响时间 2026-09-30）— §2.6 的公告来源。正文为前端渲染，公告结论以参考 [8] 的官方文档表述为准。
 
 > 官方文档和模型服务可能更新。上限与字段以 [A6-1 实测](../evidence/a6-1-qwen-asr-feasibility/2026-09-25-a6-1-qwen-asr-feasibility-shuidisjtu.md) 为准；本计划中的估算不代表服务商 SLA 或费用承诺。

@@ -8,7 +8,7 @@
 
 | # | 待确认项 | 结论 |
 | --- | --- | --- |
-| 1 | 鉴权与最小调用 | ✅ 通过。通用域名 `dashscope.aliyuncs.com` 可用，无需业务空间专属域名 |
+| 1 | 鉴权与最小调用 | ✅ 通过。通用域名 `dashscope.aliyuncs.com` 可用（**时效性见 §7**：该域名 2026-09-30 起停止新特性，正式环境须用业务空间专属域名） |
 | 2 | 响应结构 | ✅ 确认**无 `choices` 字段**；文本在 `output.text`，`output.output.text` 为冗余副本 |
 | 3 | **时间戳** | ✅ **可得（推翻计划原结论）**：`output.sentence` 自带 `begin_time`/`end_time` 与**词级 `words[]`** |
 | 4 | 时长上限 | ✅ **硬限 300 秒**（301s 即拒），错误码 `AUDIO_DURATION_TOO_LONG` |
@@ -151,3 +151,15 @@ API 返回的 `sentences` 按**静音**（VAD）切分，不按语法切分。�
 - 测试音频：`fixtures/audio-sample.mp3`（18s）、`fixtures/video2.mp3`（2m51s）、`fixtures/video1.mp3`（27m，用于切片探测）
 
 **密钥处理**：`DASHSCOPE_API_KEY` 由项目成员自行写入 `.env`（已被 gitignore），全程未打印、未记录、未传输。
+
+## 7. 补充说明（2026-09-25 追加）：通用域名的时效性
+
+本记录 §1 第 1 项「通用域名 `dashscope.aliyuncs.com` 可用」反映的是 **2026-09-25 的实测事实**，该事实仍成立（存量业务兼容），但**不应被读作长期结论**。
+
+阿里云于 2026-09-20 发布公告，官方帮助文档对应表述为（完整处置见[实施计划 §2.6](../../records/2026-09-23-qwen-asr-implementation-plan.md)）：
+
+> DashScope 域名（`dashscope.aliyuncs.com`）自 2026 年 9 月 30 日起**不再支持新特性**。存量业务兼容，建议迁移至业务空间专属域名 `{WorkspaceId}.{region}.maas.aliyuncs.com`。
+
+**对本记录结论的影响**：「方案 C 可行」的结论**不变**（迁移仅替换域名，接口路径与请求体均不变），但「**无需业务空间专属域名**」这一表述应改为「**开通阶段可用通用域名快速验证；正式环境使用业务空间专属域名**」。两种域名的完整对照与处置见实施计划 §2.6。
+
+**依据**：[阿里云公告 118679](https://www.aliyun.com/notice/118679)、[百炼：选择地域、服务部署范围和接入域名](https://help.aliyun.com/zh/model-studio/regions)。
