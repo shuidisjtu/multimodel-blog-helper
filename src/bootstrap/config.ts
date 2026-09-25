@@ -5,26 +5,38 @@
 import dotenv from 'dotenv';
 import type { LogLevel } from '../shared/logger.js';
 
-const DEVELOPMENT_OPENAI_DOTENV_OVERRIDES = ['OPENAI_API_KEY', 'OPENAI_BASE_URL'] as const;
+const DEVELOPMENT_CREDENTIAL_DOTENV_OVERRIDES = [
+  'OPENAI_API_KEY',
+  'OPENAI_BASE_URL',
+  'DASHSCOPE_API_KEY',
+  'QWEN_ASR_ENDPOINT',
+] as const;
 
 /**
- * 本地开发允许仓库 .env 覆盖 IDE 注入的 OpenAI 凭据和网关地址。
+ * 本地开发允许仓库 .env 覆盖 IDE 注入的两域凭据与网关地址(摘要域 OpenAI + 转录域 DashScope)。
  * 端口、超时、模型、队列和限流等配置仍保持标准优先级：显式进程变量高于 .env。
  */
-export function applyDevelopmentOpenAiOverrides(
+export function applyDevelopmentCredentialOverrides(
   env: NodeJS.ProcessEnv,
   localEnv: NodeJS.ProcessEnv | undefined,
   nodeEnv: string,
 ): void {
   if (nodeEnv !== 'development' || localEnv === undefined) return;
-  for (const key of DEVELOPMENT_OPENAI_DOTENV_OVERRIDES) {
+  for (const key of DEVELOPMENT_CREDENTIAL_DOTENV_OVERRIDES) {
     const value = localEnv[key];
     if (value !== undefined) env[key] = value;
   }
 }
 
+/** 同步识别端点(国内站通用域名); 业务空间专属域名可经 QWEN_ASR_ENDPOINT 覆盖。 */
+const DEFAULT_QWEN_ASR_ENDPOINT =
+  'https://dashscope.aliyuncs.com/api/v1/services/aigc/multimodal-generation/generation';
+
+/** 默认转录模型: 同步识别, 实测音频时长硬限 300s 与词级时间戳(实施计划 §2.1)。 */
+const DEFAULT_QWEN_ASR_MODEL = 'qwen-audio-3.1-asr-flash';
+
 const dotenvResult = dotenv.config({ quiet: true });
-applyDevelopmentOpenAiOverrides(
+applyDevelopmentCredentialOverrides(
   process.env,
   dotenvResult.parsed,
   process.env.NODE_ENV ?? 'development',
@@ -41,6 +53,27 @@ export interface AppConfig {
     transcribeTimeoutMs: number;
     /** 摘要上游超时(毫秒), 默认 60000(摘要文本量小, 不复用转录的 10 分钟)。 */
     summaryTimeoutMs: number;
+    /** 可恢复错误的最大重试次数, 默认 2(共 3 次尝试); 0 = 不重试。 */
+    maxRetries: number;
+  };
+  /**
+   * 转录域(A6): 阿里云百炼 DashScope 配置, 字段与摘要域(openai)互相独立。
+   * 各自校验自己的环境变量, 缺失只报本域变量名, 不产生跨域误报。
+   * 注: 本服务同时提供转录与摘要, 故两域凭证均为必填。
+   */
+  qwen: {
+    /** DashScope API Key, 独立于 OPENAI_API_KEY。 */
+    apiKey: string;
+    /** 同步识别端点(国内站通用域名, A6-1 实测可用)。 */
+    endpoint: string;
+    model: string;
+    /** 转录上游超时(毫秒), 默认 300000——与音频时长硬限 300s 为 1:1。 */
+    timeoutMs: number;
+    /**
+     * 说话人分离(仅 qwen-audio-3.1-asr-flash 支持), 默认开启。
+     * 开启后返回多段 sentences 并带 speaker_id, segments 可天然按说话人边界断开(见实施计划 §2.3)。
+     */
+    speakerDiarization: boolean;
     /** 可恢复错误的最大重试次数, 默认 2(共 3 次尝试); 0 = 不重试。 */
     maxRetries: number;
   };
@@ -103,6 +136,15 @@ function intEnv(env: NodeJS.ProcessEnv, key: string, fallback: number, min = 0):
   return value;
 }
 
+/** 布尔配置: 仅接受 true/1/false/0, 空 = fallback; 其余非法值启动即失败(不静默降级)。 */
+function boolEnv(env: NodeJS.ProcessEnv, key: string, fallback: boolean): boolean {
+  const raw = env[key];
+  if (raw === undefined || raw === '') return fallback;
+  if (raw === 'true' || raw === '1') return true;
+  if (raw === 'false' || raw === '0') return false;
+  throw new ConfigError(`Invalid boolean for ${key}: ${raw}`);
+}
+
 export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
   // Node 版本门槛:openAsBlob 等内置 API 依赖 Node 24+,版本过低直接失败(环境自检,不带到运行期)
   const nodeVersion = process.versions.node ?? '';
@@ -125,9 +167,17 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
       summaryTimeoutMs: intEnv(env, 'OPENAI_SUMMARY_TIMEOUT_MS', 60000, 1),
       maxRetries: intEnv(env, 'OPENAI_MAX_RETRIES', 2, 0),
     },
+    qwen: {
+      apiKey: requireEnv(env, 'DASHSCOPE_API_KEY'),
+      endpoint: env.QWEN_ASR_ENDPOINT ?? DEFAULT_QWEN_ASR_ENDPOINT,
+      model: env.QWEN_ASR_MODEL ?? DEFAULT_QWEN_ASR_MODEL,
+      timeoutMs: intEnv(env, 'QWEN_ASR_TIMEOUT_MS', 300000, 1),
+      speakerDiarization: boolEnv(env, 'QWEN_ASR_SPEAKER_DIARIZATION', true),
+      maxRetries: intEnv(env, 'QWEN_ASR_MAX_RETRIES', 2, 0),
+    },
     storage: {
       tempDir: requireEnv(env, 'TEMP_DIR'),
-      maxUploadBytes: intEnv(env, 'MAX_UPLOAD_BYTES', 25 * 1024 * 1024, 1),
+      maxUploadBytes: intEnv(env, 'MAX_UPLOAD_BYTES', 15 * 1024 * 1024, 1),
       jobTtlHours: intEnv(env, 'JOB_TTL_HOURS', 24, 1),
       tombstoneRetentionDays: intEnv(env, 'TOMBSTONE_RETENTION_DAYS', 30, 1),
       cleanupIntervalMs: intEnv(env, 'CLEANUP_INTERVAL_MS', 3600000, 1000),
@@ -143,25 +193,17 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
     limits: {
       rateLimitUploadPerMinute: intEnv(env, 'RATE_LIMIT_UPLOAD_PER_MINUTE', 10, 1),
       rateLimitWeatherPerMinute: intEnv(env, 'RATE_LIMIT_WEATHER_PER_MINUTE', 30, 1),
-      maxAudioDurationSeconds: intEnv(env, 'MAX_AUDIO_DURATION_SECONDS', 3600, 1),
+      maxAudioDurationSeconds: intEnv(env, 'MAX_AUDIO_DURATION_SECONDS', 300, 1),
     },
     metrics: {
       port: intEnv(env, 'METRICS_PORT', 9100, 1),
     },
     security: {
-      trustProxy: parseTrustProxy(env.TRUST_PROXY),
+      trustProxy: boolEnv(env, 'TRUST_PROXY', false),
       corsAllowedOrigins: parseCorsOrigins(env.CORS_ALLOWED_ORIGINS),
     },
     logLevel: parseLogLevel(env.LOG_LEVEL),
   };
-}
-
-/** TRUST_PROXY 白名单解析(B6): 空=不信任代理(默认用 socket 地址); 仅 true/1 显式启用, 其余非法值启动即失败。 */
-function parseTrustProxy(raw: string | undefined): boolean {
-  if (raw === undefined || raw === '') return false;
-  if (raw === 'true' || raw === '1') return true;
-  if (raw === 'false' || raw === '0') return false;
-  throw new ConfigError(`Invalid TRUST_PROXY: ${raw}`);
 }
 
 /** CORS 白名单解析(B6): 逗号分隔绝对 Origin; 空=默认同源; 禁止通配符 * 与无 scheme 的值。 */

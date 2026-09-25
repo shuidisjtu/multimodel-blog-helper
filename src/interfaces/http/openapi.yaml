@@ -30,8 +30,8 @@ paths:
       description: |
         接收音频文件并立即创建 queued 任务，转录与摘要在后台执行。
         新任务返回 202；Idempotency-Key 重放且文件内容相同时返回原任务和 200，
-        不会再次入队。文件大小默认上限为 25 MiB，实际值由 MAX_UPLOAD_BYTES 配置。
-        音频时长默认上限为 3600 秒，实际值由 MAX_AUDIO_DURATION_SECONDS 配置。
+        不会再次入队。文件大小默认上限为 15 MiB，实际值由 MAX_UPLOAD_BYTES 配置。
+        音频时长默认上限为 300 秒，实际值由 MAX_AUDIO_DURATION_SECONDS 配置。
       parameters:
         - $ref: '#/components/parameters/IdempotencyKey'
       requestBody:
@@ -386,7 +386,7 @@ components:
           format: binary
           description: |
             必填音频文件。允许 audio/mpeg、audio/wav、audio/mp4、audio/x-m4a；
-            默认最大 25 MiB，服务端还会校验文件签名和最大音频时长。
+            默认最大 15 MiB，服务端还会校验文件签名和最大音频时长。
 
     JobStatus:
       type: string

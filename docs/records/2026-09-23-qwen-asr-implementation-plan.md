@@ -1,7 +1,7 @@
 # Qwen-ASR 接入实施计划
 
 > 日期：2026-09-23（2026-09-25 按 A6-1 实测结果更新）  
-> 状态：**A6-1 已完成**，进入实施（A6-2 起）  
+> 状态：**A6-1、A6-2 已完成**，进入实施（A6-3 起）  
 > 目标模型：`qwen-audio-3.1-asr-flash`（同步识别）  
 > 计划分支：`feature/qwen-asr-migration`  
 > 实测依据：[A6-1 可行性确认证据](../evidence/a6-1-qwen-asr-feasibility/2026-09-25-a6-1-qwen-asr-feasibility-shuidisjtu.md)
@@ -102,7 +102,7 @@ Qwen-ASR 不是当前 `client.audio.transcriptions.create({ file, model })` 的�
 2. **中英文标点集不同**（`。！？` vs `.!?`），须同时匹配
 3. **会产生极短片段**（最小 1.2 s），需设最小长度阈值，否则时间轴过碎
 
-> 说话人分离（`speaker_diarization_enabled`）是否开启由 A6-2 决定——开启可额外获得 `speaker_id`，代价是请求多一个参数。当前按**开启**设计，以便 segments 天然按说话人边界断开。
+> 说话人分离（`speaker_diarization_enabled`）**已定默认开启**（A6-2，配置项 `QWEN_ASR_SPEAKER_DIARIZATION`）：关闭时全程只返回 1 段、没有任何静音或说话人边界可用，只有开启才拿得到 `sentences[]` 与 `speaker_id`。代价仅为请求多一个参数，可随时经环境变量关闭。
 
 ### 2.4 摘要模型保持 GPT-4o
 
@@ -188,19 +188,21 @@ HTTP 上传（MAX_UPLOAD_BYTES 收敛到 15 MiB）
 
 **遗留提醒**：本机 `node_modules/esbuild` 曾被不完整安装破坏（`tsx` 无法加载），已用 `npm ci` 修复。若后续 `check:docs` / `verify` 报 `Cannot find module 'esbuild'`，重跑 `npm ci` 即可。
 
-### A6-2 配置与依赖边界
+### A6-2 配置与依赖边界 ✅ 已完成（2026-09-25）
 
 **前置**：A6-1 ✅
 
-**说明**：在 `AppConfig` 新增独立 DashScope 配置——`DASHSCOPE_API_KEY`（独立于 `OPENAI_API_KEY`）、`QWEN_ASR_ENDPOINT`、`QWEN_ASR_MODEL`（默认 `qwen-audio-3.1-asr-flash`）、`QWEN_ASR_TIMEOUT_MS`，重试次数沿用既有配置或新增。移除 `OPENAI_TRANSCRIBE_MODEL` 与 `OPENAI_TRANSCRIBE_TIMEOUT_MS`。
+**说明**：在 `AppConfig` 新增独立 DashScope 配置——`DASHSCOPE_API_KEY`（独立于 `OPENAI_API_KEY`）、`QWEN_ASR_ENDPOINT`、`QWEN_ASR_MODEL`（默认 `qwen-audio-3.1-asr-flash`）、`QWEN_ASR_TIMEOUT_MS`（默认 300000）、`QWEN_ASR_SPEAKER_DIARIZATION`（默认 `true`）、`QWEN_ASR_MAX_RETRIES`（默认 2）。
 
-按 §2.5 调整上限：`MAX_AUDIO_DURATION_SECONDS` → **300**、`MAX_UPLOAD_BYTES` → **15 MiB**，并同步更新 OpenAPI 中相关的 413/422 描述与 `.env.example`。
+按 §2.5 调整上限：`MAX_AUDIO_DURATION_SECONDS` → **300**、`MAX_UPLOAD_BYTES` → **15 MiB**，并同步更新 OpenAPI 中相关描述与 `.env.example`。
 
-另需决定并落地**是否默认开启 `speaker_diarization_enabled`**（§2.3 末段；当前按开启设计）。
+**已落地**：`AppConfig.qwen` 域；上限默认值；`.env.example` 两域分组说明；OpenAPI 中 25 MiB→15 MiB、3600→300；Web 端错误文案与上传提示同步；开发环境 `.env` 覆盖名单扩到两域（`applyDevelopmentCredentialOverrides`）；TRUST_PROXY 与新增布尔项共用 `boolEnv`。**验收证据**见 [A6-2 证据记录](../evidence/a6-2-config-boundaries/2026-09-25-a6-2-config-boundaries-shuidisjtu.md)。
 
-注意 `config.ts` 当前在模块加载期即对 `OPENAI_*` 做 `requireEnv` 硬校验，改为分域校验时须保持「启动即失败」的既有语义。
+**`speaker_diarization_enabled` 决定（§9 第 5 项）**：**默认开启**，配置项 `QWEN_ASR_SPEAKER_DIARIZATION`。理由：开启后返回多段 `sentences[]` 且带 `speaker_id`，segments 可天然按说话人边界断开（§2.3）；关闭时全程只返回 1 段、无静音边界可用。代价仅为请求多一个参数，可随时经环境变量关闭。
 
-**验收标准**：启动时转录侧只校验 DashScope 凭证、摘要侧只校验 `OPENAI_*`，两域互不误伤；缺失所需 key 时启动即失败；上传超过 15 MiB 或时长超过 300s 时返回**明确业务错误**而非上游报错；配置单元测试覆盖两域隔离与上限边界。
+**范围调整（与计划的差异，已记录）**：`OPENAI_TRANSCRIBE_MODEL` / `OPENAI_TRANSCRIBE_TIMEOUT_MS` 的**物理移除随 A6-5 落地**，不在 A6-2 完成。原因：`OpenAITranscriber` 在 A6-5 之前仍由组合根实例化并消费这两个字段，先删字段会直接编译不过。A6-2 因此做到「新增齐全、默认值就位」，删除动作与适配器下线同批。`A6-5` 验收标准已含「全仓库不再引用 `OPENAI_TRANSCRIBE_*`」。
+
+**验收标准**：启动时两域凭据各自校验、报错只指向自己缺失的变量名；缺失所需 key 时启动即失败；上传超过 15 MiB 或时长超过 300s 时返回**明确业务错误**而非上游报错；配置单元测试覆盖两域隔离与上限边界。
 
 **预估** 0.5–1 人日。**可与 A6-3 并行。**
 
@@ -280,7 +282,8 @@ HTTP 上传（MAX_UPLOAD_BYTES 收敛到 15 MiB）
 
 | 区域 | 预计改动 | 关联任务 |
 | --- | --- | --- |
-| 配置 | `src/bootstrap/config.ts`（移除 `OPENAI_TRANSCRIBE_*`、新增 `QWEN_ASR_*` / `DASHSCOPE_API_KEY`、上限改 300s / 15 MiB）、`tests/unit/config.test.ts`、`.env.example` | A6-2 |
+| 配置 | `src/bootstrap/config.ts`（新增 `qwen` 域 `DASHSCOPE_API_KEY` / `QWEN_ASR_*`、上限改 300s / 15 MiB）、`tests/unit/config.test.ts`、`.env.example`、OpenAPI 描述、Web 文案 | A6-2 ✅ |
+| 配置（删除） | `src/bootstrap/config.ts` 移除 `OPENAI_TRANSCRIBE_MODEL` / `OPENAI_TRANSCRIBE_TIMEOUT_MS`（须与 `OpenAITranscriber` 同时下线，故随 A6-5） | A6-5 |
 | 领域模型 | **`src/domain/ports.ts`**：`Transcript` 增加 `segments`（句级时间戳） | A6-3 |
 | 上传校验 | `MAX_UPLOAD_BYTES` / `MAX_AUDIO_DURATION_SECONDS` 调整（§2.5） | A6-2 |
 | 适配器 | 新增 `src/infrastructure/qwen/` 下 `QwenAsrTranscriber`（含 segments 重组）；**删除 `src/infrastructure/openai/transcriber.ts`** | A6-3 / A6-5 |
@@ -322,13 +325,13 @@ git diff --check
 | 任务 | 预估（人日） | 状态 |
 | --- | ---: | --- |
 | A6-1 可行性确认 | 0.5–1 | ✅ 已完成 |
-| A6-2 配置与依赖边界 | 0.5–1 | 待办 |
+| A6-2 配置与依赖边界 | 0.5–1 | ✅ 已完成 |
 | A6-3 Qwen 转录适配器（含时间戳重组） | 1–1.5 | 待办 |
 | A6-4 自动化测试 | 0.75–1.25 | 待办 |
 | A6-5 依赖注入与旧适配器下线 | 0.25–0.5 | 待办 |
 | A6-6 文档同步 | 0.5–0.75 | 待办 |
 | A6-7 真实服务联调与验收 | 0.5 | 待办 |
-| **合计** | **约 4–6.5 人日** | 剩余约 **3.5–5.5 人日** |
+| **合计** | **约 4–6.5 人日** | 剩余约 **3–5 人日** |
 
 **关于备选方案**：方案 B 为方案 C 的 **+1.5–2 人日**（OSS 基建与异步轮询），方案 A 为 **+2–4 人日**（WebSocket 协议栈）。
 
@@ -354,7 +357,7 @@ git diff --check
 2. **【已定】** 摘要模型保持 `gpt-4o`（§2.4）。
 3. **【已定 · 2026-09-25】** 时间戳**本次交付**，由词级数据按标点重组（§2.3）。
 4. **【已定 · 2026-09-25】** 上限以**实测为准**：时长 300s、大小换算为原始 15 MiB，并在证据中保留实测输出（§2.5）。
-5. **【A6-2 决定】** 是否默认开启 `speaker_diarization_enabled`（§2.3 末段）。
+5. **【已定 · 2026-09-25】** 默认**开启** `speaker_diarization_enabled`（`QWEN_ASR_SPEAKER_DIARIZATION=true`）——开启才有 `sentences[]` 与说话人边界可用（§2.3 末段、A6-2）。
 6. **【A6-3 决定】** 时间戳产物的落盘形态（保持 `transcript.txt` 纯文本 + 另存结构化文件，或扩展下载接口）。
 7. **【默认】** 不引入 FFmpeg 或其他外部进程；需要时另行评估。
 8. **【需准备】** 阿里云百炼账号的地域、API Key 权限与测试额度——**已完成**（华北2北京，凭证已配置于本地 `.env`）。

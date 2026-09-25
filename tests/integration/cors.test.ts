@@ -34,6 +34,14 @@ function config(corsAllowedOrigins: string[]): AppConfig {
       summaryTimeoutMs: 1000,
       maxRetries: 0,
     },
+    qwen: {
+      apiKey: 'test',
+      endpoint: 'https://dashscope.example/generation',
+      model: 'qwen-audio-3.1-asr-flash',
+      timeoutMs: 1000,
+      speakerDiarization: true,
+      maxRetries: 0,
+    },
     storage: {
       tempDir: 'temp',
       maxUploadBytes: 1024,
