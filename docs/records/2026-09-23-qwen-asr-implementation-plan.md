@@ -70,9 +70,9 @@ Qwen-ASR 不是当前 `client.audio.transcriptions.create({ file, model })` 的�
 实测确认的关键事实（详见 A6-1 证据）：
 
 - 通用域名 `dashscope.aliyuncs.com` **可用**（开通阶段用它快速验证即可；该域名有时效性，正式环境改用业务空间专属域名，见 §2.6）
-- 响应**无 `choices` 字段**，文本在 `output.text`（`output.output.text` 为冗余副本）
+- 响应**无 `choices` 字段**，文本在**顶层 `text`**；`json.output` 是同名字段的冗余副本，且**不含 `usage`**、不存在 `output.output`（结构以 [A6-1 §8.2](../evidence/a6-1-qwen-asr-feasibility/2026-09-25-a6-1-qwen-asr-feasibility-shuidisjtu.md) 为准）
 - 端点：`POST /api/v1/services/aigc/multimodal-generation/generation`；`parameters.format` **必填**
-- `usage` 返回 `{duration, input_tokens, output_tokens, total_tokens}`，直接供 C5 指标
+- **顶层** `usage` 返回 `{duration, input_tokens, output_tokens, total_tokens}`，直接供 C5 指标（注意：只在顶层，`output` 内没有）
 
 ### 2.3 时间戳：本次交付，但必须重组
 
@@ -200,7 +200,7 @@ HTTP 上传（MAX_UPLOAD_BYTES 收敛到 15 MiB）
 
 **与已落地的指标采集（C5）对接**：2026-09-24 已合入 `main`（`9b5b3e5`）：
 
-- `Transcript` 现含 `characterCount`（码点）与 `durationSeconds` 两个可选字段。方案 C 须填充 `characterCount`；`durationSeconds` 可由 API 的 `usage.duration`（实测存在）或 segments 末值填充。
+- `Transcript` 现含 `characterCount`（码点）与 `durationSeconds` 两个可选字段。方案 C 须填充 `characterCount`；`durationSeconds` 可由 API **顶层** `usage.duration`（实测存在）或 segments 末值填充。
 - `ProcessJob` 会把 `transcribeModel`、`transcribeCharacterCount`、`transcribeDurationSeconds`、`transcribeDurationMs` 写入指标落盘。
 
 ## 4. 实施任务分解
@@ -243,7 +243,11 @@ HTTP 上传（MAX_UPLOAD_BYTES 收敛到 15 MiB）
 
 **请求**：读取音频 → 按 MIME 构造 base64 Data URL（`data:<mediatype>;base64,<data>`）→ 作为 `input.messages[].content[].input_audio.data` 提交；`parameters.format` **必填**（按实际上传格式），视需要带 `speaker_diarization_enabled`。
 
-**响应解析**：文本在 `output.text`（**无 `choices` 字段**，照搬 OpenAI 风格解析会取不到文本）；须做字段缺失的安全兜底。
+**响应解析**：文本在**顶层 `text`**、用量在**顶层 `usage`**（**无 `choices` 字段**，照搬 OpenAI 风格解析会取不到文本；`json.output` 是不含 `usage` 的冗余副本，见 A6-1 §8.2）；须做字段缺失的安全兜底。
+
+**⚠️ 两个必须避开的静默失败**：
+1. 读 `output.usage` 会得到 `undefined` 而不报错 → C5 的 `durationSeconds` / token 全丢。
+2. 取分段读单数 `sentence`（它始终覆盖整段音频）→ 退化成「整段一句」。开启说话人分离后 `sentence` 与 `sentences[]` **同时存在**，分段必须读 `sentences[]`，字段缺失时显式判定而非回落。
 
 **时间戳重组（本任务的核心复杂度）**：从 `words[]` 按标点重组句级 `segments`，**不得直接采用 API 的 `sentences`**（§2.3）。须处理：中英文标点集、标点稀疏（多数词 `punctuation` 为空）、极短片段的最小长度阈值、说话人边界强制断开。
 
@@ -261,7 +265,7 @@ HTTP 上传（MAX_UPLOAD_BYTES 收敛到 15 MiB）
 
 **说明**：把 `tests/unit/openai-transcriber.test.ts` 的骨架（正常调用 / 请求选项 / 429 重试 / 4xx 不重试 / 上游失败抛错）**重构搬运**为 Qwen 适配器测试。
 
-新增用例：base64 Data URL 构造与 `parameters.format` 一致性；`output.text` 响应解析（含字段缺失兜底）；**segments 重组**（中英文标点、标点为空、极短片段阈值、说话人边界）；超限分支（大小与时长，含边界值）；指标字段（`characterCount` 正确、`durationSeconds` 不得伪造）；错误映射与日志脱敏；配置两域隔离与上限。
+新增用例：base64 Data URL 构造与 `parameters.format` 一致性；顶层 `text` / `usage` 响应解析（含字段缺失兜底、**`output` 内无 `usage` 时不得静默取空**）；**segments 重组**（中英文标点、标点为空、极短片段阈值、说话人边界）；超限分支（大小与时长，含边界值）；指标字段（`characterCount` 正确、`durationSeconds` 不得伪造）；错误映射与日志脱敏；配置两域隔离与上限。
 
 **验收标准**：`npm test` 全绿，覆盖率不低于当前基线（≥80%）；`ProcessJob` 与 B7 E2E 既有断言保持通过；CI 不访问真实上游。
 
@@ -375,7 +379,7 @@ git diff --check
 | **时间戳重组质量** | 标点稀疏或标点缺失时，segments 可能过粗或过碎，影响答辩演示效果 | A6-3 须实现最小长度阈值与说话人边界断开；A6-4 覆盖中英文标点、空标点、极短片段三类用例；A6-7 用真实样本验收粒度 |
 | **时长上限导致大文件失败** | 用户上传超 300s 音频时转录失败；处理不当会出现上游报错穿透或静默失败 | §2.5 已定 `MAX_AUDIO_DURATION_SECONDS=300`，在**上传阶段**即拒；A6-2 补对应业务错误与测试 |
 | **整文件进内存** | base64 需整文件读入内存，与现有流式读取不同 | 上传上限收敛到 15 MiB 即是保护；适配器内注释说明取舍；联调时观察内存 |
-| **响应结构非标准** | 该端点无 `choices` 字段，照搬 OpenAI 风格解析会取不到文本 | A6-3 按 `output.text` 解析并做字段缺失兜底；A6-4 补对应测试 |
+| **响应结构非标准** | 该端点无 `choices` 字段；`usage` 只在顶层、`output` 内没有；开启分离后 `sentence` 与 `sentences[]` 并存 | 照搬 OpenAI 风格会取不到文本；读 `output.usage` 或单数 `sentence` 会**静默降级**（A6-1 §8.2）。A6-3 按顶层字段解析、分段只认 `sentences[]`，A6-4 补对应测试 |
 | **编码格式与 `format` 不匹配** | 服务端拒绝或识别错误 | 按上传校验后的存储扩展名映射 `format` 与 MIME，不依赖用户文件名；真实样本验证 |
 | **错误格式和重试边界不同于原上游** | Job 失败被误判或重复扣费 | 适配器内映射安全错误类别；测试 4xx 与网络/429/5xx；避免双重重试 |
 | **凭证域混淆** | 启动需同时设置两家密钥 | 配置分域——转录只校验 `DASHSCOPE_API_KEY`，摘要只校验 `OPENAI_*`；日志禁止输出密钥 |
@@ -399,7 +403,7 @@ git diff --check
 > **仅采用国内站（`help.aliyun.com/zh/model-studio/`）文档。** 海外 QwenCloud 站（`docs.qwencloud.com` / `maas.qwencloudapi.com`）与本项目所用平台不是同一产品，其模型命名（`qwen3-asr-flash*`）、端点（`/compatible-mode/v1/chat/completions`）与字段均**不作为本项目依据**。
 
 1. [阿里云百炼：语音识别概述（模型选型）](https://help.aliyun.com/zh/model-studio/asr-model) — 模型 ID、实时/非实时、时长上限、说话人分离、语种支持；音频规格（格式与大小限制）。
-2. [阿里云百炼：非实时语音识别（用户指南）](https://help.aliyun.com/zh/model-studio/non-realtime-speech-recognition-user-guide) — 异步/同步模型的划分；同步模型「适用于 5 分钟以内的音频文件」；filetrans「仅接受公网音频文件 URL（不支持本地文件上传）」；同步响应结构为 `output.text` / `output.output.sentence.text`，**无 `choices` 字段**。
+2. [阿里云百炼：非实时语音识别（用户指南）](https://help.aliyun.com/zh/model-studio/non-realtime-speech-recognition-user-guide) — 异步/同步模型的划分；同步模型「适用于 5 分钟以内的音频文件」；filetrans「仅接受公网音频文件 URL（不支持本地文件上传）」；同步响应结构**无 `choices` 字段**（该文档对 `output.*` 层级的描述与实际响应不一致，实际层级以 [A6-1 §8.2 实测](../evidence/a6-1-qwen-asr-feasibility/2026-09-25-a6-1-qwen-asr-feasibility-shuidisjtu.md)为准）。
 3. [阿里云百炼：非实时语音识别 HTTP API（Qwen-Audio-3.x-ASR-Flash / Fun-ASR-Flash）](https://help.aliyun.com/zh/model-studio/fun-asr-flash-recorded-speech-recognition-http-api) — **方案 C 的核心依据**：端点与 `input_audio.data` 的 URL / Base64 Data URI 两种传法；`parameters.format` **必选**；`speaker_diarization_enabled` / `keep_dialect` 仅 `qwen-audio-3.1-asr-flash` 支持。
 4. [阿里云百炼：语音识别 API 参考（索引）](https://help.aliyun.com/zh/model-studio/speech-recognition-api-reference/) — 实时/非实时语音识别与定制热词的 API 分类入口。
 5. [阿里云百炼：Qwen-ASR-Realtime WebSocket 接入指南](https://help.aliyun.com/zh/model-studio/qwen-asr-realtime-interaction-process) — WebSocket URL 形态、请求头鉴权、VAD 与 Manual 两种模式；「推完音频必须先发 `session.finish` 再关连接」的官方警告。
