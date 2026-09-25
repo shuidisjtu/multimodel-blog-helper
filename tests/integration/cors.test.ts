@@ -28,10 +28,16 @@ function config(corsAllowedOrigins: string[]): AppConfig {
     openai: {
       apiKey: 'test',
       baseUrl: 'https://mock.local/v1',
-      transcribeModel: 'whisper-1',
       summaryModel: 'gpt-4o',
-      transcribeTimeoutMs: 1000,
       summaryTimeoutMs: 1000,
+      maxRetries: 0,
+    },
+    qwen: {
+      apiKey: 'test',
+      endpoint: 'https://dashscope.example/generation',
+      model: 'qwen-audio-3.1-asr-flash',
+      timeoutMs: 1000,
+      speakerDiarization: true,
       maxRetries: 0,
     },
     storage: {

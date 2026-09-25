@@ -41,8 +41,8 @@ function requestErrorMessage(
 
   const messages: Record<string, string> = {
     INVALID_FILE: '音频文件内容无效，请重新选择。',
-    AUDIO_TOO_LONG: '音频时长超过限制，请选择不超过 60 分钟的文件。',
-    FILE_TOO_LARGE: '音频文件过大，请选择不超过 25 MiB 的文件。',
+    AUDIO_TOO_LONG: '音频时长超过限制，请选择不超过 5 分钟的文件。',
+    FILE_TOO_LARGE: '音频文件过大，请选择不超过 15 MiB 的文件。',
     UNSUPPORTED_MEDIA_TYPE: '不支持该音频格式，请选择 MP3、WAV、MP4 或 M4A。',
     INVALID_IDEMPOTENCY_KEY: '上传标识无效，请重新选择文件后再试。',
     IDEMPOTENCY_CONFLICT: '该上传标识已用于其他文件，请重新选择文件后再试。',
@@ -403,7 +403,7 @@ export function AudioJobPanel() {
       </div>
 
       <p className="panel-intro">
-        上传音频后自动跟踪转录与摘要状态；支持 MP3、WAV、MP4、M4A，默认不超过 25 MiB、60 分钟。
+        上传音频后自动跟踪转录与摘要状态；支持 MP3、WAV、MP4、M4A，默认不超过 15 MiB、5 分钟。
       </p>
 
       <div className="audio-controls">

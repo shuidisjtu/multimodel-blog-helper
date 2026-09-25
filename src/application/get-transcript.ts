@@ -1,11 +1,11 @@
 /**
- * GetTranscript 用例:下载纯文本转录。
+ * GetTranscript 用例:下载转录产物(纯文本 / 带句级时间戳两种)。
  * 不存在 → JOB_NOT_FOUND(404); tombstone(expired)→ JOB_EXPIRED(410);
- * 任务未成功或产物文件缺失(清理窗口/未落盘)→ JOB_NOT_READY(409);
+ * 任务未成功、产物缺失或该任务本就没有时间戳产物 → JOB_NOT_READY(409);
  * 其他错误 → INTERNAL_ERROR(500)。日志只记稳定错误码, 不记 err.message(可能含路径)。
  */
 import { DomainError } from '../domain/errors.js';
-import type { FileStore, JobRepository } from '../domain/ports.js';
+import type { FileStore, JobRepository, JobResult } from '../domain/ports.js';
 import type { Logger } from '../shared/logger.js';
 
 /** 取系统错误码(ENOENT 等); 非 errno 错误返回 undefined。 */
@@ -24,8 +24,25 @@ export class GetTranscript {
     },
   ) {}
 
-  /** 返回转录文本(UTF-8); 不可用状态抛 DomainError(与 QueryJob 相同的 404/410 语义)。 */
+  /** 返回纯文本转录(UTF-8); 不可用状态抛 DomainError(与 QueryJob 相同的 404/410 语义)。 */
   async run(id: string): Promise<string> {
+    return this.load(id, (result) => result.transcriptPath);
+  }
+
+  /**
+   * 返回带句级时间戳的转录。
+   * 任务成功但上游未返回词级数据时没有该产物, 与"尚未落盘"一样按 JOB_NOT_READY 处理
+   * (客户端可从查询接口的 result 判断该任务是否具备时间戳)。
+   */
+  async runTimed(id: string): Promise<string> {
+    return this.load(id, (result) => result.timedTranscriptPath);
+  }
+
+  /** 两种产物共用同一套状态语义与错误映射, 只有"取哪个路径"不同。 */
+  private async load(
+    id: string,
+    pickPath: (result: JobResult) => string | undefined,
+  ): Promise<string> {
     try {
       const job = await this.deps.jobs.get(id);
       if (job === null) {
@@ -34,10 +51,12 @@ export class GetTranscript {
       if (job.status === 'expired') {
         throw new DomainError('JOB_EXPIRED', 'Job has expired');
       }
-      if (job.status !== 'succeeded' || job.result === undefined) {
+      const path =
+        job.status === 'succeeded' && job.result !== undefined ? pickPath(job.result) : undefined;
+      if (path === undefined) {
         throw new DomainError('JOB_NOT_READY', 'Transcript is not ready');
       }
-      const buffer = await this.deps.files.read(job.result.transcriptPath);
+      const buffer = await this.deps.files.read(path);
       return buffer.toString('utf8');
     } catch (err) {
       if (err instanceof DomainError) throw err;

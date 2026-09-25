@@ -106,12 +106,14 @@ class FakeTranscriber implements Transcriber {
   calls = 0;
   error: unknown;
   lastJobId: string | undefined;
+  /** 覆盖返回值(如注入 segments); 缺省为无时间戳的纯文本转录。 */
+  result: Transcript | undefined;
 
   async transcribe(params: { jobId: string; path: string; mimeType: string }): Promise<Transcript> {
     this.calls++;
     this.lastJobId = params.jobId;
     if (this.error !== undefined) throw this.error;
-    return { text: 'transcript text', characterCount: 15, durationSeconds: 12.5 };
+    return this.result ?? { text: 'transcript text', characterCount: 15, durationSeconds: 12.5 };
   }
 }
 
@@ -191,6 +193,51 @@ function setup(overrides?: {
 }
 
 describe('ProcessJob', () => {
+  it('转录带句级时间戳: 额外落盘时间戳产物并把路径写入结果', async () => {
+    const { repo, files, transcriber, useCase } = setup();
+    repo.jobs.set('job-1', makeJob());
+    transcriber.result = {
+      text: '第一句。第二句。',
+      characterCount: 6,
+      durationSeconds: 2.5,
+      segments: [
+        { beginMs: 0, endMs: 1000, text: '第一句。' },
+        { beginMs: 1000, endMs: 2500, text: '第二句。' },
+      ],
+    };
+
+    await useCase.run('job-1');
+
+    expect(files.savedOutputs.map((o) => o.kind)).toEqual([
+      'transcript',
+      'transcript-timed',
+      'summary',
+    ]);
+    expect(files.savedOutputs[1]).toMatchObject({
+      jobId: 'job-1',
+      content: '[00:00.00 → 00:01.00] 第一句。\n[00:01.00 → 00:02.50] 第二句。',
+    });
+    const job = repo.jobs.get('job-1') as BlogJob;
+    expect(job.result?.timedTranscriptPath).toBe('/tmp/outputs/job-1/transcript-timed.txt');
+  });
+
+  it('转录无时间戳: 不产出时间戳文件, 结果里也没有该路径', async () => {
+    const { repo, files, transcriber, useCase } = setup();
+    repo.jobs.set('job-1', makeJob());
+    transcriber.result = {
+      text: 'transcript text',
+      characterCount: 15,
+      durationSeconds: 12.5,
+      segments: [], // 空数组同样视为"没有时间戳", 不得落空文件冒充
+    };
+
+    await useCase.run('job-1');
+
+    expect(files.savedOutputs.map((o) => o.kind)).toEqual(['transcript', 'summary']);
+    const job = repo.jobs.get('job-1') as BlogJob;
+    expect(job.result).not.toHaveProperty('timedTranscriptPath');
+  });
+
   it('完整成功: queued→transcribing→summarizing→succeeded, 结果/产物/日志正确', async () => {
     const { repo, files, transcriber, summarizer, metrics, logger, useCase } = setup();
     repo.jobs.set('job-1', makeJob());

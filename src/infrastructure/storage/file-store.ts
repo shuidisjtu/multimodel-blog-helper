@@ -9,6 +9,13 @@ import { mkdir, readdir, readFile, rm, writeFile } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
 import type { FileStore, SaveInputParams, SaveOutputParams } from '../../domain/ports.js';
 
+/** 产物类型 → 落盘文件名(文件名由服务生成, 不取自用户输入)。 */
+const OUTPUT_FILE_NAMES: Record<SaveOutputParams['kind'], string> = {
+  transcript: 'transcript.txt',
+  'transcript-timed': 'transcript.timed.txt',
+  summary: 'summary.txt',
+};
+
 export class LocalFileStore implements FileStore {
   private readonly uploadsDir: string;
   private readonly outputsDir: string;
@@ -35,8 +42,7 @@ export class LocalFileStore implements FileStore {
   async saveOutput(params: SaveOutputParams): Promise<{ path: string }> {
     const dir = join(this.outputsDir, params.jobId);
     await mkdir(dir, { recursive: true });
-    const fileName = params.kind === 'transcript' ? 'transcript.txt' : 'summary.txt';
-    const filePath = join(dir, fileName);
+    const filePath = join(dir, OUTPUT_FILE_NAMES[params.kind]);
     await writeFile(filePath, params.content, 'utf8');
     return { path: filePath };
   }

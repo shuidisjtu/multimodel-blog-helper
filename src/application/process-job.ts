@@ -17,6 +17,7 @@ import type {
   UsageMetric,
 } from '../domain/ports.js';
 import type { LogFields, Logger } from '../shared/logger.js';
+import { formatTimestampedTranscript } from './transcript-text.js';
 
 export class ProcessJob {
   constructor(
@@ -78,12 +79,22 @@ export class ProcessJob {
         durationMs: summaryDurationMs,
         model: this.deps.summaryModel,
       });
-      // 中间产物落盘(转录 + 摘要)
+      // 中间产物落盘(转录 + 可选的时间戳转录 + 摘要)
       const transcriptOut = await this.deps.files.saveOutput({
         jobId,
         kind: 'transcript',
         content: transcript.text,
       });
+      // 仅在确有时间戳时产出该文件: 上游未返回词级数据时不得落空文件冒充"已支持"
+      const segments = transcript.segments;
+      const timedOut =
+        segments === undefined || segments.length === 0
+          ? null
+          : await this.deps.files.saveOutput({
+              jobId,
+              kind: 'transcript-timed',
+              content: formatTimestampedTranscript(segments),
+            });
       await this.deps.files.saveOutput({
         jobId,
         kind: 'summary',
@@ -94,6 +105,7 @@ export class ProcessJob {
         status: 'succeeded',
         result: {
           transcriptPath: transcriptOut.path,
+          ...(timedOut !== null ? { timedTranscriptPath: timedOut.path } : {}),
           summary: summary.text,
           model: this.deps.transcribeModel,
         },

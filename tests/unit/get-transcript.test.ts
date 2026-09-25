@@ -55,7 +55,9 @@ class InMemoryJobRepo implements JobRepository {
 
 class StubFiles implements FileStore {
   readError: unknown;
-  async read(): Promise<Buffer> {
+  readonly readPaths: string[] = [];
+  async read(path: string): Promise<Buffer> {
+    this.readPaths.push(path);
     if (this.readError !== undefined) throw this.readError;
     return Buffer.from('transcript text', 'utf8');
   }
@@ -197,5 +199,58 @@ describe('GetTranscript(openapi downloadTranscript)', () => {
     const { repo, useCase } = setup();
     repo.getError = new Error('disk on fire');
     await expectCode(useCase.run('x'), 'INTERNAL_ERROR');
+  });
+});
+
+describe('GetTranscript.runTimed(openapi downloadTimestampedTranscript)', () => {
+  const timedResult = {
+    transcriptPath: '/tmp/outputs/t1/transcript.txt',
+    timedTranscriptPath: '/tmp/outputs/t1/transcript.timed.txt',
+    summary: 's',
+    model: 'm',
+  };
+
+  it('succeeded 且有时间戳产物 → 返回该产物内容(读的是 timed 路径)', async () => {
+    const { repo, files, useCase } = setup();
+    repo.jobs.set('t1', makeJob({ id: 't1', status: 'succeeded', result: timedResult }));
+
+    await expect(useCase.runTimed('t1')).resolves.toBe('transcript text');
+    expect(files.readPaths).toEqual(['/tmp/outputs/t1/transcript.timed.txt']);
+  });
+
+  it('succeeded 但没有时间戳产物(上游无词级数据)→ JOB_NOT_READY', async () => {
+    const { repo, files, useCase } = setup();
+    repo.jobs.set(
+      't1',
+      makeJob({
+        id: 't1',
+        status: 'succeeded',
+        result: { transcriptPath: '/tmp/outputs/t1/transcript.txt', summary: 's', model: 'm' },
+      }),
+    );
+
+    await expectCode(useCase.runTimed('t1'), 'JOB_NOT_READY');
+    expect(files.readPaths).toEqual([]); // 不存在的产物不该去读
+  });
+
+  it('不存在 / expired / 未成功 → 与纯文本下载同语义', async () => {
+    const { repo, useCase } = setup();
+    await expectCode(useCase.runTimed('nope'), 'JOB_NOT_FOUND');
+
+    repo.jobs.set('e1', makeJob({ id: 'e1', status: 'expired' }));
+    await expectCode(useCase.runTimed('e1'), 'JOB_EXPIRED');
+
+    repo.jobs.set('q1', makeJob({ id: 'q1', status: 'transcribing' }));
+    await expectCode(useCase.runTimed('q1'), 'JOB_NOT_READY');
+  });
+
+  it('产物文件缺失(ENOENT)→ JOB_NOT_READY', async () => {
+    const { repo, files, useCase } = setup();
+    repo.jobs.set('t1', makeJob({ id: 't1', status: 'succeeded', result: timedResult }));
+    const err = new Error('ENOENT: no such file or directory, open');
+    (err as NodeJS.ErrnoException).code = 'ENOENT';
+    files.readError = err;
+
+    await expectCode(useCase.runTimed('t1'), 'JOB_NOT_READY');
   });
 });

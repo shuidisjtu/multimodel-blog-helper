@@ -248,6 +248,30 @@ async function markSucceeded(ctx: TestContext, id: string): Promise<void> {
   }));
 }
 
+/** 标记成功并落盘带时间戳的产物(下载端点会真实读文件, 故必须存在)。 */
+async function markSucceededWithTimed(ctx: TestContext, id: string): Promise<void> {
+  const transcript = await ctx.files.saveOutput({
+    jobId: id,
+    kind: 'transcript',
+    content: '转录内容。',
+  });
+  const timed = await ctx.files.saveOutput({
+    jobId: id,
+    kind: 'transcript-timed',
+    content: '[00:00.00 → 00:04.16] 转录内容。',
+  });
+  await ctx.jobs.update(id, (job) => ({
+    ...job,
+    status: 'succeeded',
+    result: {
+      transcriptPath: transcript.path,
+      timedTranscriptPath: timed.path,
+      summary: '摘要。',
+      model: 'gpt-4o',
+    },
+  }));
+}
+
 async function markExpired(ctx: TestContext, id: string): Promise<void> {
   await ctx.jobs.update(id, (job) => ({
     id: job.id,
@@ -359,6 +383,33 @@ describe('OpenAPI response contracts: job query and transcript', () => {
       'getAudioJob',
       await fetch(`${ctx.baseUrl}/api/v1/audio-jobs/${failedId}`),
       200,
+    );
+  });
+
+  it('validates timestamped transcript success plus 409 and 404 errors', async () => {
+    const timedSubmission = await submit(ctx);
+    const timedId = await idFrom(timedSubmission);
+    await markSucceededWithTimed(ctx, timedId);
+    const ok = await fetch(`${ctx.baseUrl}/api/v1/audio-jobs/${timedId}/transcript/timed`);
+    await assertOpenApiResponse('downloadTimestampedTranscript', ok, 200);
+    expect(await ok.text()).toBe('[00:00.00 → 00:04.16] 转录内容。');
+
+    // 成功但上游未返回词级数据: 没有时间戳产物 → 409
+    const plainSubmission = await submit(ctx);
+    const plainId = await idFrom(plainSubmission);
+    await markSucceeded(ctx, plainId);
+    await assertOpenApiResponse(
+      'downloadTimestampedTranscript',
+      await fetch(`${ctx.baseUrl}/api/v1/audio-jobs/${plainId}/transcript/timed`),
+      409,
+    );
+
+    await assertOpenApiResponse(
+      'downloadTimestampedTranscript',
+      await fetch(
+        `${ctx.baseUrl}/api/v1/audio-jobs/123e4567-e89b-12d3-a456-426614174002/transcript/timed`,
+      ),
+      404,
     );
   });
 
