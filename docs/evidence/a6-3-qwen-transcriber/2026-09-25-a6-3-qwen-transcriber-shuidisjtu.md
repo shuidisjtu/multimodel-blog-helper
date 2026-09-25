@@ -89,7 +89,7 @@ npm run verify  # lint + lint:openapi + typecheck + check:docs + check:structure
 
 ## 7. 遗留与提醒
 
-1. **适配器未接线**（A6-5）：容器仍装配 `OpenAITranscriber`，`QWEN_ASR_*` 配置与 `QwenAsrTranscriber` 目前均无生产消费者。新增端点对真实任务返回 409。
-2. **`tests/unit/openai-transcriber.test.ts` 未动**：它测的模块仍存在（A6-5 才删除），故其"重构搬运"实际与 A6-5 同批完成，A6-4 的剩余范围将在那里收口。
+1. ~~**适配器未接线**（A6-5）~~ → **2026-09-25 已随 A6-5 完成**：组合根改装配 `QwenAsrTranscriber`，`QWEN_ASR_*` 已有生产消费者，旧适配器与其测试已删除。上文描述的是 A6-3 当时的状态。
+2. **openai-transcriber.test.ts 未动**：它测的模块当时仍存在（A6-5 才删除），故其"重构搬运"实际与 A6-5 同批完成（该测试已随模块删除，见 A6-5）。
 3. **真实服务联调未做**（A6-7）：全部结论来自 fake 上游。真实样本下的时间戳粒度、超限行为需在 A6-7 用业务空间专属域名复核。
 4. **本机 vitest worker 偶发崩溃**：`npm test` 与覆盖率跑动中偶见 `Worker exited unexpectedly`（表现为少数文件未执行），重跑即恢复。首次出现于 A6-2 验证期间，早于本任务的测试代码，判为环境问题；已复跑两次全绿。

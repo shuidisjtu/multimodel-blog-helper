@@ -25,7 +25,7 @@ interfaces/http ──▶ application ──▶ domain
 - **infrastructure**（适配器）实现 domain 声明的端口，依赖方向同样指向 domain。
 - **bootstrap** 把各层组装到一起；**shared** 的 `logger`/`ids`/`clock` 被各层注入使用。
 
-**「端口」是什么**：端口是 domain 层「声明」的接口，只规定「我需要什么能力」（如「能把音频转成文本」），不规定「谁来提供、怎么实现」。真正干活的是 infrastructure（`OpenAITranscriber implements Transcriber`）。所以端口是**需求声明，不是实现**——domain 只提需求，infrastructure 交活，application 在中间按端口调用、从不直接接触具体实现。
+**「端口」是什么**：端口是 domain 层「声明」的接口，只规定「我需要什么能力」（如「能把音频转成文本」），不规定「谁来提供、怎么实现」。真正干活的是 infrastructure（`QwenAsrTranscriber implements Transcriber`）。所以端口是**需求声明，不是实现**——domain 只提需求，infrastructure 交活，application 在中间按端口调用、从不直接接触具体实现。
 
 下面按「由内向外」逐层展开。
 
@@ -58,7 +58,7 @@ domain 只依赖这些端口接口（定义见 [`src/domain/ports.ts`](../../src
 
 | 端口 | 声明的能力 | 实现（§4） |
 | --- | --- | --- |
-| `Transcriber` | 音频 → 文本 | `OpenAITranscriber` |
+| `Transcriber` | 音频 → 文本（含句级时间戳） | `QwenAsrTranscriber` |
 | `Summarizer` | 文本 → 摘要 | `ResponsesSummarizer` |
 | `WeatherProvider` | 地点 → 天气 | `WttrWeatherProvider` |
 | `JobRepository` | 任务持久化（含幂等三态） | `FileJobRepository` |
@@ -84,7 +84,7 @@ domain 只依赖这些端口接口（定义见 [`src/domain/ports.ts`](../../src
 | `ProcessJob` | 推进单个任务直至完成 | 驱动状态机 `queued→transcribing→summarizing→succeeded`，不外抛 |
 | `ProcessJobWorker` | 订阅队列并消费任务 | 并发由队列控制 |
 | `QueryJob` | 查询任务与摘要 | 不存在→`JOB_NOT_FOUND`，过期→`JOB_EXPIRED` |
-| `GetTranscript` | 下载纯文本转录 | 未就绪→`JOB_NOT_READY`(409) |
+| `GetTranscript` | 下载转录（纯文本 / 带句级时间戳两种产物） | 未就绪或该任务无时间戳产物→`JOB_NOT_READY`(409) |
 | `AskWeather` | 查询天气 | 未知失败统一 `WEATHER_UNAVAILABLE` |
 | `RecoverJobs` | 启动时恢复未完成任务 | `queued` 重入队；进行中标记 `PROCESS_INTERRUPTED` 不重试 |
 | `CleanupExpired` | 清理过期任务 | 删文件 + 保留 tombstone（启动时清一次 + 周期调度） |
@@ -95,7 +95,7 @@ domain 只依赖这些端口接口（定义见 [`src/domain/ports.ts`](../../src
 
 | 适配器 | 实现的端口 | 依赖的外部 |
 | --- | --- | --- |
-| `OpenAITranscriber` | `Transcriber` | OpenAI 转录接口（whisper-1，见 issue #16） |
+| `QwenAsrTranscriber` | `Transcriber` | 阿里云百炼同步识别（`qwen-audio-3.1-asr-flash`；句级时间戳由词级数据重组，见 [ADR-0007](../adr/0007-qwen-asr-and-timestamps.md)） |
 | `ResponsesSummarizer` | `Summarizer` | OpenAI Responses API |
 | `WttrWeatherProvider` | `WeatherProvider` | wttr.in |
 | `FileJobRepository` | `JobRepository` | 本地文件系统（`temp/jobs/*.json`） |
@@ -147,10 +147,10 @@ SubmitAudio                                                [application]
 MemoryJobQueue（有界内存队列）                              [infrastructure]
   ↓ worker 消费
 ProcessJob（状态机推进，不外抛）                            [application]
-  ├─ transcribing → OpenAITranscriber（whisper-1）         [infrastructure]
+  ├─ transcribing → QwenAsrTranscriber（百炼同步识别）      [infrastructure]
   ├─ summarizing  → ResponsesSummarizer（Responses API）
-  └─ saveOutput → succeeded
-GET /api/v1/audio-jobs/{id} 与 /{id}/transcript            [interfaces/http]
+  └─ saveOutput → transcript.txt (+ transcript.timed.txt, 有时间戳时) → succeeded
+GET /api/v1/audio-jobs/{id}、/{id}/transcript、/{id}/transcript/timed  [interfaces/http]
 ```
 
 ### 7.2 天气（同步，独立于任务链路）

@@ -52,6 +52,8 @@
 
 **处置**：删除动作归入 A6-5（其验收标准本就含「全仓库不再引用 `OpenAITranscriber` 与 `OPENAI_TRANSCRIBE_*`」）。因此 A6-2 后，`OPENAI_TRANSCRIBE_MODEL` 仍在必填之列——这两项**不能**作为已完成的功能宣称。
 
+> **2026-09-25 更新：已随 A6-5 完成。** `OPENAI_TRANSCRIBE_MODEL` / `OPENAI_TRANSCRIBE_TIMEOUT_MS` 已从 `AppConfig` 与 `.env.example` 移除，`OpenAITranscriber` 及其测试已删除，组合根改装配 `QwenAsrTranscriber`。上文「本任务未执行」的描述仅描述 A6-2 当时的状态。
+
 ## 5. 决定：`speaker_diarization_enabled` 默认开启
 
 对应实施计划 §9 第 5 项。

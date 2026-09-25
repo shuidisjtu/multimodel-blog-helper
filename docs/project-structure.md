@@ -31,7 +31,6 @@ src/
     transcript-text.ts # 带句级时间戳转录的文本渲染(m→mm:ss.xx 行式)
   infrastructure/
     openai/
-      transcriber.ts # whisper-1 转录适配器
       summarizer.ts # Responses API 摘要适配器
       retryable.ts # OpenAI 错误可重试判定
       options.ts # 上游调用配置(超时/重试策略)
@@ -56,7 +55,7 @@ src/
     ids.ts # jobId/requestId 生成
     clock.ts # 时钟端口(ISO 8601)
   interfaces/
-    http/ # 路由与中间件(POST 上传受理 + GET 查询/转录下载)
+    http/ # 路由与中间件(POST 上传受理 + GET 查询/转录下载/带时间戳下载)
       middleware/
         error-handler.ts # 统一错误边界(ErrorCode→HTTP 状态/稳定消息/Retry-After; 未知错误 500 兜底不泄漏)
         request-id.ts # requestId 中间件(服务生成, 写 X-Request-Id 响应头与 res.locals)
@@ -65,7 +64,7 @@ src/
         rate-limit.ts # 路由级 IP 限流(统一 429 envelope + 动态 Retry-After; TRUST_PROXY 语义, B6)
       routes/
         audio-jobs.ts # POST /api/v1/audio-jobs 上传受理(multer 内存暂存→校验→SubmitAudio→202/200/409)
-        audio-job-query.ts # GET /api/v1/audio-jobs/{id} 查询与 /transcript 转录下载(UUID 校验, 非法一律 404)
+        audio-job-query.ts # GET /api/v1/audio-jobs/{id} 查询、/transcript 与 /transcript/timed 转录下载(UUID 校验, 非法一律 404)
         weather.ts # POST /api/v1/assistant/weather 天气查询(DTO 校验→AskWeather→统一 JSON 信封)
       schemas/ # 共享 HTTP 请求 DTO 解析与标准化(B5)
         idempotency-key.ts # Idempotency-Key 空白归一化与 255 字符上限(B5)
@@ -83,7 +82,6 @@ tests/
     memory-job-queue.test.ts
     openai-retryable.test.ts
     openai-summarizer.test.ts
-    openai-transcriber.test.ts
     process-job-worker.test.ts
     process-job.test.ts
     query-job.test.ts

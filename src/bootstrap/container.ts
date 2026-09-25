@@ -14,8 +14,8 @@ import { SubmitAudio } from '../application/submit-audio.js';
 import { MusicMetadataDurationProbe } from '../infrastructure/common/music-metadata-duration-probe.js';
 import { FileMetricsRecorder } from '../infrastructure/metrics/file-metrics-recorder.js';
 import { ResponsesSummarizer } from '../infrastructure/openai/summarizer.js';
-import { OpenAITranscriber } from '../infrastructure/openai/transcriber.js';
 import { MemoryJobQueue } from '../infrastructure/queue/memory-job-queue.js';
+import { QwenAsrTranscriber } from '../infrastructure/qwen/qwen-asr-transcriber.js';
 import { FileJobRepository } from '../infrastructure/repository/file-job-repository.js';
 import { LocalFileStore } from '../infrastructure/storage/file-store.js';
 import { WttrWeatherProvider } from '../infrastructure/weather/wttr-weather-provider.js';
@@ -67,12 +67,15 @@ export function buildContainer(config: AppConfig): AppDependencies {
   const weather = new WttrWeatherProvider(config.weather.baseUrl, config.weather.timeoutMs);
   const askWeather = new AskWeather({ weather, logger });
   const client = new OpenAI({ apiKey: config.openai.apiKey, baseURL: config.openai.baseUrl });
-  const transcriber = new OpenAITranscriber(
-    client,
-    config.openai.transcribeModel,
+  // 转录走百炼(独立密钥与端点), 不走 OpenAI 兼容 client; 摘要仍走 client
+  const transcriber = new QwenAsrTranscriber(
     {
-      timeoutMs: config.openai.transcribeTimeoutMs,
-      maxRetries: config.openai.maxRetries,
+      apiKey: config.qwen.apiKey,
+      endpoint: config.qwen.endpoint,
+      model: config.qwen.model,
+      timeoutMs: config.qwen.timeoutMs,
+      speakerDiarization: config.qwen.speakerDiarization,
+      maxRetries: config.qwen.maxRetries,
     },
     logger,
   );
@@ -93,7 +96,7 @@ export function buildContainer(config: AppConfig): AppDependencies {
     summarizer,
     metrics,
     logger,
-    transcribeModel: config.openai.transcribeModel,
+    transcribeModel: config.qwen.model,
     summaryModel: config.openai.summaryModel,
   });
   const worker = new ProcessJobWorker({ queue, process: processJob, logger });

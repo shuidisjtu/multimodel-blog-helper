@@ -12,7 +12,6 @@ afterEach(() => {
 const BASE_ENV: NodeJS.ProcessEnv = {
   OPENAI_API_KEY: 'hk-test',
   OPENAI_BASE_URL: 'https://api.openai-hk.com/v1',
-  OPENAI_TRANSCRIBE_MODEL: 'whisper-1',
   OPENAI_SUMMARY_MODEL: 'gpt-4o',
   DASHSCOPE_API_KEY: 'sk-test',
   TEMP_DIR: 'temp',
@@ -34,7 +33,7 @@ describe('loadConfig', () => {
     const env: NodeJS.ProcessEnv = {
       OPENAI_API_KEY: 'global-key',
       OPENAI_BASE_URL: 'https://global.example/v1',
-      OPENAI_TRANSCRIBE_MODEL: 'global-model',
+      OPENAI_SUMMARY_MODEL: 'global-model',
       DASHSCOPE_API_KEY: 'global-sk',
       QWEN_ASR_ENDPOINT: 'https://global-qwen.example/generation',
       PORT: '4000',
@@ -45,7 +44,7 @@ describe('loadConfig', () => {
       {
         OPENAI_API_KEY: 'local-key',
         OPENAI_BASE_URL: 'https://local.example/v1',
-        OPENAI_TRANSCRIBE_MODEL: 'local-model',
+        OPENAI_SUMMARY_MODEL: 'local-model',
         DASHSCOPE_API_KEY: 'local-sk',
         QWEN_ASR_ENDPOINT: 'https://local-qwen.example/generation',
         PORT: '3000',
@@ -54,12 +53,13 @@ describe('loadConfig', () => {
       'development',
     );
 
+    // 只有两域凭据与网关地址被 .env 覆盖; 模型名/端口/超时等仍以显式进程变量为准
     expect(env).toMatchObject({
       OPENAI_API_KEY: 'local-key',
       OPENAI_BASE_URL: 'https://local.example/v1',
       DASHSCOPE_API_KEY: 'local-sk',
       QWEN_ASR_ENDPOINT: 'https://local-qwen.example/generation',
-      OPENAI_TRANSCRIBE_MODEL: 'global-model',
+      OPENAI_SUMMARY_MODEL: 'global-model',
       PORT: '4000',
       WEATHER_TIMEOUT_MS: '1',
     });
@@ -96,7 +96,7 @@ describe('loadConfig', () => {
     const config = loadConfig(BASE_ENV);
     expect(config.openai.apiKey).toBe('hk-test');
     expect(config.port).toBe(3000);
-    expect(config.openai.transcribeTimeoutMs).toBe(600000);
+    expect(config.qwen.apiKey).toBe('sk-test');
     expect(config.weather.baseUrl).toBe('https://wttr.in');
     expect(config.weather.timeoutMs).toBe(15000);
     expect(config.limits.rateLimitUploadPerMinute).toBe(10);

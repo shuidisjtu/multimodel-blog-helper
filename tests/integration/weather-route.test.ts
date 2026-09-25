@@ -29,9 +29,7 @@ function config(): AppConfig {
     openai: {
       apiKey: 'test',
       baseUrl: 'https://mock.local/v1',
-      transcribeModel: 'whisper-1',
       summaryModel: 'gpt-4o',
-      transcribeTimeoutMs: 1000,
       summaryTimeoutMs: 1000,
       maxRetries: 0,
     },

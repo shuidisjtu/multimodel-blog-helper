@@ -1,7 +1,7 @@
 # Qwen-ASR 接入实施计划
 
 > 日期：2026-09-23（2026-09-25 按 A6-1 实测结果更新）  
-> 状态：**A6-1、A6-2 已完成**，进入实施（A6-3 起）  
+> 状态：**A6-1 ~ A6-6 已完成**，剩余 A6-7（真实服务联调与验收）  
 > 目标模型：`qwen-audio-3.1-asr-flash`（同步识别）  
 > 计划分支：`feature/qwen-asr-migration`  
 > 实测依据：[A6-1 可行性确认证据](../evidence/a6-1-qwen-asr-feasibility/2026-09-25-a6-1-qwen-asr-feasibility-shuidisjtu.md)
@@ -192,11 +192,11 @@ HTTP 上传（MAX_UPLOAD_BYTES 收敛到 15 MiB）
 现有 `Transcriber` 端口已隔离上游实现，主要接入位置：
 
 - `src/domain/ports.ts`：`Transcriber` 接口；**本次需扩展 `Transcript` 增加 `segments`**。同文件另有 `UsageMetric` / `MetricsRecorder`。
-- `src/infrastructure/openai/transcriber.ts`：现有 Whisper 适配器，**本次删除**（A6-5）。
+- `src/infrastructure/openai/` 下的 transcriber.ts：现有 Whisper 适配器，**已删除**（A6-5）。
 - `src/bootstrap/container.ts`：**真正的依赖组装处**——`buildContainer()` 在此 `new OpenAITranscriber(...)`（`container.ts:70`）。
 - `src/bootstrap/config.ts` 与 `.env.example`：凭证、模型、超时、上传上限等配置。
 - `src/application/process-job.ts`：依赖端口执行转录；需接入 `segments` 与指标字段。
-- `tests/unit/openai-transcriber.test.ts`（删除）、`tests/unit/process-job.test.ts`、`tests/e2e/core-flow.test.ts`。
+- openai-transcriber.test.ts（已删除）、`tests/unit/process-job.test.ts`、`tests/e2e/core-flow.test.ts`。
 
 **与已落地的指标采集（C5）对接**：2026-09-24 已合入 `main`（`9b5b3e5`）：
 
@@ -269,7 +269,7 @@ HTTP 上传（MAX_UPLOAD_BYTES 收敛到 15 MiB）
 
 **前置**：A6-3
 
-**说明**：把 `tests/unit/openai-transcriber.test.ts` 的骨架（正常调用 / 请求选项 / 429 重试 / 4xx 不重试 / 上游失败抛错）**重构搬运**为 Qwen 适配器测试。
+**说明**：把 openai-transcriber.test.ts 的骨架（正常调用 / 请求选项 / 429 重试 / 4xx 不重试 / 上游失败抛错）**重构搬运**为 Qwen 适配器测试。
 
 新增用例：base64 Data URL 构造与 `parameters.format` 一致性；顶层 `text` / `usage` 响应解析（含字段缺失兜底、**`output` 内无 `usage` 时不得静默取空**）；**segments 重组**（中英文标点、标点为空、极短片段阈值、说话人边界）；超限分支（大小与时长，含边界值）；指标字段（`characterCount` 正确、`durationSeconds` 不得伪造）；错误映射与日志脱敏；配置两域隔离与上限。
 
@@ -277,17 +277,21 @@ HTTP 上传（MAX_UPLOAD_BYTES 收敛到 15 MiB）
 
 **预估** 0.75–1.25 人日。**阻塞 A6-5**。
 
-### A6-5 依赖注入与旧适配器下线
+### A6-5 依赖注入与旧适配器下线 ✅ 已完成（2026-09-25）
 
 **前置**：A6-2、A6-3、A6-4
 
-**说明**：在 `src/bootstrap/container.ts` 的组合根（`container.ts:70` 处）把 `OpenAITranscriber` 替换为 `QwenAsrTranscriber`；删除 `src/infrastructure/openai/transcriber.ts` 及其 import 与实例化；`transcribeModel` 依赖项**保留**（改传 Qwen 模型名，仍写入 Job `result.model` 与指标）。更新 mock system / e2e test factory。
+**说明**：在 `src/bootstrap/container.ts` 的组合根（`container.ts:70` 处）把 `OpenAITranscriber` 替换为 `QwenAsrTranscriber`；删除 `src/infrastructure/openai/` 下的 transcriber.ts 及其 import 与实例化；`transcribeModel` 依赖项**保留**（改传 Qwen 模型名，仍写入 Job `result.model` 与指标）。更新 mock system / e2e test factory。
 
 **验收标准**：`npm run verify` 全绿；全仓库不再引用 `OpenAITranscriber` 与 `OPENAI_TRANSCRIBE_*`；Job 状态机、HTTP API 与前端交互流程无破坏性变化。
 
+**已落地**：组合根改装配 `QwenAsrTranscriber`（`config.qwen` 六项；`transcribeModel` 依赖改传 `config.qwen.model`）；删除 `src/infrastructure/openai/` 下的 transcriber.ts 与 openai-transcriber.test.ts；`AppConfig.openai` 移除 `transcribeModel` / `transcribeTimeoutMs`，两处 `OPENAI_TRANSCRIBE_*` 从 `.env.example` 移除；5 个 `AppConfig` 测试夹具同步。`openai/options.ts` 与 `openai/retryable.ts` 因摘要适配器仍在使用而保留。
+
+**A6-4 的剩余范围在此收口**：旧适配器测试随模块删除同批移除，适配器侧的解析/重试/错误映射用例已在 A6-3 完成。
+
 **预估** 0.25–0.5 人日。**可与 A6-6 并行。**
 
-### A6-6 文档同步
+### A6-6 文档同步 ✅ 已完成（2026-09-25）
 
 **前置**：A6-5（架构文档需按最终实现的类名与配置名书写）
 
@@ -327,12 +331,12 @@ HTTP 上传（MAX_UPLOAD_BYTES 收敛到 15 MiB）
 | 配置（删除） | `src/bootstrap/config.ts` 移除 `OPENAI_TRANSCRIBE_MODEL` / `OPENAI_TRANSCRIBE_TIMEOUT_MS`（须与 `OpenAITranscriber` 同时下线，故随 A6-5） | A6-5 |
 | 领域模型 | **`src/domain/ports.ts`**：`Transcript` 增加 `segments`（句级时间戳） | A6-3 |
 | 上传校验 | `MAX_UPLOAD_BYTES` / `MAX_AUDIO_DURATION_SECONDS` 调整（§2.5） | A6-2 |
-| 适配器 | 新增 `src/infrastructure/qwen/` 下 `QwenAsrTranscriber`（含 segments 重组）；**删除 `src/infrastructure/openai/transcriber.ts`** | A6-3 / A6-5 |
+| 适配器 | 新增 `src/infrastructure/qwen/` 下 `QwenAsrTranscriber`（含 segments 重组）；**删除 `src/infrastructure/openai/` 下的 transcriber.ts** | A6-3 / A6-5 |
 | 依赖组装 | `src/bootstrap/container.ts`、`tests/unit/container.test.ts` | A6-5 |
 | 用例 | `src/application/process-job.ts`：接入 `segments` 与指标字段 | A6-3 |
 | 产物 | `transcript.txt` 保持纯文本；时间戳另存结构化产物（形态见 A6-3） | A6-3 |
 | 通用日志/重试 | 复用既有 `infrastructure/common/retry.ts` 与错误分类 | — |
-| 测试 | 删除 `tests/unit/openai-transcriber.test.ts` 并**重构搬运**；新增适配器与 segments 重组用例 | A6-4 |
+| 测试 | 删除 openai-transcriber.test.ts 并**重构搬运**；新增适配器与 segments 重组用例 | A6-4 |
 | 文档 | `docs/architecture/architecture.md`、`docs/project-structure.md`、`.env.example`、OpenAPI、必要时 ADR、实施证据 | A6-6 |
 | **不应变化** | HTTP 路由结构、前端交互流程、Job 状态机、摘要链路 | — |
 
@@ -369,10 +373,10 @@ git diff --check
 | A6-2 配置与依赖边界 | 0.5–1 | ✅ 已完成 |
 | A6-3 Qwen 转录适配器（含时间戳重组） | 1–1.5 | ✅ 已完成 |
 | A6-4 自动化测试 | 0.75–1.25 | 待办 |
-| A6-5 依赖注入与旧适配器下线 | 0.25–0.5 | 待办 |
-| A6-6 文档同步 | 0.5–0.75 | 待办 |
+| A6-5 依赖注入与旧适配器下线 | 0.25–0.5 | ✅ 已完成 |
+| A6-6 文档同步 | 0.5–0.75 | ✅ 已完成 |
 | A6-7 真实服务联调与验收 | 0.5 | 待办 |
-| **合计** | **约 4–6.5 人日** | 剩余约 **2–3.5 人日** |
+| **合计** | **约 4–6.5 人日** | 剩余约 **0.5 人日** |
 
 **关于备选方案**：方案 B 为方案 C 的 **+1.5–2 人日**（OSS 基建与异步轮询），方案 A 为 **+2–4 人日**（WebSocket 协议栈）。
 

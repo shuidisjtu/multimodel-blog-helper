@@ -45,13 +45,12 @@ applyDevelopmentCredentialOverrides(
 export interface AppConfig {
   nodeEnv: string;
   port: number;
+  /** 摘要域: 转录已迁至 qwen 域(A6), 此域不再持有任何转录相关配置。 */
   openai: {
     apiKey: string;
     baseUrl: string;
-    transcribeModel: string;
     summaryModel: string;
-    transcribeTimeoutMs: number;
-    /** 摘要上游超时(毫秒), 默认 60000(摘要文本量小, 不复用转录的 10 分钟)。 */
+    /** 摘要上游超时(毫秒), 默认 60000。 */
     summaryTimeoutMs: number;
     /** 可恢复错误的最大重试次数, 默认 2(共 3 次尝试); 0 = 不重试。 */
     maxRetries: number;
@@ -161,9 +160,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
     openai: {
       apiKey: requireEnv(env, 'OPENAI_API_KEY'),
       baseUrl: requireEnv(env, 'OPENAI_BASE_URL'),
-      transcribeModel: requireEnv(env, 'OPENAI_TRANSCRIBE_MODEL'),
       summaryModel: requireEnv(env, 'OPENAI_SUMMARY_MODEL'),
-      transcribeTimeoutMs: intEnv(env, 'OPENAI_TRANSCRIBE_TIMEOUT_MS', 600000, 1),
       summaryTimeoutMs: intEnv(env, 'OPENAI_SUMMARY_TIMEOUT_MS', 60000, 1),
       maxRetries: intEnv(env, 'OPENAI_MAX_RETRIES', 2, 0),
     },
