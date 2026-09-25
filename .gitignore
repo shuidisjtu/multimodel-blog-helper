@@ -16,6 +16,10 @@ dist/
 .release/
 *.tsbuildinfo
 
+# --- 本地测试音频(A6-1 期间放入的长音频, 单文件达数十 MB, 不入库) ---
+fixtures/*.mp3
+!fixtures/audio-sample.mp3
+
 # --- 本地开发专用(仅本地使用, 不进仓库/不上 GitHub) ---
 CLAUDE.md
 AGENTS.md
