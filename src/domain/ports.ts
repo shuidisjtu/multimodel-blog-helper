@@ -4,12 +4,33 @@
  */
 import type { BlogJob, JobInput, JobResult } from './job.js';
 
+/**
+ * 句级时间戳片段。
+ * 由适配器从上游**词级**数据重组得到——上游返回的分段是按静音切分的 VAD 片段,
+ * 不等于语言学句子(实测 171s 样本: VAD 10 段最长 57s, 按标点重组为 31 句), 不得直接采用。
+ * 依据见 docs/evidence/a6-1-qwen-asr-feasibility/。
+ */
+export interface TranscriptSegment {
+  /** 片段起始(毫秒, 相对音频开头)。 */
+  beginMs: number;
+  /** 片段结束(毫秒)。 */
+  endMs: number;
+  text: string;
+  /** 说话人标识; 上游未做说话人分离时为 undefined。 */
+  speakerId?: number;
+}
+
 export interface Transcript {
   text: string;
   /** 转录文本字数(码点数), 由适配器填充; 缺省时为 undefined。 */
   characterCount?: number;
   /** 音频时长(秒), 上游返回时填充; whisper json 格式不返回, 为 undefined。 */
   durationSeconds?: number;
+  /**
+   * 句级时间戳, 按时间单调递增且互不重叠。
+   * 上游未返回词级数据时为 undefined——不得用空数组冒充"已支持时间戳"。
+   */
+  segments?: TranscriptSegment[];
 }
 
 export interface Summary {
@@ -102,7 +123,8 @@ export interface SaveInputParams {
 
 export interface SaveOutputParams {
   jobId: string;
-  kind: 'transcript' | 'summary';
+  /** transcript=纯文本; transcript-timed=带句级时间戳(见 Transcript.segments); summary=摘要。 */
+  kind: 'transcript' | 'transcript-timed' | 'summary';
   content: string;
 }
 

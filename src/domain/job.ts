@@ -22,6 +22,11 @@ export interface JobInput {
 
 export interface JobResult {
   transcriptPath: string;
+  /**
+   * 带句级时间戳的转录产物路径; 上游未返回词级数据(如 B7 fake 转录器)时缺省。
+   * 内部字段, 不出现在 HTTP 响应(jobView 白名单序列化)。
+   */
+  timedTranscriptPath?: string;
   summary: string;
   model: string;
 }

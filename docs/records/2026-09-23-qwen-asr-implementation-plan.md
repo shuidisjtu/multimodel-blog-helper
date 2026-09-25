@@ -235,7 +235,7 @@ HTTP 上传（MAX_UPLOAD_BYTES 收敛到 15 MiB）
 
 **预估** 0.5–1 人日。**可与 A6-3 并行。**
 
-### A6-3 Qwen 转录适配器（含时间戳重组）
+### A6-3 Qwen 转录适配器（含时间戳重组）✅ 已完成（2026-09-25）
 
 **前置**：A6-1 ✅、A6-2（配置项定义）
 
@@ -257,7 +257,13 @@ HTTP 上传（MAX_UPLOAD_BYTES 收敛到 15 MiB）
 
 **验收标准**：给定本地音频返回正确文本与句级时间戳；segments 时间单调递增、覆盖完整音频、无重叠；超限输入抛明确业务错误；日志不含 API Key 与音频内容。
 
-**预估** 1–1.5 人日。**阻塞 A6-4**。
+**已落地**：`src/infrastructure/qwen/qwen-asr-transcriber.ts`（适配器）、`src/infrastructure/qwen/segment-builder.ts`（重组器）、`src/application/transcript-text.ts`（渲染）、`Transcript.segments` 领域模型、`transcript-timed` 产物与 `GET /api/v1/audio-jobs/{id}/transcript/timed` 端点；决策记入 [ADR-0007](../adr/0007-qwen-asr-and-timestamps.md)，验收证据见 [A6-3 证据](../evidence/a6-3-qwen-transcriber/2026-09-25-a6-3-qwen-transcriber-shuidisjtu.md)。
+
+**产物形态（§9 第 6 项）已定**：`transcript.txt` 与既有下载端点**保持不变**（其「下载即得转录全文」的不变式已被 B5 契约测试与 B7 E2E 固定），时间戳另存 `transcript.timed.txt` 并经**新增端点**交付。
+
+**尚未生效**：适配器未接入组合根，容器仍装配 `OpenAITranscriber`——切换与旧适配器下线属 A6-5。在那之前真实任务的转录仍不可用。
+
+**预估** 1–1.5 人日（实际含测试）。**阻塞 A6-4**。
 
 ### A6-4 自动化测试（复用 + 新增）
 
@@ -361,12 +367,12 @@ git diff --check
 | --- | ---: | --- |
 | A6-1 可行性确认 | 0.5–1 | ✅ 已完成 |
 | A6-2 配置与依赖边界 | 0.5–1 | ✅ 已完成 |
-| A6-3 Qwen 转录适配器（含时间戳重组） | 1–1.5 | 待办 |
+| A6-3 Qwen 转录适配器（含时间戳重组） | 1–1.5 | ✅ 已完成 |
 | A6-4 自动化测试 | 0.75–1.25 | 待办 |
 | A6-5 依赖注入与旧适配器下线 | 0.25–0.5 | 待办 |
 | A6-6 文档同步 | 0.5–0.75 | 待办 |
 | A6-7 真实服务联调与验收 | 0.5 | 待办 |
-| **合计** | **约 4–6.5 人日** | 剩余约 **3–5 人日** |
+| **合计** | **约 4–6.5 人日** | 剩余约 **2–3.5 人日** |
 
 **关于备选方案**：方案 B 为方案 C 的 **+1.5–2 人日**（OSS 基建与异步轮询），方案 A 为 **+2–4 人日**（WebSocket 协议栈）。
 
@@ -394,7 +400,7 @@ git diff --check
 3. **【已定 · 2026-09-25】** 时间戳**本次交付**，由词级数据按标点重组（§2.3）。
 4. **【已定 · 2026-09-25】** 上限以**实测为准**：时长 300s、大小换算为原始 15 MiB，并在证据中保留实测输出（§2.5）。
 5. **【已定 · 2026-09-25】** 默认**开启** `speaker_diarization_enabled`（`QWEN_ASR_SPEAKER_DIARIZATION=true`）——开启才有 `sentences[]` 与说话人边界可用（§2.3 末段、A6-2）。
-6. **【A6-3 决定】** 时间戳产物的落盘形态（保持 `transcript.txt` 纯文本 + 另存结构化文件，或扩展下载接口）。
+6. **【已定 · 2026-09-25】** 时间戳产物形态：`transcript.txt` 与既有端点**不变**，另存 `transcript.timed.txt` 并经**新增端点** `GET /api/v1/audio-jobs/{id}/transcript/timed` 交付（A6-3、[ADR-0007](../adr/0007-qwen-asr-and-timestamps.md)）。
 7. **【默认】** 不引入 FFmpeg 或其他外部进程；需要时另行评估。
 8. **【需准备】** 阿里云百炼账号的地域、API Key 权限与测试额度——**已完成**（华北2北京，凭证已配置于本地 `.env`）。
 

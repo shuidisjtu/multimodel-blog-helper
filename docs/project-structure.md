@@ -28,6 +28,7 @@ src/
     cleanup-expired.ts # 过期任务清理编排
     get-transcript.ts # 转录文本下载用例(FileStore 经端口访问; 404/409/410/500 语义与 QueryJob 一致)
     ask-weather.ts # 天气查询用例(WeatherProvider 编排与 requestId 日志)
+    transcript-text.ts # 带句级时间戳转录的文本渲染(m→mm:ss.xx 行式)
   infrastructure/
     openai/
       transcriber.ts # whisper-1 转录适配器
@@ -47,6 +48,9 @@ src/
       wttr-weather-provider.ts # wttr.in j1 适配器(超时/错误映射/Weather DTO)
     metrics/
       file-metrics-recorder.ts # 用量指标 JSONL 落盘(转录字数/时长、摘要 token、端到端延迟)
+    qwen/
+      qwen-asr-transcriber.ts # 百炼同步识别适配器(base64+format+说话人分离; 顶层 text/usage; 超限与错误码映射)
+      segment-builder.ts # 词级→句级时间戳重组(标点切分/说话人断开/碎片合并/空标点不臆造)
   shared/
     logger.ts # 结构化 JSON 日志
     ids.ts # jobId/requestId 生成
@@ -100,6 +104,9 @@ tests/
     rate-limit.test.ts # 限流纯函数单测(XFF 首段解析/动态 Retry-After 边界)
     cleanup-scheduler.test.ts # 调度器单测(fake timers: 周期触发/错误继续/stop)
     file-metrics-recorder.test.ts # 用量指标落盘单测(JSONL 追加/可选字段省略/多次顺序)
+    qwen-asr-transcriber.test.ts # 适配器单测(请求构造/响应解析/错误映射/重试/日志脱敏)
+    segment-builder.test.ts # 重组算法单测(中英标点/空标点/极短片段/说话人边界/时间单调)
+    transcript-text.test.ts # 时间戳文本渲染单测(格式/分钟位/空片段)
   integration/ # 跨模块集成测试
     cleanup-expired.test.ts
     file-job-repository.test.ts

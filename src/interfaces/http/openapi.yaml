@@ -214,6 +214,42 @@ paths:
         '500':
           $ref: '#/components/responses/InternalError'
 
+  /api/v1/audio-jobs/{id}/transcript/timed:
+    parameters:
+      - $ref: '#/components/parameters/JobId'
+    get:
+      tags: [Audio jobs]
+      operationId: downloadTimestampedTranscript
+      summary: 下载带句级时间戳的转录
+      description: |
+        每行一个句子，形如 `[00:00.00 → 00:04.16] 句子文本`，时间戳为相对音频开头的
+        分:秒.厘秒。同样是纯 text/plain 响应，X-Request-Id 通过响应头返回。
+
+        句子边界由上游词级时间戳按标点重组得到，不是上游返回的静音分段（后者的粒度是
+        段落而非句子）。少数情况下无法给出时间戳（上游未返回词级数据），此时与产物尚不
+        可读一样返回 JOB_NOT_READY。
+      responses:
+        '200':
+          description: 带时间戳的转录文本
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/X-Request-Id'
+          content:
+            text/plain:
+              schema:
+                type: string
+              example: |
+                [00:00.00 → 00:04.16] 这是第一句转录文本。
+                [00:04.48 → 00:09.68] 这是第二句转录文本。
+        '409':
+          $ref: '#/components/responses/JobNotReady'
+        '404':
+          $ref: '#/components/responses/JobNotFound'
+        '410':
+          $ref: '#/components/responses/JobExpired'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
   /api/v1/assistant/weather:
     post:
       tags: [Assistant]
