@@ -63,6 +63,7 @@ npm start       # 等价于 node dist/server/bootstrap/server.js
 - npm 11 的 allow-scripts 会拦 esbuild postinstall——**不影响 vitest/tsx 运行**,可忽略
 - Windows 终端中文乱码是 GBK 显示问题(数据正确):先执行 `chcp 65001`；Node 程序需 `cd` 进项目目录再运行(dotenv 从 cwd 找 .env)
 - Windows 个别 Node 24 环境可能让 `tsx` 启动时的 `os.userInfo()` 报 `uv_os_get_passwd ENOMEM`；根项目脚本已内置兼容预加载，不需要手工设置临时目录或用户名。
+- **Windows 本地跑覆盖率偶发 Vitest `Worker exited unexpectedly`**：测试实际全绿，只是 worker 以 `0xC0000409`（Windows 原生层快速失败）退出，令命令返回非零。仅 Windows 本地出现（CI 为 Linux，从未复现）；升级 Vitest 5 后频率降低但未消除。**遇到重跑即可**，非代码缺陷。
 
 ## 快速开始（教材示例）
 
