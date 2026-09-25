@@ -70,9 +70,9 @@ Qwen-ASR 不是当前 `client.audio.transcriptions.create({ file, model })` 的�
 实测确认的关键事实（详见 A6-1 证据）：
 
 - 通用域名 `dashscope.aliyuncs.com` **可用**（开通阶段用它快速验证即可；该域名有时效性，正式环境改用业务空间专属域名，见 §2.6）
-- 响应**无 `choices` 字段**，文本在**顶层 `text`**；`json.output` 是同名字段的冗余副本，且**不含 `usage`**、不存在 `output.output`（结构以 [A6-1 §8.2](../evidence/a6-1-qwen-asr-feasibility/2026-09-25-a6-1-qwen-asr-feasibility-shuidisjtu.md) 为准）
+- 响应**无 `choices` 字段**；文本位置**随域名而变**——专属域名在**顶层 `text`**，通用域名在 **`output.text`**（**两站结构互为镜像**，见 [A6-1 §8.3](../evidence/a6-1-qwen-asr-feasibility/2026-09-25-a6-1-qwen-asr-feasibility-shuidisjtu.md)）；解析须**顶层优先、`output` 回退**
 - 端点：`POST /api/v1/services/aigc/multimodal-generation/generation`；`parameters.format` **必填**
-- **顶层** `usage` 返回 `{duration, input_tokens, output_tokens, total_tokens}`，直接供 C5 指标（注意：只在顶层，`output` 内没有）
+- **顶层** `usage` 返回 `{duration, input_tokens, output_tokens, total_tokens}`，直接供 C5 指标（**两站均在顶层**，解析只读顶层即可）
 
 ### 2.3 时间戳：本次交付，但必须重组
 
@@ -243,7 +243,7 @@ HTTP 上传（MAX_UPLOAD_BYTES 收敛到 15 MiB）
 
 **请求**：读取音频 → 按 MIME 构造 base64 Data URL（`data:<mediatype>;base64,<data>`）→ 作为 `input.messages[].content[].input_audio.data` 提交；`parameters.format` **必填**（按实际上传格式），视需要带 `speaker_diarization_enabled`。
 
-**响应解析**：文本在**顶层 `text`**、用量在**顶层 `usage`**（**无 `choices` 字段**，照搬 OpenAI 风格解析会取不到文本；`json.output` 是不含 `usage` 的冗余副本，见 A6-1 §8.2）；须做字段缺失的安全兜底。
+**响应解析**：文本按「**顶层 `text` 优先、`output.text` 回退**」读取（**文本层级随域名而变**，见 [A6-1 §8.3](../evidence/a6-1-qwen-asr-feasibility/2026-09-25-a6-1-qwen-asr-feasibility-shuidisjtu.md)）；用量读**顶层 `usage`**（两站均在顶层）。**无 `choices` 字段**，照搬 OpenAI 风格解析会取不到文本；须做字段缺失的安全兜底。
 
 **⚠️ 两个必须避开的静默失败**：
 1. 读 `output.usage` 会得到 `undefined` 而不报错 → C5 的 `durationSeconds` / token 全丢。
@@ -391,7 +391,7 @@ git diff --check
 | **时间戳重组质量** | 标点稀疏或标点缺失时，segments 可能过粗或过碎，影响答辩演示效果 | A6-3 须实现最小长度阈值与说话人边界断开；A6-4 覆盖中英文标点、空标点、极短片段三类用例；A6-7 用真实样本验收粒度 |
 | **时长上限导致大文件失败** | 用户上传超 300s 音频时转录失败；处理不当会出现上游报错穿透或静默失败 | §2.5 已定 `MAX_AUDIO_DURATION_SECONDS=300`，在**上传阶段**即拒；A6-2 补对应业务错误与测试 |
 | **整文件进内存** | base64 需整文件读入内存，与现有流式读取不同 | 上传上限收敛到 15 MiB 即是保护；适配器内注释说明取舍；联调时观察内存 |
-| **响应结构非标准** | 该端点无 `choices` 字段；`usage` 只在顶层、`output` 内没有；开启分离后 `sentence` 与 `sentences[]` 并存 | 照搬 OpenAI 风格会取不到文本；读 `output.usage` 或单数 `sentence` 会**静默降级**（A6-1 §8.2）。A6-3 按顶层字段解析、分段只认 `sentences[]`，A6-4 补对应测试 |
+| **响应结构随域名而变** | 该端点无 `choices` 字段；**文本层级两站不同**（专属域名在顶层、通用域名在 `output` 内）；开启分离后 `sentence` 与 `sentences[]` 并存 | 照搬 OpenAI 风格、或只读某一层级，都会取不到文本——**通用域名下曾整体失败**（A6-1 §8.3）。A6-3 按「顶层优先、`output` 回退」解析、分段只认 `sentences[]`，A6-4 补对应测试 |
 | **编码格式与 `format` 不匹配** | 服务端拒绝或识别错误 | 按上传校验后的存储扩展名映射 `format` 与 MIME，不依赖用户文件名；真实样本验证 |
 | **错误格式和重试边界不同于原上游** | Job 失败被误判或重复扣费 | 适配器内映射安全错误类别；测试 4xx 与网络/429/5xx；避免双重重试 |
 | **凭证域混淆** | 启动需同时设置两家密钥 | 配置分域——转录只校验 `DASHSCOPE_API_KEY`，摘要只校验 `OPENAI_*`；日志禁止输出密钥 |

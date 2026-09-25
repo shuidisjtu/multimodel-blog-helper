@@ -17,7 +17,7 @@
 
 ## 2. 响应结构（实测）
 
-**⚠️ 本节结论已于 2026-09-25 修正，以 §8.2 为准。** 原文把顶层键误记为 `output` 的键，并虚构了 `output.output` 嵌套。
+**⚠️ 本节结论已于 2026-09-25 修正，以 §8.2 与 §8.3 为准。** 原文描述的是**通用域名**的层级；§8.2 用专属域名复核后判定其"误记"，而 §8.3 进一步确认**两站结构互为镜像**——原文本身并无错误，§2 与 §8.2 只是各描述了一站。
 
 **顶层键**：`text` / `sentence` / `sentences` / `request_id` / `usage` / `output`。
 
@@ -218,3 +218,36 @@ usage 位置:        顶层 = true,  output 内 = false
 2. 取分段**必须读 `sentences[]`**。读单数 `sentence` 会退化成「整段一句」，正是 §3.1 要避免的粒度问题。字段缺失时的兜底应显式判定，不得回落到 `sentence`。
 
 **复现**：`node temp/try-asr.mjs fixtures/audio-sample.mp3 --diarize --save <路径> --endpoint <专属域名>/api/v1/services/aigc/multimodal-generation/generation`（该试玩脚本已同步修正 usage 的读取位置）。
+
+### 8.3 二次更正：两站结构互为镜像（收窄 §8.2 的适用范围）
+
+**§8.2 的结论只对业务空间专属域名成立，当时被误当成了唯一结构。** 起因是 2026-09-25 的 WebUI 转录故障：本地 `.env` 未设 `QWEN_ASR_ENDPOINT`，走通用域名后每个任务都以 `INTERNAL_ERROR` 失败。
+
+| 对比项 | 专属域名 `{WorkspaceId}.{region}.maas.aliyuncs.com` | 通用域名 `dashscope.aliyuncs.com` |
+| --- | --- | --- |
+| 顶层键 | `sentence, text, request_id, sentences, output, usage` | **`output, usage, request_id`** |
+| `text` 位置 | 顶层 | **`output.text`** |
+| `sentence` / `sentences` 位置 | 顶层 | **`output` 内** |
+| `usage` 位置 | 顶层 | 顶层 |
+| 存在 `output.output` | 否 | **是** |
+| `output` 内的 `usage` | 无 | 有 |
+
+**同一份数据，一站摊在顶层，另一站包在 `output` 里。**
+
+**实测**（同一份 `fixtures/video2.mp3`，170.8 s，两次调用耗时 6.4 s / 6.6 s）：
+
+```text
+专属域名  顶层键: sentence, text, request_id, sentences, output, usage
+          顶层 text = 2673 字,  output.text = 2673 字,  output 内含 usage: false
+通用域名  顶层键: output, usage, request_id
+          顶层 text = 不存在,  output.text = 2673 字,  output 内含 usage: true
+          存在 output.output: true
+```
+
+**对 §2 原文的重新评价**：§2 的原始观察（顶层键即 `output` 的键、存在 `output.output`）**描述的是通用域名，本身没有错**；§8.2 用专属域名复核后将其判定为"误记"，是把**域名差异**读成了**记录错误**。两节各自正确，只是各说了一站——**这是本次故障的文档层根因**。
+
+**§418 的连带更正**：该处称"官方文档对 `output.*` 层级的描述与实际响应不一致"——官方文档描述的正是**通用域名**结构，并非文档有误。
+
+**对实现的直接影响**：**解析必须兼容两站层级**（A6-3 已按「顶层优先、`output` 回退」实现）。只读顶层会在通用域名下抛 `INTERNAL_ERROR`（`Transcription returned no text`），只读 `output` 则会在专属域名下失败。`usage` 两站均在顶层，无需回退；`output.usage` 仅在通用域名下存在，不作为解析来源。
+
+**复现**：`node temp/diag-upstream.mjs fixtures/video2.mp3 [端点]`（同一份音频对比两站响应层级）。

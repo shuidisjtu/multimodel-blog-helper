@@ -18,6 +18,7 @@
 - **时间戳通过新增的独立端点交付**：`GET /api/v1/audio-jobs/{id}/transcript/timed`（`text/plain`，每行 `[mm:ss.xx → mm:ss.xx] 句子`）。**既有 `transcript.txt` 与 `GET .../transcript` 的内容与语义完全不变**——它们的契约已被 B5 契约测试与 B7 E2E 断言为「转录全文」，改为带时间戳会让「有无时间戳」两类任务产出不同格式的产物。
 - **转录域与摘要域配置隔离**：转录只校验 `DASHSCOPE_API_KEY`，摘要只校验 `OPENAI_*`，缺失时各报自己的变量名。
 - **接入域名**：`QWEN_ASR_ENDPOINT` 默认通用域名（开箱可用），正式/演示环境改用业务空间专属域名——DashScope 域名自 2026-09-30 起停止新特性，且其请求超时上限为 600 秒（专属域名 3600 秒）。
+- **响应解析兼容两站的层级差异**：同一同步识别接口，**专属域名把 `text`/`sentence`/`sentences` 放在顶层，通用域名把它们放在 `output` 内**——两站结构互为镜像（均实测）。解析统一走「顶层优先、`output` 回退」，使切换域名只改配置、不改代码；`usage` 两站均在顶层。**只读单一层级会在另一站整体失败**（2026-09-25 通用域名下曾以 `INTERNAL_ERROR` 全量失败），故两个域名都得测。依据见 [A6-1 §8.3](../evidence/a6-1-qwen-asr-feasibility/2026-09-25-a6-1-qwen-asr-feasibility-shuidisjtu.md)。
 
 ## 备选方案
 

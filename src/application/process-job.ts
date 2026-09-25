@@ -200,8 +200,14 @@ export class ProcessJob {
       });
       return;
     }
-    // 迁移到 failed 后记录(含 errorCode); 未知错误附带原始 error 字段
-    const fields: LogFields = { event: 'job.failed', jobId, errorCode: failure.code };
+    // 迁移到 failed 后记录; reason 取已中性化的 safeMessage——只记 errorCode 时
+    // 根因不可见(无法区分超限/上游异常/解析失败), 排查只能靠猜。未知错误另附原始 error。
+    const fields: LogFields = {
+      event: 'job.failed',
+      jobId,
+      errorCode: failure.code,
+      reason: failure.safeMessage,
+    };
     if (!(err instanceof DomainError)) fields.error = err;
     this.deps.logger.error(fields);
   }

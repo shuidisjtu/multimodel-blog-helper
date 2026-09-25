@@ -83,6 +83,26 @@ function responseBody(overrides: Record<string, unknown> = {}): Record<string, u
   };
 }
 
+/**
+ * 通用域名(dashscope.aliyuncs.com)响应: 顶层只有 output/usage/request_id,
+ * text/sentence/sentences 全在 output 内——与专属域名互为镜像(两站均实测)。
+ */
+function dashscopeResponseBody(overrides: Record<string, unknown> = {}): Record<string, unknown> {
+  const inner = responseBody();
+  return {
+    request_id: 'req-1',
+    usage: inner.usage,
+    output: {
+      request_id: 'req-1',
+      text: inner.text,
+      sentence: inner.sentence,
+      sentences: inner.sentences,
+      usage: inner.usage,
+    },
+    ...overrides,
+  };
+}
+
 function stubFetch(handler: (call: number) => Response | Promise<Response>) {
   let call = 0;
   const mock = vi.fn(async () => handler(++call));
@@ -145,6 +165,28 @@ describe('QwenAsrTranscriber', () => {
     });
 
     // sentence 是 0→2500 的整段一句; 取错会让分段退化成"整段一句"
+    expect(result.segments?.map((s) => [s.beginMs, s.endMs, s.text])).toEqual([
+      [0, 1000, '第一句。'],
+      [1000, 2500, '第二句。'],
+    ]);
+  });
+
+  it('通用域名: 顶层无 text/sentences 时, 文本与分段从 output 内读取', async () => {
+    const body = dashscopeResponseBody();
+    // 前置断言: 确认本 fixture 确为通用域名结构, 顶层没有 text/sentences
+    expect(body.text).toBeUndefined();
+    expect(body.sentences).toBeUndefined();
+    stubFetch(() => jsonResponse(body));
+    const { transcriber } = makeTranscriber();
+
+    const result = await transcriber.transcribe({
+      jobId: 'job-1',
+      path: audioPath,
+      mimeType: 'audio/mpeg',
+    });
+
+    expect(result.text).toBe('第一句。第二句。');
+    expect(result.durationSeconds).toBe(15);
     expect(result.segments?.map((s) => [s.beginMs, s.endMs, s.text])).toEqual([
       [0, 1000, '第一句。'],
       [1000, 2500, '第二句。'],

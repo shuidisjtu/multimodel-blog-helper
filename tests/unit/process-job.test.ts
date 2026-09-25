@@ -304,6 +304,10 @@ describe('ProcessJob', () => {
     expect(
       logger.calls.some((c) => c.level === 'error' && c.errorCode === 'WEATHER_UNAVAILABLE'),
     ).toBe(true);
+    // 根因必须进入日志: 只记 errorCode 时无法区分超限/上游异常/解析失败(2026-09-25 排查教训)
+    expect(
+      logger.calls.some((c) => c.event === 'job.failed' && c.reason === 'Upstream unavailable'),
+    ).toBe(true);
   });
 
   it('摘要失败(非 DomainError): 转 failed + INTERNAL_ERROR + 通用文案, logger.error 记录原始错误', async () => {
