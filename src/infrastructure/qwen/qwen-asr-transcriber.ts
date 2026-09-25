@@ -63,7 +63,7 @@ export class QwenAsrTranscriber implements Transcriber {
       context: { jobId: params.jobId },
     });
 
-    const text = asNonEmptyString(value.text);
+    const text = asNonEmptyString(pickNonEmpty(value, 'text'));
     if (text === null) {
       // 200 但无文本: 视为上游异常而非"空转录成功"(空转录会静默产出空摘要, 属假装可用)
       throw new DomainError('INTERNAL_ERROR', 'Transcription returned no text');
@@ -198,9 +198,11 @@ export function buildDataUrl(mimeType: string, bytes: Buffer): string {
  * sentences 3 段)。两者都空时返回空数组, 由 buildSegments 决定给不出时间戳。
  */
 function collectWords(payload: QwenAsrResponse): AsrWord[] {
-  const fromSentences = flattenWords(Array.isArray(payload.sentences) ? payload.sentences : []);
+  const sentences = pickNonEmpty(payload, 'sentences');
+  const fromSentences = flattenWords(Array.isArray(sentences) ? sentences : []);
   if (fromSentences.length > 0) return fromSentences;
-  return payload.sentence !== undefined ? flattenWords([payload.sentence]) : [];
+  const sentence = pickNonEmpty(payload, 'sentence');
+  return sentence !== undefined ? flattenWords([sentence]) : [];
 }
 
 function flattenWords(containers: readonly unknown[]): AsrWord[] {
@@ -226,6 +228,26 @@ interface QwenAsrResponse {
   sentence?: unknown;
   sentences?: unknown;
   usage?: { duration?: unknown };
+  /** 通用域名把 text/sentence/sentences 放在此层; 专属域名的等价内容在顶层。 */
+  output?: unknown;
+}
+
+/**
+ * 读取上游字段, 兼容两站层级差异(均实测):
+ * 专属域名 {WorkspaceId}.{region}.maas.aliyuncs.com 把结果放在顶层;
+ * 通用域名 dashscope.aliyuncs.com 把 text/sentence/sentences 放在 output 内。
+ * 取第一个非空候选, 避免顶层空值遮蔽 output 内的有效值。
+ * 注: usage 两站均在顶层, 无需回退。
+ */
+function pickNonEmpty(payload: QwenAsrResponse, key: string): unknown {
+  const nested = asRecord(payload.output);
+  for (const candidate of [asRecord(payload)?.[key], nested?.[key]]) {
+    if (candidate === undefined || candidate === null) continue;
+    if (typeof candidate === 'string' && candidate === '') continue;
+    if (Array.isArray(candidate) && candidate.length === 0) continue;
+    return candidate;
+  }
+  return undefined;
 }
 
 function safeJsonParse(raw: string): unknown {
